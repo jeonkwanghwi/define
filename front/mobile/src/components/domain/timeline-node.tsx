@@ -1,0 +1,190 @@
+/**
+ * TimelineNode — 단어 상세의 타임라인 한 항목.
+ *
+ * 디자인:
+ *   왼쪽   ─ 원(노드) + 아래로 이어지는 세로선
+ *   오른쪽 ─ 상대 라벨(point 색) + 절대 날짜 + 정의 본문 카드
+ *
+ * 모드:
+ *   - 일반     — 카드에 정의 텍스트. 길게 누르면 onLongPress 트리거.
+ *   - editing  — 카드가 TextField로 바뀌고 저장/취소 버튼 등장. autoFocus.
+ *
+ * isNow=true(최신) → 노드 강조 + 카드 섀도우.
+ * isLast=true     → 세로선 미표시.
+ */
+import { useEffect, useRef, useState } from 'react';
+import { Keyboard, Pressable, StyleSheet, type TextInput, View } from 'react-native';
+
+import { Button, Card, TextField } from '@/components/primitives';
+import { ThemedText } from '@/components/themed-text';
+import { useTheme } from '@/theme';
+import type { WordEntry } from '@/types/word';
+
+export type TimelineNodeProps = {
+  entry: WordEntry;
+  isNow?: boolean;
+  isLast?: boolean;
+  /** 편집 모드 켜진 entry 여부 — 부모가 editingId 상태로 제어 */
+  editing?: boolean;
+  /** 길게 누름 — 부모가 ActionSheet 띄움 */
+  onLongPress?: () => void;
+  /** 편집 저장 — 부모가 store.updateEntry */
+  onSaveEdit?: (newText: string) => void;
+  /** 편집 취소 */
+  onCancelEdit?: () => void;
+};
+
+export function TimelineNode({
+  entry,
+  isNow,
+  isLast,
+  editing,
+  onLongPress,
+  onSaveEdit,
+  onCancelEdit,
+}: TimelineNodeProps) {
+  const theme = useTheme();
+  const dotBorderColor = isNow ? theme.colors.point.p600 : theme.colors.point.p300;
+
+  // ─── 편집 상태 ───
+  const [draft, setDraft] = useState(entry.text);
+  const inputRef = useRef<TextInput>(null);
+
+  // 편집 모드 진입 시 텍스트 동기화 + 자동 포커스 (자연스러운 등장)
+  useEffect(() => {
+    if (editing) {
+      setDraft(entry.text);
+      const t = setTimeout(() => inputRef.current?.focus(), 120);
+      return () => clearTimeout(t);
+    }
+  }, [editing, entry.text]);
+
+  function handleSave() {
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    Keyboard.dismiss();
+    onSaveEdit?.(trimmed);
+  }
+
+  function handleCancel() {
+    Keyboard.dismiss();
+    setDraft(entry.text);
+    onCancelEdit?.();
+  }
+
+  return (
+    <View style={styles.row}>
+      {/* ── 왼쪽: 노드 + 세로선 ── */}
+      <View style={styles.left}>
+        <View
+          style={[
+            styles.dot,
+            {
+              backgroundColor: theme.colors.surface.base,
+              borderColor: dotBorderColor,
+            },
+            isNow && {
+              shadowColor: theme.colors.point.p600,
+              shadowOpacity: 0.2,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 0 },
+              elevation: 2,
+            },
+          ]}
+        />
+        {!isLast ? (
+          <View
+            style={[styles.line, { backgroundColor: theme.colors.line.strong }]}
+          />
+        ) : null}
+      </View>
+
+      {/* ── 오른쪽: 메타 + 본문 ── */}
+      <View style={styles.content}>
+        <View style={styles.meta}>
+          <ThemedText
+            variant="bodyMd"
+            style={{ color: theme.colors.point.p600 }}
+          >
+            {entry.relativeLabel}
+          </ThemedText>
+          <ThemedText variant="caption" tone="placeholder">
+            {entry.date}
+          </ThemedText>
+        </View>
+
+        {editing ? (
+          <View style={{ marginTop: theme.spacing.s2 }}>
+            <Card padded={false} radius="md" elevation="sm">
+              <TextField
+                ref={inputRef}
+                multiline
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="정의를 수정해보세요"
+                style={{
+                  borderWidth: 0,
+                  backgroundColor: 'transparent',
+                  minHeight: 120,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  fontSize: 16,
+                  lineHeight: 26,
+                }}
+              />
+            </Card>
+            <View style={[styles.editActions, { marginTop: theme.spacing.s3 }]}>
+              <Button
+                label="취소"
+                variant="ghost"
+                size="sm"
+                onPress={handleCancel}
+              />
+              <Button
+                label="저장"
+                size="sm"
+                onPress={handleSave}
+                disabled={!draft.trim() || draft.trim() === entry.text}
+              />
+            </View>
+          </View>
+        ) : (
+          // 길게 눌러서 액션 시트 띄움. 일반 탭은 동작 없음(읽기 모드).
+          <Pressable
+            onLongPress={onLongPress}
+            delayLongPress={350}
+            style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Card
+              style={{ marginTop: theme.spacing.s2 }}
+              radius="md"
+              elevation={isNow ? 'sm' : 'none'}
+            >
+              <ThemedText
+                variant="body"
+                tone="strong"
+                style={{ lineHeight: 26 }}
+              >
+                {entry.text}
+              </ThemedText>
+            </Card>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row' },
+  left: { alignItems: 'center', marginRight: 14, paddingTop: 4 },
+  dot: { width: 13, height: 13, borderRadius: 6.5, borderWidth: 2.5 },
+  line: { width: 2, flex: 1, marginTop: 4, marginBottom: 4 },
+  content: { flex: 1, paddingBottom: 24 },
+  meta: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+});

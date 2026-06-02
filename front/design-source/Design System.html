@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>define — Design System</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 28px 120px; }
+
+  /* ---- Header ---- */
+  header.hero {
+    background: var(--grad-hero);
+    border-bottom: 1px solid var(--line);
+    padding: 84px 28px 68px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-inner { max-width: 980px; margin: 0 auto; position: relative; z-index: 1; }
+  .brandmark {
+    display: inline-flex; align-items: baseline; gap: 2px;
+    font: 800 26px/1 var(--font-sans); letter-spacing: -0.02em; color: var(--ink-900);
+    margin-bottom: 28px;
+  }
+  .brandmark .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--point-600); display: inline-block; margin-left: 3px; transform: translateY(-1px); }
+  .hero h1 { font: var(--t-display); letter-spacing: -0.03em; margin: 0 0 18px; color: var(--ink-900); max-width: 16ch; }
+  .hero .slogan { font: 500 19px/1.5 var(--font-sans); color: var(--point-600); margin: 0 0 6px; }
+  .hero .sub { font: var(--t-body); color: var(--ink-600); max-width: 56ch; margin: 14px 0 0; }
+  .theme-toggle {
+    position: absolute; top: 28px; right: 28px; z-index: 2;
+    display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-pill); padding: 4px; box-shadow: var(--shadow-sm);
+  }
+  .theme-toggle button {
+    border: none; background: transparent; color: var(--ink-600); cursor: pointer;
+    font: var(--t-caption); padding: 7px 14px; border-radius: var(--r-pill); transition: all .25s ease;
+  }
+  .theme-toggle button.on { background: var(--ink-900); color: var(--paper-0); }
+
+  /* ---- Section scaffolding ---- */
+  section { padding-top: 72px; }
+  .sec-label { font: var(--t-caption); letter-spacing: 0.14em; text-transform: uppercase; color: var(--point-600); margin-bottom: 10px; }
+  .sec-title { font: var(--t-h1); letter-spacing: -0.02em; margin: 0 0 14px; }
+  .sec-desc { font: var(--t-body); color: var(--ink-600); max-width: 60ch; margin: 0 0 36px; }
+  .divider { height: 1px; background: var(--line); margin-top: 8px; }
+
+  /* ---- Reasoning cards ---- */
+  .principles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .principle {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 26px; box-shadow: var(--shadow-sm);
+  }
+  .principle h4 { font: var(--t-h3); margin: 0 0 8px; letter-spacing: -0.01em; }
+  .principle p { font: var(--t-sm); color: var(--ink-600); margin: 0; }
+  .principle .k { font: var(--t-caption); color: var(--point-600); letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 14px; }
+
+  /* ---- Color ---- */
+  .swatch-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .swatch-grid.ruby { grid-template-columns: repeat(4, 1fr); max-width: 520px; }
+  .swatch { border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+  .swatch .chip { height: 76px; }
+  .swatch .meta { padding: 10px 12px; }
+  .swatch .name { font: var(--t-caption); color: var(--ink-900); }
+  .swatch .hex { font: 400 11px/1.4 var(--font-sans); color: var(--ink-400); letter-spacing: 0.02em; }
+  .neutral-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+
+  .color-block-label { font: var(--t-h3); margin: 32px 0 16px; }
+
+  /* ---- Type specimen ---- */
+  .type-row { display: flex; align-items: baseline; gap: 24px; padding: 18px 0; border-bottom: 1px dashed var(--line); }
+  .type-row:last-child { border-bottom: none; }
+  .type-meta { flex: 0 0 130px; }
+  .type-meta .tn { font: var(--t-caption); color: var(--ink-900); }
+  .type-meta .ts { font: 400 11px/1.4 var(--font-sans); color: var(--ink-400); }
+  .type-sample { color: var(--ink-900); flex: 1; }
+
+  .word-feature {
+    background: var(--grad-hero); border: 1px solid var(--line); border-radius: var(--r-xl);
+    padding: 48px 40px; margin-top: 28px; text-align: center; position: relative; overflow: hidden;
+  }
+  .word-feature .kw { font: var(--t-caption); letter-spacing: 0.14em; text-transform: uppercase; color: var(--point-600); }
+  .word-feature .big { font: 800 64px/1.05 var(--font-sans); letter-spacing: -0.04em; margin: 12px 0 0; color: var(--ink-900); }
+  .word-feature .big .suffix { color: var(--ink-400); font-weight: 600; }
+
+  /* ---- Components showcase ---- */
+  .comp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .comp-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 26px; box-shadow: var(--shadow-sm);
+  }
+  .comp-card .ct { font: var(--t-caption); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-400); margin-bottom: 18px; }
+  .stack { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+  /* buttons */
+  .btn { font: var(--t-body-md); border-radius: var(--r-pill); padding: 13px 26px; border: 1px solid transparent; cursor: pointer; transition: transform .15s ease, box-shadow .25s ease, background .25s ease; }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--point-600); color: #fff; box-shadow: var(--shadow-point); }
+  .btn-primary:hover { background: var(--point-700); }
+  .btn-ghost { background: transparent; color: var(--point-600); border-color: var(--line-strong); }
+  .btn-ghost:hover { background: var(--point-050); }
+  .btn-soft { background: var(--point-100); color: var(--point-700); }
+  .btn-sm { padding: 9px 16px; font: var(--t-caption); }
+
+  /* input */
+  .field {
+    width: 100%; background: var(--surface-2); border: 1.5px solid var(--line);
+    border-radius: var(--r-md); padding: 14px 16px; font: var(--t-body); color: var(--ink-900);
+    transition: border-color .2s ease, box-shadow .2s ease; resize: none;
+  }
+  .field::placeholder { color: var(--ink-400); }
+  .field:focus { outline: none; border-color: var(--point-500); box-shadow: 0 0 0 4px var(--point-050); }
+
+  /* chips / badges */
+  .chip-pill { display: inline-flex; align-items: center; gap: 6px; font: var(--t-caption); padding: 7px 14px; border-radius: var(--r-pill); background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-700); }
+  .badge-ruby { display: inline-flex; align-items: center; gap: 5px; font: var(--t-caption); padding: 6px 12px; border-radius: var(--r-pill); background: var(--ruby-soft); color: var(--ruby); border: 1px solid color-mix(in srgb, var(--ruby) 22%, transparent); }
+  .badge-change { display: inline-flex; align-items: center; gap: 6px; font: var(--t-caption); padding: 7px 13px; border-radius: var(--r-pill); background: var(--point-050); color: var(--point-600); border: 1px solid var(--point-100); }
+
+  /* word card */
+  .word-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 20px; box-shadow: var(--shadow-sm); width: 100%;
+  }
+  .word-card .wc-word { font: var(--t-h2); letter-spacing: -0.02em; }
+  .word-card .wc-date { font: var(--t-caption); color: var(--ink-400); margin-top: 2px; }
+  .word-card .wc-def { font: 400 15px/1.6 var(--font-sans); color: var(--ink-700); margin-top: 12px; }
+
+  /* timeline node */
+  .tl { position: relative; padding-left: 28px; }
+  .tl::before { content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 2px; background: var(--line-strong); }
+  .tl-node { position: relative; padding-bottom: 18px; }
+  .tl-node::before { content: ""; position: absolute; left: -27px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2.5px solid var(--point-500); }
+  .tl-node .tl-date { font: var(--t-caption); color: var(--point-600); }
+  .tl-node .tl-text { font: var(--t-sm); color: var(--ink-700); margin-top: 4px; }
+
+  /* lock state */
+  .lock-demo { position: relative; border-radius: var(--r-md); overflow: hidden; }
+  .lock-blur { filter: blur(6px); opacity: .6; padding: 18px; background: var(--surface-2); }
+  .lock-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: color-mix(in srgb, var(--surface) 55%, transparent); }
+  .lock-overlay .lk { font: var(--t-caption); color: var(--ink-600); }
+
+  /* radius + shadow specimen */
+  .spec-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .radius-demo { aspect-ratio: 1.5; background: var(--point-100); border: 1px solid var(--point-300); display: flex; align-items: flex-end; padding: 10px; }
+  .radius-demo span { font: var(--t-caption); color: var(--point-700); }
+  .shadow-demo { aspect-ratio: 1.5; background: var(--surface); border: 1px solid var(--line); display: flex; align-items: flex-end; padding: 12px; border-radius: var(--r-md); }
+  .shadow-demo span { font: var(--t-caption); color: var(--ink-600); }
+
+  .cta-bar { margin-top: 64px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 30px 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; box-shadow: var(--shadow-md); }
+  .cta-bar p { margin: 0; font: var(--t-sm); color: var(--ink-600); }
+  .cta-bar h3 { margin: 0 0 4px; font: var(--t-h3); }
+
+  @media (max-width: 720px) {
+    .principles, .comp-grid { grid-template-columns: 1fr; }
+    .swatch-grid { grid-template-columns: repeat(3, 1fr); }
+    .spec-row { grid-template-columns: repeat(2, 1fr); }
+    .hero h1 { font: 700 34px/1.15 var(--font-sans); }
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="theme-toggle">
+    <button id="lightBtn" class="on">Light</button>
+    <button id="darkBtn">Dark</button>
+  </div>
+  <div class="hero-inner">
+    <div class="brandmark">define<span class="dot"></span></div>
+    <p class="slogan">우린 모두 각자의 정의가 있다</p>
+    <h1>나만의 단어를 정의하는 디자인 시스템</h1>
+    <p class="sub">사전적 정의가 아닌, 내가 직접 정의하는 나만의 단어 백과사전. 화려함보다 여백과 타이포그래피로 사색의 순간을 받쳐주는 시각 언어입니다.</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- PRINCIPLES -->
+  <section id="principles">
+    <div class="sec-label">Foundations</div>
+    <h2 class="sec-title">디자인 원칙</h2>
+    <p class="sec-desc">"노트 · 잉크 · 사전"의 정제된 감각과 현대적 미니멀리즘의 결합. 기록의 진입 장벽은 최소화하되, 축적된 기록이 '나의 변화'로 보이게 합니다.</p>
+    <div class="principles">
+      <div class="principle">
+        <span class="k">01 · 단어가 주인공</span>
+        <h4>타이포그래피 중심</h4>
+        <p>단어 자체가 콘텐츠의 주인공입니다. 입력창과 UI는 단어를 받쳐주는 무대처럼, 크기와 굵기의 대비로 위계를 만듭니다.</p>
+      </div>
+      <div class="principle">
+        <span class="k">02 · 따뜻한 미니멀</span>
+        <h4>여백과 종이 톤</h4>
+        <p>오프화이트 종이 배경과 잉크 차콜 텍스트. 은은한 그라데이션과 충분한 여백으로 차분하지만 따뜻하게.</p>
+      </div>
+      <div class="principle">
+        <span class="k">03 · 부드러운 전환</span>
+        <h4>마찰 없는 흐름</h4>
+        <p>둥근 코너, 은은한 그림자, 부드러운 모션. 화면 전환과 입력의 마찰을 최소화해 매일 들어오고 싶게.</p>
+      </div>
+      <div class="principle">
+        <span class="k">04 · 절제된 게이미피케이션</span>
+        <h4>루비는 곁들임</h4>
+        <p>루비·출석 같은 요소는 포인트 컬러와 구분되는 별도 액센트로, 메인 기록 경험을 방해하지 않는 선에서.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- COLOR -->
+  <section id="color">
+    <div class="sec-label">Color</div>
+    <h2 class="sec-title">컬러 팔레트</h2>
+    <p class="sec-desc">따뜻한 종이 베이스 + 잉크 차콜 텍스트. 포인트는 '각자의 정의'를 상징하는 딥 인디고 한 가지. 재화(루비)는 명확히 구분되는 별도 액센트입니다.</p>
+
+    <div class="color-block-label">포인트 · 딥 인디고</div>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="background:var(--point-700)"></div><div class="meta"><div class="name">point-700</div><div class="hex">#24276F</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--point-600)"></div><div class="meta"><div class="name">point-600</div><div class="hex">#2E3192</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--point-500)"></div><div class="meta"><div class="name">point-500</div><div class="hex">#4145B8</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--point-300)"></div><div class="meta"><div class="name">point-300</div><div class="hex">#A9ABE0</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--point-100)"></div><div class="meta"><div class="name">point-100</div><div class="hex">#E7E8F6</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--point-050)"></div><div class="meta"><div class="name">point-050</div><div class="hex">#F2F2FB</div></div></div>
+    </div>
+
+    <div class="color-block-label">재화 · 루비 액센트</div>
+    <div class="swatch-grid ruby">
+      <div class="swatch"><div class="chip" style="background:var(--ruby-600)"></div><div class="meta"><div class="name">ruby-600</div><div class="hex">#C73E5A</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ruby-500)"></div><div class="meta"><div class="name">ruby-500</div><div class="hex">#D6456A</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ruby-300)"></div><div class="meta"><div class="name">ruby-300</div><div class="hex">#EFA3B6</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ruby-100)"></div><div class="meta"><div class="name">ruby-100</div><div class="hex">#FBE6EC</div></div></div>
+    </div>
+
+    <div class="color-block-label">중립 · 종이와 잉크</div>
+    <div class="neutral-row">
+      <div class="swatch"><div class="chip" style="background:var(--paper-0)"></div><div class="meta"><div class="name">paper-0 · 배경</div><div class="hex">page background</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--surface)"></div><div class="meta"><div class="name">surface · 카드</div><div class="hex">card surface</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink-600)"></div><div class="meta"><div class="name">ink-600 · 보조</div><div class="hex">secondary text</div></div></div>
+      <div class="swatch"><div class="chip" style="background:var(--ink-900)"></div><div class="meta"><div class="name">ink-900 · 본문</div><div class="hex">primary text</div></div></div>
+    </div>
+  </section>
+
+  <!-- TYPE -->
+  <section id="type">
+    <div class="sec-label">Typography</div>
+    <h2 class="sec-title">타이포그래피</h2>
+    <p class="sec-desc">Pretendard — 한글 가독성을 최우선으로 한 모던 산세리프. 단어는 굵고 인상적인 디스플레이로, 본문과 기록은 차분하고 읽기 좋게.</p>
+
+    <div class="word-feature">
+      <div class="kw">오늘의 단어</div>
+      <div class="big">행복<span class="suffix">이란</span></div>
+    </div>
+
+    <div style="margin-top:32px">
+      <div class="type-row">
+        <div class="type-meta"><div class="tn">Display</div><div class="ts">800 · 44px</div></div>
+        <div class="type-sample" style="font:var(--t-display); letter-spacing:-0.03em">오늘의 단어</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="tn">Heading 1</div><div class="ts">700 · 30px</div></div>
+        <div class="type-sample" style="font:var(--t-h1); letter-spacing:-0.02em">나만의 단어장</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="tn">Heading 2</div><div class="ts">700 · 22px</div></div>
+        <div class="type-sample" style="font:var(--t-h2)">생각의 변화를 따라가기</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="tn">Heading 3</div><div class="ts">600 · 18px</div></div>
+        <div class="type-sample" style="font:var(--t-h3)">과거의 나와 대화하기</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="tn">Body</div><div class="ts">400 · 16px</div></div>
+        <div class="type-sample" style="font:var(--t-body)">행복은 멀리 있지 않다. 오늘 아침 창으로 들어온 햇살, 따뜻한 커피 한 잔처럼 사소한 순간들이 모여 만들어지는 것.</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="tn">Small</div><div class="ts">400 · 14px</div></div>
+        <div class="type-sample" style="font:var(--t-sm); color:var(--ink-600)">2025년 5월 30일 · 세 번째 기록</div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta"><div class="tn">Caption</div><div class="ts">500 · 12px</div></div>
+        <div class="type-sample" style="font:var(--t-caption); letter-spacing:0.04em; color:var(--ink-400)">TODAY · 오늘의 추천 단어</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPONENTS -->
+  <section id="components">
+    <div class="sec-label">Components</div>
+    <h2 class="sec-title">컴포넌트 기본형</h2>
+    <p class="sec-desc">기록 경험을 구성하는 핵심 빌딩 블록. 부드러운 라운드, 은은한 보더, 절제된 그림자를 일관되게 적용합니다.</p>
+
+    <div class="comp-grid">
+      <div class="comp-card">
+        <div class="ct">Buttons</div>
+        <div class="row">
+          <button class="btn btn-primary">기록 완료</button>
+          <button class="btn btn-ghost">새로운 단어 뽑기</button>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn btn-soft btn-sm">+ 단어 추가</button>
+          <button class="btn btn-ghost btn-sm">건너뛰기</button>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <div class="ct">Input</div>
+        <textarea class="field" rows="3" placeholder="나에게 행복이란..."></textarea>
+      </div>
+
+      <div class="comp-card">
+        <div class="ct">Chips & Badges</div>
+        <div class="row">
+          <span class="chip-pill">📅 오늘</span>
+          <span class="badge-ruby">◆ 1,240 루비</span>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <span class="badge-change">↗ 1년 전보다 생각이 변했어요</span>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <div class="ct">Word Card</div>
+        <div class="word-card">
+          <div class="wc-word">행복</div>
+          <div class="wc-date">2025.05.30 · 3번째 정의</div>
+          <div class="wc-def">멀리 있지 않은 것. 오늘 아침의 햇살 같은 사소한 순간들.</div>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <div class="ct">Timeline · 생각의 변화</div>
+        <div class="tl">
+          <div class="tl-node"><div class="tl-date">2025.05</div><div class="tl-text">멀리 있지 않은 사소한 순간들.</div></div>
+          <div class="tl-node"><div class="tl-date">2024.05</div><div class="tl-text">목표를 이뤘을 때 오는 보상.</div></div>
+          <div class="tl-node" style="padding-bottom:0"><div class="tl-date">2023.05</div><div class="tl-text">남들이 부러워하는 삶.</div></div>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <div class="ct">Lock State · 광장 상호주의</div>
+        <div class="lock-demo">
+          <div class="lock-blur">
+            <div style="font:var(--t-body-md)">사랑은 익숙함을 견디는 일.</div>
+            <div style="font:var(--t-sm); color:var(--ink-600); margin-top:6px">— 익명의 누군가</div>
+          </div>
+          <div class="lock-overlay">
+            <div style="font-size:20px">🔒</div>
+            <div class="lk">내 생각을 공유해야 볼 수 있어요</div>
+            <button class="btn btn-primary btn-sm" style="margin-top:4px">공유하고 열어보기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- radius + shadow -->
+    <div class="color-block-label">반경 · 그림자</div>
+    <div class="spec-row">
+      <div class="radius-demo" style="border-radius:var(--r-sm)"><span>sm · 10</span></div>
+      <div class="radius-demo" style="border-radius:var(--r-md)"><span>md · 16</span></div>
+      <div class="radius-demo" style="border-radius:var(--r-lg)"><span>lg · 22</span></div>
+      <div class="radius-demo" style="border-radius:var(--r-xl)"><span>xl · 28</span></div>
+    </div>
+    <div class="spec-row" style="margin-top:16px">
+      <div class="shadow-demo" style="box-shadow:var(--shadow-sm)"><span>shadow-sm</span></div>
+      <div class="shadow-demo" style="box-shadow:var(--shadow-md)"><span>shadow-md</span></div>
+      <div class="shadow-demo" style="box-shadow:var(--shadow-lg)"><span>shadow-lg</span></div>
+      <div class="shadow-demo" style="box-shadow:var(--shadow-point); background:var(--point-600)"><span style="color:#fff">point glow</span></div>
+    </div>
+  </section>
+
+  <div class="cta-bar">
+    <div>
+      <h3>다음 단계 — 메인 기록 화면</h3>
+      <p>이 시스템 위에 최우선 화면인 '오늘의 단어 기록하기'를 라이트·다크로 설계합니다.</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('darkBtn').click()">다크 모드 미리보기</button>
+  </div>
+</div>
+
+<script>
+  const root = document.documentElement;
+  const lightBtn = document.getElementById('lightBtn');
+  const darkBtn = document.getElementById('darkBtn');
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    lightBtn.classList.toggle('on', t === 'light');
+    darkBtn.classList.toggle('on', t === 'dark');
+    localStorage.setItem('define-ds-theme', t);
+  }
+  lightBtn.onclick = () => setTheme('light');
+  darkBtn.onclick = () => setTheme('dark');
+  setTheme(localStorage.getItem('define-ds-theme') || 'light');
+</script>
+</body>
+</html>
