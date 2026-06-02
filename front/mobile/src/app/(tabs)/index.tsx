@@ -14,6 +14,7 @@
  *   - 저장 완료 마이크로 인터랙션 + 루비 적립 (현재는 단순 alert)
  *   - 실제 단어장 저장 (현재는 mock — 상태 초기화만)
  */
+import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -36,12 +37,15 @@ import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
 import { formatKoreanDate, isSameDay } from '@/lib/format-date';
-import { useJournalStore } from '@/store/journal-store';
+import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
+import { useSettingsStore } from '@/store/settings-store';
 import { useTheme } from '@/theme';
 
 export default function RecordScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
+  const nickname = useSettingsStore((s) => s.nickname);
 
   // 단어 풀과 현재 인덱스. 진입 시 랜덤 1개 선택.
   // 사용자가 커스텀 단어를 추가할 수 있으므로 mutable.
@@ -49,6 +53,8 @@ export default function RecordScreen() {
   const [wordIdx, setWordIdx] = useState(() => Math.floor(Math.random() * RECOMMENDED_WORDS.length));
 
   const [definition, setDefinition] = useState('');
+  // 재정의(과거 기록 있는 단어)일 때만 쓰는 "이전과 달라진 점" 선택 메모.
+  const [changeNote, setChangeNote] = useState('');
   // 기본은 오늘. 사용자가 칩 탭하면 DateSheet에서 변경 가능 (미래는 불가).
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [dateSheetVisible, setDateSheetVisible] = useState(false);
@@ -76,6 +82,8 @@ export default function RecordScreen() {
       ]).start(() => {
         if (poolUpdate) setPool(poolUpdate);
         setWordIdx(nextIdx);
+        // 단어가 바뀌면 이전 단어용 변화 메모는 의미 없으므로 초기화
+        setChangeNote('');
         Animated.parallel([
           Animated.timing(heroOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
           Animated.timing(heroTranslateY, { toValue: 0, duration: 200, useNativeDriver: true }),
@@ -86,6 +94,8 @@ export default function RecordScreen() {
   );
 
   const word = pool[wordIdx];
+  // 이 단어를 전에도 정의했는가 → 그렇다면 "생각의 변화" 메모를 받는다.
+  const isRedefinition = useEntryCountForWord(word) > 0;
   const today = useMemo(() => new Date(), []);
   const isTodaySelected = isSameDay(selectedDate, today);
   const canSubmit = definition.trim().length > 0;
@@ -112,10 +122,12 @@ export default function RecordScreen() {
     // 오늘이면 정확한 현재 시각으로 저장 (정렬에 의미 있음).
     // 과거 날짜를 골랐다면 그 Date(시각 0:00)를 그대로 → 표시상은 그 날.
     const savedAt = isTodaySelected ? new Date() : selectedDate;
-    addEntry(word, definition.trim(), savedAt);
+    // 재정의일 때만 메모 전달. 빈 값은 store에서 undefined로 정규화됨.
+    addEntry(word, definition.trim(), savedAt, isRedefinition ? changeNote : undefined);
     setConfirmedWord(word);
     setConfirmVisible(true);
     setDefinition('');
+    setChangeNote('');
   }
 
   function handleConfirmDismiss() {
@@ -143,6 +155,35 @@ export default function RecordScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* ─── 0. 앱 헤더 — 워드마크 + 마이페이지 진입 (IA: 헤더 우상단) ─── */}
+          <View style={styles.appHeader}>
+            <ThemedText style={styles.wordmark}>define</ThemedText>
+            <Pressable
+              onPress={() => router.push('/mypage')}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.avatarBtn,
+                {
+                  backgroundColor: pressed
+                    ? theme.colors.surface.nested
+                    : theme.colors.surface.base,
+                  borderColor: theme.colors.line.base,
+                },
+              ]}
+            >
+              {nickname.length > 0 ? (
+                <ThemedText
+                  variant="bodyMd"
+                  style={{ color: theme.colors.point.p600, fontWeight: '700' }}
+                >
+                  {nickname[0]}
+                </ThemedText>
+              ) : (
+                <Icon name="user" size={19} color={theme.colors.ink.secondary} />
+              )}
+            </Pressable>
+          </View>
+
           {/* ─── 1. 날짜 칩 ─── */}
           <Pressable onPress={openDatePicker} style={styles.dateChipWrap}>
             <View
@@ -273,6 +314,44 @@ export default function RecordScreen() {
             </View>
           </Card>
 
+          {/* ─── 3-1. 변화 노트 (재정의일 때만) ─── */}
+          {/* 같은 단어를 다시 정의하는 순간에만 "이전과 달라진 점"을 선택 입력받는다.
+              첫 정의에는 비교 대상이 없으므로 노출하지 않음 — 첫 기록 흐름은 그대로 가볍게. */}
+          {isRedefinition ? (
+            <Card
+              style={{ marginTop: theme.spacing.s4 }}
+              radius="lg"
+              elevation="sm"
+              padded={false}
+            >
+              <View style={{ padding: theme.spacing.s5 }}>
+                <View style={styles.changeNoteHead}>
+                  <Icon name="arrowUp" size={15} color={theme.colors.point.p600} />
+                  <ThemedText
+                    variant="caption"
+                    style={{ color: theme.colors.point.p600, letterSpacing: 0.3 }}
+                  >
+                    생각의 변화 · 선택
+                  </ThemedText>
+                </View>
+                <TextInput
+                  multiline
+                  value={changeNote}
+                  onChangeText={setChangeNote}
+                  placeholder="예전과 무엇이 달라졌나요?"
+                  placeholderTextColor={theme.colors.ink.placeholder}
+                  style={[
+                    styles.changeNoteInput,
+                    {
+                      color: theme.colors.ink.primary,
+                      fontFamily: 'PretendardVariable',
+                    },
+                  ]}
+                />
+              </View>
+            </Card>
+          ) : null}
+
           {/* ─── 4. 액션 ─── */}
           <View style={[styles.actions, { marginTop: theme.spacing.s4 }]}>
             <Button
@@ -327,6 +406,26 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
 
+  appHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  wordmark: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  avatarBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   dateChipWrap: { alignItems: 'center' },
   dateChip: {
     flexDirection: 'row',
@@ -360,6 +459,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
+  },
+
+  changeNoteHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  changeNoteInput: {
+    minHeight: 54,
+    fontSize: 16,
+    lineHeight: 24,
+    textAlignVertical: 'top', // Android 상단 정렬
   },
 
   actions: {

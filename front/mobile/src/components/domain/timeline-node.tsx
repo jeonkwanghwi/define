@@ -17,6 +17,7 @@ import { Keyboard, Pressable, StyleSheet, type TextInput, View } from 'react-nat
 
 import { Button, Card, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/icons';
 import { useTheme } from '@/theme';
 import type { WordEntry } from '@/types/word';
 
@@ -155,6 +156,18 @@ export function TimelineNode({
             delayLongPress={350}
             style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
           >
+            {/* 변화 노트 — 이 정의를 적을 때 "이전과 달라진 점". 정의 카드 위에 point 톤 주석으로. */}
+            {entry.changeNote ? (
+              <View style={[styles.changeNote, { marginTop: theme.spacing.s2 }]}>
+                <Icon name="arrowUp" size={14} color={theme.colors.point.p600} />
+                <ThemedText
+                  variant="sm"
+                  style={{ flex: 1, color: theme.colors.point.p600, lineHeight: 22 }}
+                >
+                  {entry.changeNote}
+                </ThemedText>
+              </View>
+            ) : null}
             <Card
               style={{ marginTop: theme.spacing.s2 }}
               radius="md"
@@ -182,6 +195,11 @@ const styles = StyleSheet.create({
   line: { width: 2, flex: 1, marginTop: 4, marginBottom: 4 },
   content: { flex: 1, paddingBottom: 24 },
   meta: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  changeNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
   editActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

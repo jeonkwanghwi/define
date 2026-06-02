@@ -17,12 +17,13 @@
  *     );
  *   }
  *
- * 시스템 라이트/다크 변경을 자동 감지(useColorScheme)하여 적절한 테마를 반환.
- * 추후 사용자 수동 토글이 필요해지면 ThemeProvider(React Context)를 여기에 도입.
+ * 테마 모드는 settings-store(themeMode)에서 받는다:
+ *   - 'light' / 'dark' : 사용자 명시 선택을 그대로 사용
+ *   - 'system'         : OS 설정(useColorScheme)을 따름
+ * 기본값은 'light' (제품 결정 — 따뜻한 페이퍼 톤을 일관되게).
  */
-// 라이트 강제 모드 — useColorScheme import 임시 보류.
-// 추후 마이페이지에서 "라이트 / 다크 / 시스템" 토글 도입 시 useColorScheme 다시 사용 예정.
-// import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSettingsStore } from '@/store/settings-store';
 
 import { darkColors, lightColors, type Colors } from './colors';
 import { radii } from './radii';
@@ -60,14 +61,17 @@ const darkTheme: Theme = {
 /**
  * 현재 테마 반환.
  *
- * 지금은 **라이트 강제** — 시스템이 다크여도 라이트 톤(warm paper · ink) 유지.
- * 사유: 사용자가 디자인 의도(따뜻한 페이퍼 톤)를 일관되게 보고자 함.
+ * settings-store의 themeMode + (system이면) OS 설정으로 라이트/다크 결정.
+ * 기본값 'light'이므로 토글을 건드리지 않은 사용자는 기존과 동일한 페이퍼 톤을 본다.
  *
- * 추후 마이페이지에서 사용자 토글이 들어오면 store 또는 Context로 mode를 받아
- * `mode === 'dark' ? darkTheme : lightTheme` 분기로 복원.
+ * 마이페이지의 ThemeModeToggle에서 themeMode를 바꾸면 useTheme를 쓰는 모든
+ * 컴포넌트가 자동 리렌더되어 즉시 테마가 바뀐다.
  */
 export function useTheme(): Theme {
-  return lightTheme;
+  const themeMode = useSettingsStore((s) => s.themeMode);
+  const systemScheme = useColorScheme(); // 'light' | 'dark' | null
+  const resolved = themeMode === 'system' ? (systemScheme ?? 'light') : themeMode;
+  return resolved === 'dark' ? darkTheme : lightTheme;
 }
 
 // 개별 토큰 모듈을 직접 import 하고 싶을 때 (드물지만 유틸성 코드에서)

@@ -34,5 +34,7 @@ export default function RootLayout() {
     return null;
   }
 
-  return <Stack />;
+  // 모든 화면이 자체 헤더(또는 탭바)를 렌더하므로 네이티브 Stack 헤더는 끔.
+  // (tabs) 그룹과 /mypage 모두 headerShown:false로 일관 처리.
+  return <Stack screenOptions={{ headerShown: false }} />;
 }

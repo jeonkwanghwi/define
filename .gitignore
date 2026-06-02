@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ─── define (RN/Expo) overrides ───
+# 이 파일은 원래 Python용 템플릿이라 'lib/'(파이썬 빌드 산출물)을 무시한다.
+# 하지만 우리 앱 소스 front/mobile/src/lib/ 가 거기에 걸려 추적 누락됐었음.
+# 애플리케이션 소스이므로 명시적으로 추적 복원.
+!front/mobile/src/lib/
+!front/mobile/src/lib/**

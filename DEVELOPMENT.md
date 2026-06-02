@@ -16,14 +16,16 @@
 6. **단어장 + 단어별 타임라인** — 가나다 정렬, 통계, 변화 뱃지, 시간 역순 노드
 7. **entry 수정/삭제** — 롱프레스 → 액션시트 → 인라인 편집 / confirm 다이얼로그
 8. **익명 영속 store** — Zustand + AsyncStorage. 회원가입 없이 폰에 단어 누적
-9. 라이트 톤 강제 + 브랜드 자산(define.png 1024×1024) 통합
+9. 브랜드 자산(define.png 1024×1024) 통합
+10. **마이페이지 + 다크 모드 토글** — 헤더 진입점 / 라이트·다크·시스템 세그먼트 / 닉네임 편집 / 실제 통계 / 버전. 다크 토큰을 토글로 복원
 
 **🟡 다음 후보 (우선순위 미정)**
-- 마이페이지 (헤더 진입점 + 테마 토글로 다크 모드 복원 입구 + 닉네임/알림 placeholder + 버전)
 - 광장 — **백엔드 종속**. 보류 또는 백엔드 시작
 - 회고/검색/주간 회고 (좌2 탭 — 기획 미확정)
 - 과거의 나와 대화 (GPT API 종속)
-- 자잘한 폴리시: 단어 전체 삭제, 통계 보강(streak), changeNote 정성 입력
+- 자잘한 폴리시: 단어 전체 삭제(P2), 통계 보강(streak)
+- changeNote 후속: 과거 entry 소급 메모, WordRow 변화 노트 미리보기
+- 마이페이지 후속: 알림/PDF/프리미엄 실제 기능, 다크 톤 실기기 대비 점검
 
 **⏳ 큰 결정 대기**
 - 백엔드 시작 시점 / 스택 (Node·Python·Go 등)
@@ -61,7 +63,8 @@
 │   └── mobile/               # RN/Expo 본 프로젝트 ★
 │       ├── src/
 │       │   ├── app/                          # Expo Router 라우트
-│       │   │   ├── _layout.tsx               # 폰트 로드 + Stack
+│       │   │   ├── _layout.tsx               # 폰트 로드 + Stack(headerShown:false)
+│       │   │   ├── mypage.tsx                 # 마이페이지 (탭 밖 풀스크린)
 │       │   │   └── (tabs)/
 │       │   │       ├── _layout.tsx           # 5탭 + chip 강조
 │       │   │       ├── index.tsx             # 기록 (메인)
@@ -77,9 +80,10 @@
 │       │   │   ├── domain/      WordRow · TimelineNode · ChangeBanner
 │       │   │   │                DateSheet · CustomWordSheet · SaveConfirmation
 │       │   │   │                RecordTabChip · ScreenPlaceholder
+│       │   │   │                ThemeModeToggle · NicknameSheet
 │       │   │   ├── themed-text.tsx · themed-view.tsx
 │       │   ├── theme/           colors/typography/spacing/radii/shadows/fonts/index
-│       │   ├── store/           journal-store.ts (Zustand+persist)
+│       │   ├── store/           journal-store.ts · settings-store.ts (Zustand+persist)
 │       │   ├── data/            recommended-words.ts (mock 단어 풀)
 │       │   ├── icons/           index.tsx (27개)
 │       │   ├── lib/             format-date.ts
@@ -120,13 +124,13 @@
 
 | 화면 | 상태 | 비고 |
 |------|------|------|
-| **메인 — 기록** (`/`) | ✅ 완료 | 단어 swap 트랜지션 / DateSheet / CustomWordSheet / SaveConfirmation. 저장 시 store.addEntry |
+| **메인 — 기록** (`/`) | ✅ 완료 | 헤더(워드마크+마이페이지) / 단어 swap / DateSheet / CustomWordSheet / SaveConfirmation / **재정의 시 변화 노트 입력**. 저장 시 store.addEntry |
 | **단어장 리스트** (`/journal`) | ✅ 완료 | 가나다 정렬, 통계(총 기록/생각 변화), 빈 상태 안내, 변화 뱃지 |
-| **단어 상세** (`/journal/[word]`) | ✅ 완료 | 타임라인 + 인라인 편집 + 삭제(ConfirmDialog) + entries=0 시 자동 router.back |
+| **단어 상세** (`/journal/[word]`) | ✅ 완료 | 타임라인(노드별 **변화 노트** 표시) + 인라인 편집 + 삭제(ConfirmDialog) + entries=0 시 자동 router.back |
 | 광장 (`/plaza`) | 🟡 placeholder | 백엔드 종속 — 다른 사용자 데이터 필요 |
 | 회고 (`/mood`) | 🟡 placeholder | 기획 미확정 |
 | 과거의 나 (`/past`) | 🟡 placeholder | GPT API 종속 |
-| 마이페이지 | ⏳ 미착수 | 헤더 진입점 없음. 테마 토글 입구도 여기 |
+| **마이페이지** (`/mypage`) | ✅ 완료 | 헤더 우상단 아바타 진입 / 테마 토글(라·다·시) / 닉네임 편집 / 실제 통계 / 버전. 알림·PDF·프리미엄은 준비중 |
 | 온보딩/회원가입/로그인 | ⏳ 미착수 | 회원가입 도입 시점 결정 필요 |
 
 ---
@@ -140,7 +144,7 @@
 `SavedEntry[]` 한 배열 (`id`, `word`, `text`, `savedAt`). 단어별 그룹화는 selector(`useGroupedByWord`)에서. 모델은 단순, 디스플레이는 자유.
 - Store key: `define-journal-v1` (모델 깨면 v2로 마이그레이션)
 - 액션: `addEntry(word, text, savedAt?)`, `updateEntry(id, text)`, `removeEntry(id)`, `clearAll`
-- `changed`는 entries.length≥2일 때 자동. `changeNote`는 정성 항목이라 자동 생성 X (추후 사용자 입력 또는 ML)
+- `changed`는 entries.length≥2일 때 자동. `changeNote`는 **재정의 시 사용자 입력**(entry 단위, 선택). 자동 생성/ML은 추후. 단어 단위 `JournalWord.changeNote`는 최신 entry 노트로 파생
 
 ### 라우팅
 - `(tabs)/` — Bottom Tabs (5탭, URL에 안 들어가는 그룹)
@@ -155,8 +159,9 @@
 - 시스템 Alert·ActionSheet 일절 X — 우리 톤의 커스텀 컴포넌트만
 
 ### 테마 시스템
-- `useTheme()` 현재 lightTheme 고정 반환
-- 다크 토큰은 `darkColors`, `darkShadows`로 코드 유지 → 추후 마이페이지 토글 또는 시스템 분기로 즉시 복원 가능
+- `useTheme()` = settings-store의 `themeMode` + (system이면) `useColorScheme()`로 라이트/다크 분기. 기본 'light'.
+- 다크 토큰은 `darkColors`, `darkShadows`로 1급 시민 유지 → 마이페이지 `ThemeModeToggle`로 즉시 전환.
+- 모드 변경 시 useTheme 구독 컴포넌트 전체 자동 리렌더 (Context 없이 Zustand selector로).
 
 ---
 
@@ -175,6 +180,36 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-02 — Task #16: changeNote (생각의 변화 노트) — entry 단위 ★
+- **앱 정체성 직결 기능**: "같은 단어, 시간에 따라 변하는 생각"을 명시적으로 포착. 재정의하는 순간 "이전과 달라진 점"을 그 기록에 남김.
+- **데이터 모델 (entry 단위)**: `SavedEntry.changeNote?` + `WordEntry.changeNote?`. `addEntry(word, text, savedAt?, changeNote?)` (빈 값은 undefined 정규화). `groupByWord`가 entry별로 전달 + 단어 단위 `JournalWord.changeNote`는 최신 entry 노트로 파생(리스트/배너 미리보기용).
+- **신규 selector** `useEntryCountForWord(word)` — 메인 화면 "재정의 여부" 판별.
+- **메인 기록 화면**: 현재 단어에 과거 기록이 있을 때(`isRedefinition`)만 정의 입력 아래 "생각의 변화 · 선택" 필드 노출. **첫 정의 흐름은 그대로 가볍게** 유지(비교 대상 없으므로). 단어 swap/저장 시 메모 초기화.
+- **타임라인(TimelineNode)**: `entry.changeNote`가 있으면 정의 카드 **위**에 arrowUp(변화 일관 기호) + point 톤 주석으로 표시. 읽기 모드에서만.
+- **설계 판단**: design-source는 changeNote를 단어 단위 요약(ChangeBanner)로 뒀으나(정적 mock), 우리는 **실제 입력 시점이 있는 entry 단위**가 "변화의 흐름"에 더 충실 → entry 단위 채택 + 단어 단위는 파생. ChangeBanner는 당분간 미사용(노드별 표시와 중복 회피).
+- **다음 할 일**: (선택) 과거 entry에 변화 메모 소급 추가/수정(액션시트 항목), 단어장 리스트(WordRow)에 최신 변화 노트 미리보기.
+
+### 2026-06-02 — 웹 구동 검증 + format-date 유실 근본원인(gitignore) 수정
+- **실제 구동 검증**: Expo Web(`expo start --web`) + 시스템 Chrome(playwright-core headless)로 시드 데이터 주입 후 Task #14~#16 전 기능 캡처. `pageerror` 0, 웹 번들 정상 컴파일.
+  - 마이페이지(라이트/다크)·테마 토글 전환·닉네임/실제통계·changeNote 입력(재정의 시)·타임라인 변화노트 표시 모두 시각 확인.
+- **유실 근본원인 규명**: `src/lib/format-date.ts`가 사라졌던 건 루트 `.gitignore`가 **Python 템플릿**이라 17번 `lib/`(파이썬 빌드 산출물용)이 우리 소스 `front/mobile/src/lib/`까지 무시 → 이전 세션이 만들어도 **커밋 자체가 안 됐음**. 작업트리에서 파일이 사라지자 복구 불가였던 것.
+  - 수정: `.gitignore`에 `!front/mobile/src/lib/` 예외 추가 → 추적 복원 확인(`git add` 인식).
+  - **잠재 리스크(미해결)**: 루트 gitignore가 Python용이라 `build/`·`dist/`·`target/`·`*.log`·`env/` 등도 RN 소스와 충돌 가능. 향후 루트 gitignore를 Node/Expo용으로 교체 검토 필요.
+
+### 2026-06-02 — Task #15: 마이페이지 + 다크 모드 토글 복원 ★
+- **신규 store** `settings-store.ts` — `themeMode('light'|'dark'|'system')` + `nickname`. persist 키 `define-settings-v1`. 기본 themeMode='light' (제품 결정 유지 → 기존 사용자 무변화).
+- **`useTheme()` 리팩터** — 라이트 강제 제거. settings-store의 themeMode + (system이면) `useColorScheme()`로 라이트/다크 분기. 다크 토큰(이미 1급 시민)을 토글로 즉시 복원. useTheme를 쓰는 모든 컴포넌트가 모드 변경 시 자동 리렌더.
+- **신규 컴포넌트**:
+  - `ThemeModeToggle` — 라이트/다크/시스템 3분할 세그먼트. onLayout으로 내부 폭 측정 → 하이라이트 translateX 200ms 슬라이드.
+  - `NicknameSheet` — CustomWordSheet 규약(250ms autoFocus·카운터·Enter submit) 그대로. 현재 닉네임 prefill 편집. 익명 모델이라 빈 값(미설정) 허용.
+- **`mypage.tsx`** (루트 Stack, (tabs) 밖) — 프로필(닉네임/아바타 + **실제** 기록 통계) · 화면(테마 토글) · 설정(닉네임/알림[준비중]) · 곧 만나요(프리미엄·PDF, BM 로드맵 disabled) · 버전(expo-constants). 프로필/행 탭 → 닉네임 시트.
+- **진입점**: 메인 기록 화면 상단에 앱 헤더(워드마크 `define` + 우상단 아바타 버튼) 추가 → `router.push('/mypage')`. IA의 "헤더 우상단: 마이페이지" 충족.
+- `_layout.tsx` 루트 Stack에 `headerShown:false` 명시 (mypage가 자체 back 헤더 렌더).
+- **의도적 제외**: 루비/연속출석 등 가짜 게이미피케이션 수치 X(기획 미확정). "데이터 초기화"도 재도입 X(Task #14 제거 결정 존중) — 정식 "전체 삭제"는 P2로 분리.
+- **레포 헬스 복구**: 작업 중 `src/lib/format-date.ts`가 디스크·git 양쪽에서 **유실**된 상태 발견(Task #9/#11 로그엔 작성됨). index/date-sheet/journal-store가 import해 프로젝트 전체가 컴파일 불가였음. design-source의 원본 구현 + `types/word.ts` 포맷 주석으로 정확히 복원(`formatKoreanDate`/`isSameDay`/`formatYmd`/`formatRelativeLabel`). 이제 `tsc --noEmit` 통과.
+- **검증**: `npm install` 후 `tsc --noEmit` 에러 0. (실기기/시뮬 구동 검증은 다음 세션.)
+- **다음 할 일**: 실기기에서 다크 토큰 대비 점검(특히 point/ruby), 알림·PDF·프리미엄 실제 기능, 전체 삭제(P2).
 
 ### 2026-06-02 — Task #14: entry 수정/삭제 (롱프레스 → 액션시트)
 - `WordEntry`에 `id` 추가. store에 `updateEntry` 액션.

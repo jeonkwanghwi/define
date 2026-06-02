@@ -30,6 +30,8 @@ export type SavedEntry = {
   text: string;
   /** ISO datetime — 정렬과 상대 시간 계산용 */
   savedAt: string;
+  /** 재정의 시 "이전과 달라진 점" 선택 메모. 첫 정의엔 없음. */
+  changeNote?: string;
 };
 
 type JournalState = {
@@ -37,8 +39,9 @@ type JournalState = {
   /**
    * 정의 저장.
    * @param savedAt 지정 안 하면 현재 시각. 과거 날짜 기록(캘린더 선택) 시 그 Date 전달.
+   * @param changeNote 재정의 시 "이전과 달라진 점" 선택 메모. 빈 값이면 생략.
    */
-  addEntry: (word: string, text: string, savedAt?: Date) => void;
+  addEntry: (word: string, text: string, savedAt?: Date, changeNote?: string) => void;
   /** 한 entry의 텍스트만 수정 (savedAt/word는 그대로). */
   updateEntry: (id: string, text: string) => void;
   removeEntry: (id: string) => void;
@@ -53,7 +56,7 @@ export const useJournalStore = create<JournalState>()(
   persist(
     (set) => ({
       entries: [],
-      addEntry: (word, text, savedAt) =>
+      addEntry: (word, text, savedAt, changeNote) =>
         set((state) => ({
           entries: [
             {
@@ -61,6 +64,8 @@ export const useJournalStore = create<JournalState>()(
               word,
               text,
               savedAt: (savedAt ?? new Date()).toISOString(),
+              // 빈 문자열은 저장하지 않음 (undefined로 정규화)
+              changeNote: changeNote?.trim() ? changeNote.trim() : undefined,
             },
             ...state.entries,
           ],
@@ -114,12 +119,15 @@ function groupByWord(saved: SavedEntry[]): JournalWord[] {
         date: formatYmd(d),
         relativeLabel: formatRelativeLabel(d, now),
         text: e.text,
+        changeNote: e.changeNote,
       };
     });
     result.push({
       word,
       entries: wordEntries,
       changed: wordEntries.length >= 2,
+      // 단어 단위 요약 = 가장 최근(entries[0]) 변화 노트. 리스트/배너 미리보기용.
+      changeNote: wordEntries[0]?.changeNote,
     });
   }
   return result;
@@ -129,6 +137,14 @@ function groupByWord(saved: SavedEntry[]): JournalWord[] {
 export function useGroupedByWord(): JournalWord[] {
   const entries = useJournalStore((s) => s.entries);
   return useMemo(() => groupByWord(entries), [entries]);
+}
+
+/**
+ * 특정 단어의 누적 기록 수 — 메인 화면에서 "재정의 여부" 판별용.
+ * 0보다 크면 과거 정의가 있으므로 "변화 노트" 입력을 노출한다.
+ */
+export function useEntryCountForWord(word: string): number {
+  return useJournalStore((s) => s.entries.reduce((n, e) => (e.word === word ? n + 1 : n), 0));
 }
 
 /** 단어 상세 화면 — 특정 단어 하나 찾아 반환. 없으면 undefined. */

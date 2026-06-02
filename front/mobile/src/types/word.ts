@@ -14,6 +14,11 @@ export type WordEntry = {
   relativeLabel: string;
   /** 그날 적은 정의 본문 */
   text: string;
+  /**
+   * 이 정의를 적을 때 "이전과 무엇이 달라졌나"를 남긴 선택 메모.
+   * 첫 정의(가장 오래된 entry)에는 없음 — 비교 대상이 없으므로.
+   */
+  changeNote?: string;
 };
 
 export type JournalWord = {
