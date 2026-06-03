@@ -18,6 +18,8 @@
 8. **익명 영속 store** — Zustand + AsyncStorage. 회원가입 없이 폰에 단어 누적
 9. 브랜드 자산(define.png 1024×1024) 통합
 10. **마이페이지 + 다크 모드 토글** — 헤더 진입점 / 라이트·다크·시스템 세그먼트 / 닉네임 편집 / 실제 통계 / 버전. 다크 토큰을 토글로 복원
+11. **streak·통계 보강** — 연속 기록일(timezone 안전) selector + 단어장 3칸/마이페이지 표시
+12. **백엔드 마일스톤1 (NestJS+Prisma)** — `back/` 스캐폴드, `GET /api/words` 풀 슬라이스 동작(controller→service→repository→SQLite). DB 스왑 대비 repository 인터페이스
 
 **🟡 다음 후보 (우선순위 미정)**
 - 광장 — **백엔드 종속**. 보류 또는 백엔드 시작
@@ -27,7 +29,7 @@
 - 마이페이지 후속: 알림/PDF/프리미엄 실제 기능, 다크 톤 실기기 대비 점검
 
 **⏳ 큰 결정 대기**
-- 백엔드 **시작 시점** (스택은 FastAPI · MongoDB(잠정) · AWS로 결정 — §1)
+- ~~백엔드 시작 시점~~ → **착수함** (NestJS+Prisma, 마일스톤1 완료). 다음: auth → journal 동기화 → plaza
 - 회원가입 흐름 (소셜/일반) · 관리자 모드 (웹 별도 vs 앱 내)
 - AI 정의 이미지/영상화 · 금주의 단어 · 광장 표시 컨셉
 
@@ -46,9 +48,9 @@
 | 폰트 | Pretendard Variable (expo-font, 6.4MB ttf 1파일) |
 | 아이콘 | react-native-svg 기반 자체 셋 (27개) |
 | Node | nvm LTS v24.16.0 |
-| 백엔드 | **FastAPI** (Python) · REST API · JSON 연동. 현재 미구현(익명+로컬 영속), 광장/회원가입 착수 시 본격 |
-| 백엔드 아키텍처 | MVC 계열 — controller / service / dto 레이어 분리 |
-| DB | **MongoDB** (잠정 — 확정 필요) |
+| 백엔드 | **NestJS** (TypeScript) · REST/JSON. **프론트와 동일 언어**(TS 단일 스택, DTO 타입 공유 가능). 현재 미구현(익명+로컬 영속), 광장/회원가입 착수 시 본격. (FastAPI에서 변경 — 2026-06-03 로그) |
+| 백엔드 아키텍처 | MVC 계열 — **controller / service / repository / dto** 레이어 + 모듈별(`modules/<도메인>/`) 구성. DI로 repository 인터페이스↔구현 바인딩 |
+| DB | **시작: SQLite 파일DB** + **Repository 인터페이스로 격리** → 나중에 스왑. 종착 **Postgres 유력**(SQL→SQL 매끄러움; Mongo도 repository가 막아주므로 가능). 구현: **Prisma 제안**(SQLite/Postgres 동일 스키마). 확정은 보류 |
 | 인프라/배포 | **AWS** — 회원·데이터 관리 |
 | 외부 API | GPT API — 과거의 나. 파인튜닝 전략: 공통 페르소나 1차 파인튜닝 + 유저별 few-shot 최적화. (사진 기반 talking-video는 별도 생성 파이프라인) |
 
@@ -98,7 +100,13 @@
 │       │   └── images/define.png   # 1024×1024 로고 — 모든 슬롯 통합 참조
 │       ├── CLAUDE.md / AGENTS.md / app.json / package.json / tsconfig.json
 │
-└── back/                       # 빈 폴더 (.gitkeep만)
+└── back/                       # NestJS API ★ (마일스톤1: GET /api/words 동작)
+    ├── src/{main,app.module}.ts
+    │   ├── config/             # 환경변수 설정
+    │   ├── database/           # PrismaService(+전역 모듈)
+    │   └── modules/word/       # controller·service·repository(+prisma impl)·dto·entity·module
+    ├── prisma/{schema.prisma, seed.ts, migrations/}   # SQLite, 데모 6단어 시드
+    └── README.md               # 폴더 지도 + 레이어 흐름 설명
 ```
 
 **경로 규칙**: import 시 `@/X` = `src/X` alias. 파일/폴더는 kebab-case, 컴포넌트는 PascalCase, 훅은 `use`+camelCase.
@@ -189,6 +197,23 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-03 — 백엔드 마일스톤1: NestJS 스캐폴드 + GET /api/words 동작 ★
+- **언어 결정 보강**: 사용자가 TS 초보임을 밝힘 → FastAPI/가벼운TS/NestJS 재검토 후 **NestJS 유지(TS 제대로 학습)** 선택. 코드에 학습용 주석 충실히.
+- **스캐폴드**: `back/`에 NestJS + Prisma 프로젝트 생성. 레이어 풀 슬라이스 1바퀴 — `GET /api/words`가 controller→service→**repository(인터페이스)**→`PrismaWordRepository`(SQLite)→DB로 흘러 시드 6단어 반환 확인(200 OK).
+- **DB**: Prisma + SQLite(`prisma/dev.db`). `Word{ id(cuid), text unique, createdAt }` (카테고리 없음). 마이그레이션 `init` 생성·적용, seed로 데모 6개(행복·사랑·돈·시간·용기·어른).
+- **스왑 준비 실증**: `word.module.ts`의 `{ provide: WordRepository, useClass: PrismaWordRepository }` 한 줄로 구현 교체 가능. service는 인터페이스만 의존.
+- **`back/.gitignore` 재작성**: Python용 → **Node/NestJS용**(node_modules·dist·*.db·.env). 마이그레이션 SQL은 추적, dev.db·.env·node_modules·dist는 제외 확인.
+- **착오 2건(수정 완료)**: ① 빌드 산출물이 `dist/src/main.js`로 들어가 `start:prod` 실패 → `tsconfig.build.json`에서 `prisma` 제외해 `dist/main.js`로 평탄화. ② 전역 ValidationPipe가 요구하는 `class-validator`/`class-transformer` 누락 → 설치(곧 DTO 검증에 필요).
+- **다음**: auth(회원가입/로그인) → journal 동기화(로컬 entries 서버 이전) → plaza. 50선 일괄 시드는 저장 형식 결정 후.
+
+### 2026-06-03 — 백엔드 스택 재결정: FastAPI → NestJS (설계 단계, 코드 0)
+- **재판단 결론**: 진짜 갈림길은 FastAPI(Python) vs NestJS(TS). 프론트가 RN/TS라 **언어 통일·DTO 타입 공유·MVC 내장**이 결정타. AI(과거의나·이미지)는 외부 API 호출이라 Python을 강제하지 않음 → **NestJS 채택**.
+- **게임(탭2) 책임 분리 확정**: 엔진·렌더링=프론트, 상태·데이터·경제(아바타/집 설정·루비·집 목록·단어)=백엔드 **평범한 REST**. 실시간 배제(비동기 월드) 결정 덕에 게임 서버 불필요 → 스택 선택에 영향 없음.
+- **DB 전략**: Repository 인터페이스로 service를 DB와 격리. **SQLite 파일DB로 시작**, 구현은 Prisma 제안. 스왑은 config 바인딩 교체. 종착 DB(Postgres 유력/Mongo 가능)는 인터페이스가 막아주므로 **보류**.
+- **구조(확정 방향)**: `back/src/{config,common(utils·filters·guards),database,modules/<도메인>/{controller,service,repository(+impl),dto,entities,module}}`. 함수는 동사+대상(`findWordById`·`grantRuby`).
+- **첫 마일스톤(제안)**: `GET /words` — 인증 없이 전 레이어 얇게 관통(controller→service→repository→SQLite)로 뼈대 검증 → 이후 auth → journal 동기화 → 광장.
+- **미정**: DB 구현 방식(Prisma vs raw sqlite), 종착 DB, 인프라(문서상 AWS 유지). 다음 턴에서 스캐폴드 착수 여부 결정.
 
 ### 2026-06-03 — streak·통계 보강 (연속 기록일)
 - **store**: `computeStreak(entries, now)` 순수 함수 + `useJournalStreak()` selector 추가. `JournalStreak = { currentStreak, longestStreak, daysThisWeek, totalDays }`.
