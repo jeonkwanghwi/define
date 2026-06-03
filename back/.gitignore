@@ -1,0 +1,48 @@
+# back/ — FastAPI (Python) 산출물.
+# 이 규칙들은 back/ 서브트리에만 적용된다 (front/ 소스를 삼키지 않도록 분리).
+
+# Byte-compiled
+__pycache__/
+*.py[codz]
+*$py.class
+*.so
+
+# 패키징 / 빌드
+build/
+dist/
+sdist/
+wheels/
+*.egg
+*.egg-info/
+.eggs/
+
+# 가상환경
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# 테스트 / 커버리지 / 타입체커
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.cache
+
+# 로그 / 로컬 DB
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# 시크릿 / 환경변수
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints
