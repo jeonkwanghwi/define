@@ -44,6 +44,12 @@ type JournalState = {
   addEntry: (word: string, text: string, savedAt?: Date, changeNote?: string) => void;
   /** 한 entry의 텍스트만 수정 (savedAt/word는 그대로). */
   updateEntry: (id: string, text: string) => void;
+  /**
+   * 한 entry의 변화 노트만 소급 추가/수정.
+   * savedAt/word/text는 절대 손대지 않음 → 정렬(생성일 기준)에 영향 없음.
+   * 빈 값이면 노트 제거(undefined로 정규화).
+   */
+  updateChangeNote: (id: string, changeNote: string) => void;
   removeEntry: (id: string) => void;
   clearAll: () => void;
 };
@@ -74,6 +80,14 @@ export const useJournalStore = create<JournalState>()(
         set((state) => ({
           entries: state.entries.map((e) =>
             e.id === id ? { ...e, text } : e,
+          ),
+        })),
+      updateChangeNote: (id, changeNote) =>
+        set((state) => ({
+          entries: state.entries.map((e) =>
+            e.id === id
+              ? { ...e, changeNote: changeNote.trim() ? changeNote.trim() : undefined }
+              : e,
           ),
         })),
       removeEntry: (id) =>

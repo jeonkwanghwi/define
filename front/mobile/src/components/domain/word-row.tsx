@@ -36,6 +36,19 @@ export function WordRow({ item, onPress }: WordRowProps) {
           >
             {item.entries[0]?.text}
           </ThemedText>
+          {/* 최신 변화 노트 미리보기 — 가장 최근 정의에 변화 노트가 있을 때만. point 톤 한 줄. */}
+          {item.changeNote ? (
+            <View style={styles.notePreview}>
+              <Icon name="arrowUp" size={12} color={theme.colors.point.p600} />
+              <ThemedText
+                variant="caption"
+                numberOfLines={1}
+                style={{ flex: 1, color: theme.colors.point.p600 }}
+              >
+                {item.changeNote}
+              </ThemedText>
+            </View>
+          ) : null}
         </View>
 
         {/* 우측 메타 */}
@@ -83,6 +96,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   main: { flex: 1, minWidth: 0 },
+  notePreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 5,
+  },
   side: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   changeBadge: {
     flexDirection: 'row',

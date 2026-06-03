@@ -27,12 +27,18 @@ export type TimelineNodeProps = {
   isLast?: boolean;
   /** 편집 모드 켜진 entry 여부 — 부모가 editingId 상태로 제어 */
   editing?: boolean;
+  /** 변화 노트 편집 모드 — 부모가 editingNoteId 상태로 제어 (editing과 상호배타) */
+  editingNote?: boolean;
   /** 길게 누름 — 부모가 ActionSheet 띄움 */
   onLongPress?: () => void;
   /** 편집 저장 — 부모가 store.updateEntry */
   onSaveEdit?: (newText: string) => void;
   /** 편집 취소 */
   onCancelEdit?: () => void;
+  /** 변화 노트 저장 — 부모가 store.updateChangeNote. 빈 문자열이면 노트 제거. */
+  onSaveNote?: (note: string) => void;
+  /** 변화 노트 편집 취소 */
+  onCancelNote?: () => void;
 };
 
 export function TimelineNode({
@@ -40,14 +46,17 @@ export function TimelineNode({
   isNow,
   isLast,
   editing,
+  editingNote,
   onLongPress,
   onSaveEdit,
   onCancelEdit,
+  onSaveNote,
+  onCancelNote,
 }: TimelineNodeProps) {
   const theme = useTheme();
   const dotBorderColor = isNow ? theme.colors.point.p600 : theme.colors.point.p300;
 
-  // ─── 편집 상태 ───
+  // ─── 텍스트 편집 상태 ───
   const [draft, setDraft] = useState(entry.text);
   const inputRef = useRef<TextInput>(null);
 
@@ -59,6 +68,18 @@ export function TimelineNode({
       return () => clearTimeout(t);
     }
   }, [editing, entry.text]);
+
+  // ─── 변화 노트 편집 상태 ───
+  const [noteDraft, setNoteDraft] = useState(entry.changeNote ?? '');
+  const noteInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (editingNote) {
+      setNoteDraft(entry.changeNote ?? '');
+      const t = setTimeout(() => noteInputRef.current?.focus(), 120);
+      return () => clearTimeout(t);
+    }
+  }, [editingNote, entry.changeNote]);
 
   function handleSave() {
     const trimmed = draft.trim();
@@ -72,6 +93,31 @@ export function TimelineNode({
     setDraft(entry.text);
     onCancelEdit?.();
   }
+
+  // 빈 값 허용 — 비우고 저장하면 노트 삭제(소급 제거)
+  function handleSaveNote() {
+    Keyboard.dismiss();
+    onSaveNote?.(noteDraft.trim());
+  }
+
+  function handleCancelNote() {
+    Keyboard.dismiss();
+    setNoteDraft(entry.changeNote ?? '');
+    onCancelNote?.();
+  }
+
+  // 정의 본문 카드 — 읽기/노트편집 모드에서 공유 (중복 방지)
+  const definitionCard = (
+    <Card
+      style={{ marginTop: theme.spacing.s2 }}
+      radius="md"
+      elevation={isNow ? 'sm' : 'none'}
+    >
+      <ThemedText variant="body" tone="strong" style={{ lineHeight: 26 }}>
+        {entry.text}
+      </ThemedText>
+    </Card>
+  );
 
   return (
     <View style={styles.row}>
@@ -149,6 +195,43 @@ export function TimelineNode({
               />
             </View>
           </View>
+        ) : editingNote ? (
+          // 변화 노트 소급 추가/수정 — 정의 카드 위 노트 슬롯이 입력 필드로 전환.
+          <View style={{ marginTop: theme.spacing.s2 }}>
+            <View style={styles.noteEditHead}>
+              <Icon name="arrowUp" size={14} color={theme.colors.point.p600} />
+              <ThemedText
+                variant="caption"
+                style={{ color: theme.colors.point.p600, letterSpacing: 0.3 }}
+              >
+                생각의 변화 · 선택
+              </ThemedText>
+            </View>
+            <Card padded={false} radius="md" elevation="sm">
+              <TextField
+                ref={noteInputRef}
+                multiline
+                value={noteDraft}
+                onChangeText={setNoteDraft}
+                placeholder="예전과 무엇이 달라졌나요? (비우면 삭제)"
+                maxLength={80}
+                style={{
+                  borderWidth: 0,
+                  backgroundColor: 'transparent',
+                  minHeight: 64,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  fontSize: 15,
+                  lineHeight: 24,
+                }}
+              />
+            </Card>
+            <View style={[styles.editActions, { marginTop: theme.spacing.s3 }]}>
+              <Button label="취소" variant="ghost" size="sm" onPress={handleCancelNote} />
+              <Button label="저장" size="sm" onPress={handleSaveNote} />
+            </View>
+            {definitionCard}
+          </View>
         ) : (
           // 길게 눌러서 액션 시트 띄움. 일반 탭은 동작 없음(읽기 모드).
           <Pressable
@@ -168,19 +251,7 @@ export function TimelineNode({
                 </ThemedText>
               </View>
             ) : null}
-            <Card
-              style={{ marginTop: theme.spacing.s2 }}
-              radius="md"
-              elevation={isNow ? 'sm' : 'none'}
-            >
-              <ThemedText
-                variant="body"
-                tone="strong"
-                style={{ lineHeight: 26 }}
-              >
-                {entry.text}
-              </ThemedText>
-            </Card>
+            {definitionCard}
           </Pressable>
         )}
       </View>
@@ -199,6 +270,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 6,
+  },
+  noteEditHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
   },
   editActions: {
     flexDirection: 'row',

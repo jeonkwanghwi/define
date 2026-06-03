@@ -30,12 +30,20 @@ export default function WordDetailScreen() {
 
   const item = useJournalWord(wordKey);
   const updateEntry = useJournalStore((s) => s.updateEntry);
+  const updateChangeNote = useJournalStore((s) => s.updateChangeNote);
   const removeEntry = useJournalStore((s) => s.removeEntry);
 
   // 진행 중인 액션 — 한 entry에만 동시에 가능
   const [actionEntryId, setActionEntryId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+
+  // 액션시트가 가리키는 entry — 변화 노트 항목 라벨/노출 판정용.
+  // entries는 시간 역순(0=최신)이라 마지막 인덱스가 첫 정의(=비교 대상 없음).
+  const actionIndex = item ? item.entries.findIndex((e) => e.id === actionEntryId) : -1;
+  const actionEntry = actionIndex >= 0 ? item!.entries[actionIndex] : null;
+  const isFirstDefinition = actionIndex === (item ? item.entries.length - 1 : -1);
 
   // 마지막 entry가 삭제돼서 item이 사라지면 단어장으로 복귀.
   // useEffect로 처리해 render 중 setState/navigate 부작용 방지.
@@ -53,6 +61,7 @@ export default function WordDetailScreen() {
   }
 
   function startEdit(id: string) {
+    setEditingNoteId(null); // 텍스트/노트 편집은 상호배타
     setEditingId(id);
   }
 
@@ -63,6 +72,20 @@ export default function WordDetailScreen() {
 
   function cancelEdit() {
     setEditingId(null);
+  }
+
+  function startEditNote(id: string) {
+    setEditingId(null);
+    setEditingNoteId(id);
+  }
+
+  function saveNote(id: string, note: string) {
+    updateChangeNote(id, note); // 빈 값이면 store가 노트 제거. savedAt 불변 → 정렬 영향 없음
+    setEditingNoteId(null);
+  }
+
+  function cancelEditNote() {
+    setEditingNoteId(null);
   }
 
   function requestDelete(id: string) {
@@ -129,9 +152,12 @@ export default function WordDetailScreen() {
               isNow={i === 0}
               isLast={i === item.entries.length - 1}
               editing={editingId === entry.id}
+              editingNote={editingNoteId === entry.id}
               onLongPress={() => setActionEntryId(entry.id)}
               onSaveEdit={(t) => saveEdit(entry.id, t)}
               onCancelEdit={cancelEdit}
+              onSaveNote={(n) => saveNote(entry.id, n)}
+              onCancelNote={cancelEditNote}
             />
           ))}
         </View>
@@ -146,6 +172,15 @@ export default function WordDetailScreen() {
             label: '수정',
             onPress: () => actionEntryId && startEdit(actionEntryId),
           },
+          // 변화 노트는 "이전과 달라진 점"이라 첫 정의(비교 대상 없음)에는 제외.
+          ...(!isFirstDefinition
+            ? [
+                {
+                  label: actionEntry?.changeNote ? '변화 노트 수정' : '변화 노트 추가',
+                  onPress: () => actionEntryId && startEditNote(actionEntryId),
+                },
+              ]
+            : []),
           {
             label: '삭제',
             destructive: true,
