@@ -3,7 +3,7 @@
  *
  * 화면 구성:
  *   1. 헤더    — "나만의 단어장" + "{N}개 단어" 카운트 칩
- *   2. stat 2 — 총 기록 / 생각 변화 (연속 기록은 추후 streak 로직 도입 시)
+ *   2. stat 3 — 총 기록 / 연속 기록 / 생각 변화
  *   3. 리스트  — 가나다순. 누르면 /journal/{word} 동적 라우트로 push.
  *
  * 데이터는 src/store/journal-store.ts (Zustand + AsyncStorage persist).
@@ -17,7 +17,7 @@ import { WordRow } from '@/components/domain/word-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
-import { useGroupedByWord, useJournalStats } from '@/store/journal-store';
+import { useGroupedByWord, useJournalStats, useJournalStreak } from '@/store/journal-store';
 import { useTheme } from '@/theme';
 
 export default function JournalListScreen() {
@@ -26,6 +26,7 @@ export default function JournalListScreen() {
 
   const grouped = useGroupedByWord();
   const stats = useJournalStats();
+  const streak = useJournalStreak();
 
   // 가나다 정렬 — 그룹은 store insert 순이라 디스플레이 시점에 정렬
   const sorted = useMemo(
@@ -85,6 +86,7 @@ export default function JournalListScreen() {
         {/* ─── 2. 통계 ─── */}
         <View style={[styles.statStrip, { marginTop: theme.spacing.s4 }]}>
           <StatCard label="총 기록" value={`${stats.totalEntries}`} />
+          <StatCard label="연속 기록" value={`${streak.currentStreak}일`} />
           <StatCard label="생각 변화" value={`${stats.changedWords}`} />
         </View>
 

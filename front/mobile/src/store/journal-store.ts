@@ -176,3 +176,66 @@ export function useJournalStats(): { totalEntries: number; uniqueWords: number; 
     return { totalEntries: total, uniqueWords: grouped.length, changedWords: changed };
   }, [grouped]);
 }
+
+// ─── streak / 기록 흐름 통계 ──────────────────────────────────────
+
+/** 로컬 자정 기준 일련번호. Date.UTC(로컬 y/m/d)로 timezone 영향 없이 '며칠 차이'를 정수로. */
+function dayIndex(d: Date): number {
+  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000);
+}
+
+export type JournalStreak = {
+  /** 오늘(또는 어제)까지 이어진 연속 기록일. 오늘·어제 모두 비면 0. */
+  currentStreak: number;
+  /** 역대 최장 연속 기록일. */
+  longestStreak: number;
+  /** 이번 주(월~오늘) 기록한 날 수. */
+  daysThisWeek: number;
+  /** 기록한 날의 총 개수(하루 여러 번 적어도 1일). */
+  totalDays: number;
+};
+
+/**
+ * 기록 '날짜'들로 streak 계산. 시각·중복은 무시(하루 여러 번 적어도 1일로 셈).
+ * @param now 기준 시각(주입식 — 테스트/일관성).
+ */
+export function computeStreak(entries: SavedEntry[], now: Date): JournalStreak {
+  if (entries.length === 0) {
+    return { currentStreak: 0, longestStreak: 0, daysThisWeek: 0, totalDays: 0 };
+  }
+  const days = new Set<number>();
+  for (const e of entries) days.add(dayIndex(new Date(e.savedAt)));
+
+  const todayIdx = dayIndex(now);
+
+  // 현재 연속: 오늘이 있으면 오늘부터, 없고 어제가 있으면 어제부터(오늘은 아직 '저장 가능').
+  const anchor = days.has(todayIdx)
+    ? todayIdx
+    : days.has(todayIdx - 1)
+      ? todayIdx - 1
+      : null;
+  let currentStreak = 0;
+  while (anchor !== null && days.has(anchor - currentStreak)) currentStreak++;
+
+  // 최장 연속: 정렬 후 연속(차이 1) 구간 최대 길이.
+  const sorted = [...days].sort((a, b) => a - b);
+  let longestStreak = 1;
+  let run = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    run = sorted[i] === sorted[i - 1] + 1 ? run + 1 : 1;
+    if (run > longestStreak) longestStreak = run;
+  }
+
+  // 이번 주(월요일 시작) ~ 오늘.
+  const weekStartIdx = todayIdx - ((now.getDay() + 6) % 7); // getDay: 0=일
+  let daysThisWeek = 0;
+  for (const d of days) if (d >= weekStartIdx && d <= todayIdx) daysThisWeek++;
+
+  return { currentStreak, longestStreak, daysThisWeek, totalDays: days.size };
+}
+
+/** 기록 흐름(연속/이번 주/누적일) — 마이페이지·단어장 통계용. */
+export function useJournalStreak(): JournalStreak {
+  const entries = useJournalStore((s) => s.entries);
+  return useMemo(() => computeStreak(entries, new Date()), [entries]);
+}

@@ -25,7 +25,7 @@ import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
-import { useJournalStats } from '@/store/journal-store';
+import { useJournalStats, useJournalStreak } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
 import { useTheme } from '@/theme';
 
@@ -38,6 +38,7 @@ export default function MyPageScreen() {
   const nickname = useSettingsStore((s) => s.nickname);
   const setNickname = useSettingsStore((s) => s.setNickname);
   const stats = useJournalStats();
+  const streak = useJournalStreak();
 
   const [nicknameSheetOpen, setNicknameSheetOpen] = useState(false);
 
@@ -45,11 +46,13 @@ export default function MyPageScreen() {
   const avatarLetter = hasNickname ? nickname[0] : '';
 
   // 프로필 부제 — 실제 기록 통계 (가짜 수치 없이)
+  // 연속 기록은 2일 이상일 때만 — "1일 연속"은 의미가 약하고, 0일은 압박이 되므로 생략.
   const statLine =
     stats.totalEntries === 0
       ? '아직 정의한 단어가 없어요'
       : `총 ${stats.totalEntries}번의 정의 · ${stats.uniqueWords}개 단어` +
-        (stats.changedWords > 0 ? ` · 생각이 바뀐 단어 ${stats.changedWords}개` : '');
+        (stats.changedWords > 0 ? ` · 생각이 바뀐 단어 ${stats.changedWords}개` : '') +
+        (streak.currentStreak >= 2 ? ` · ${streak.currentStreak}일 연속 기록` : '');
 
   return (
     <ThemedView bg="paper" style={styles.root}>
