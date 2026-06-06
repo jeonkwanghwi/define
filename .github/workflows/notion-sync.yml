@@ -1,0 +1,22 @@
+name: Sync to Notion
+
+# docs/ 안의 md가 main에 푸시될 때마다 노션 루트 페이지 밑으로 동기화.
+# 필요한 secrets: NOTION_TOKEN(integration 토큰), NOTION_PAGE_ID(대상 페이지 32자리 ID)
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**']
+  workflow_dispatch: {}   # Actions 탭에서 수동 실행도 가능
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npx @vrerv/md-to-notion -t "$NOTION_TOKEN" -p "$NOTION_PAGE_ID" ./docs
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}

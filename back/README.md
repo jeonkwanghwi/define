@@ -1,6 +1,6 @@
 # back — define 백엔드 API (NestJS + Prisma)
 
-> 기획·개발 맥락: `../PLANNING.md`, `../DEVELOPMENT.md` (특히 §1 스택, 작업 로그).
+> 기획·개발 맥락: `../docs/PLANNING.md`, `../docs/DEVELOPMENT.md` (특히 §1 스택, 작업 로그).
 
 ## 스택
 - **NestJS** (TypeScript) — 프론트와 동일 언어. MVC 구조 내장(controller/service/module/dto).
