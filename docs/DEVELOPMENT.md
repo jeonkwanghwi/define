@@ -2,6 +2,8 @@
 
 > 기술 스택 · 현재 상태 · 화면별 구현 · 핵심 아키텍처 · 작업 로그
 > 브랜드/BM/정책은 [PLANNING.md](./PLANNING.md) 참조.
+>
+> 📖 **읽는 법** — 비개발자(기획)는 **§0 현재 작업 상태**만 봐도 전체 진행도가 잡힙니다. §1~5는 기술 상세(필요할 때만), 맨 아래 작업 로그는 결정·변경 히스토리입니다. (JWT·OAuth·임베딩 같은 기술 용어는 정확성을 위해 풀어쓰지 않고 그대로 둡니다.)
 
 ---
 
@@ -19,7 +21,7 @@
 9. 브랜드 자산(define.png 1024×1024) 통합
 10. **마이페이지 + 다크 모드 토글** — 헤더 진입점 / 라이트·다크·시스템 세그먼트 / 닉네임 편집 / 실제 통계 / 버전. 다크 토큰을 토글로 복원
 11. **streak·통계 보강** — 연속 기록일(timezone 안전) selector + 단어장 3칸/마이페이지 표시
-12. **백엔드 마일스톤1 (NestJS+Prisma)** — `back/` 스캐폴드, `GET /api/words` 풀 슬라이스 동작(controller→service→repository→SQLite). DB 스왑 대비 repository 인터페이스
+12. **백엔드 마일스톤1 (NestJS+Prisma)** — 서버 기본 뼈대 1차 동작 확인. `back/` 스캐폴드, `GET /api/words` 풀 슬라이스 동작(controller→service→repository→SQLite). DB 교체 대비 repository 인터페이스로 격리
 
 **🟡 다음 후보 (우선순위 미정)**
 - **★ 인증/동기화 (확정됨 — 착수 가능)**: (백엔드) auth(회원가입/로그인) + `POST /api/journal/import` / (프론트) `auth-store` + 가입 유도 게이트 컴포넌트(광장·회고·과거의나 탭) + 가입·로그인 화면
@@ -49,7 +51,7 @@
 | 폰트 | Pretendard Variable (expo-font, 6.4MB ttf 1파일) |
 | 아이콘 | react-native-svg 기반 자체 셋 (27개) |
 | Node | nvm LTS v24.16.0 |
-| 백엔드 | **NestJS** (TypeScript) · REST/JSON. **프론트와 동일 언어**(TS 단일 스택, DTO 타입 공유 가능). 현재 미구현(익명+로컬 영속), 광장/회원가입 착수 시 본격. (FastAPI에서 변경 — 2026-06-03 로그) |
+| 백엔드 | **NestJS** (TypeScript) · REST/JSON. **프론트와 동일 언어**(TS 단일 스택 → DTO 타입 공유 가능). 마일스톤1 동작(`GET /api/words`). 광장/회원가입은 auth부터 본격 착수 |
 | 백엔드 아키텍처 | MVC 계열 — **controller / service / repository / dto** 레이어 + 모듈별(`modules/<도메인>/`) 구성. DI로 repository 인터페이스↔구현 바인딩 |
 | DB | **시작: SQLite 파일DB** + **Repository 인터페이스로 격리** → 나중에 스왑. 종착 **Postgres 유력**(SQL→SQL 매끄러움; Mongo도 repository가 막아주므로 가능). 구현: **Prisma 제안**(SQLite/Postgres 동일 스키마). 확정은 보류 |
 | 인프라/배포 | **AWS** — 회원·데이터 관리 |
@@ -141,10 +143,10 @@
 | **단어장 리스트** (`/journal`) | ✅ 완료 | 가나다 정렬, 통계(총 기록/생각 변화), 빈 상태 안내, 변화 뱃지 |
 | **단어 상세** (`/journal/[word]`) | ✅ 완료 | 타임라인(노드별 **변화 노트** 표시) + 인라인 편집 + 삭제(ConfirmDialog) + entries=0 시 자동 router.back |
 | 광장 (`/plaza`) | 🟡 placeholder | 백엔드 종속 — 다른 사용자 데이터 필요 |
-| 회고 (`/mood`) | 🟡 placeholder | 기획 미확정 |
+| 회고 (`/mood`) | 🟡 placeholder | 아바타 마을 유력(기획 보류) · 회원가입 필요 탭 |
 | 과거의 나 (`/past`) | 🟡 placeholder | GPT API 종속 |
 | **마이페이지** (`/mypage`) | ✅ 완료 | 헤더 우상단 아바타 진입 / 테마 토글(라·다·시) / 닉네임 편집 / 실제 통계 / 버전. 알림·PDF·프리미엄은 준비중 |
-| 온보딩/회원가입/로그인 | ⏳ 미착수 | 회원가입 도입 시점 결정 필요 |
+| 온보딩/회원가입/로그인 | ⏳ 미착수 | 인증 모델 확정(① 익명우선) → 다음 착수 대상 |
 
 ---
 
@@ -197,8 +199,8 @@
 
 ## 6. 미확정 / 결정 필요 (개발)
 
-- [x] **백엔드 스택** — FastAPI + MVC(controller/service/dto) + REST/JSON 결정. 착수 시점만 미정
-- [ ] **DB 확정** — MongoDB 적합성(스키마리스 vs 관계형) + AWS 호스팅 형태(Atlas / DocumentDB / self-host)
+- [x] **백엔드 스택** — **NestJS**(TypeScript) + MVC(controller/service/repository/dto) + REST/JSON. 마일스톤1 동작 완료(`GET /api/words`). (FastAPI→NestJS 변경 경위: 작업 로그 2026-06-03)
+- [ ] **DB 종착 확정** — 현재 **SQLite로 시작 + Repository 인터페이스로 격리**(스왑은 바인딩 한 줄). 종착은 **Postgres 유력**(Mongo도 가능). AWS 호스팅 형태(RDS 등)는 확정 시 결정.
 - [x] **인증 모델** — ✅ **확정(2026-06-06): ① 익명우선 + 탭 게이팅**. 기록·통계 무가입, 광장·아바타마을·과거의나 가입 유도(잠금/블러). 회원가입 시 로컬→서버 `POST /api/journal/import`. 남은 세부: 인증 방식(소셜 Google/Apple/Kakao / 일반 / 로그아웃)은 구현 시 결정.
 - [ ] **단어 의미 유사도 판별 알고리즘** — 유사 단어 제안(§5)의 핵심. 단계 후보: **L0** 정규화/동의어 사전(조사·어미 제거 + 수기 동의어 — 싸고 결정적, "행복함"→"행복") · **L1** 자모 분해(NFD) 후 편집거리(Levenshtein)/자카드(오타·활용형) · **L2** 의미 임베딩 코사인 유사도(예: OpenAI text-embedding-3-small 또는 한국어 특화 — "기쁨"↔"행복" 같은 의미 유사 포착, 서버·비용 필요). **권고**: 초기 L0+L1(클라/서버 가볍게), 광장 규모↑ 시 L2(과거의나 GPT 연동과 임베딩 인프라 재활용). 임계값·계산 위치(클라 vs 서버) 미정.
 - [ ] **GPT 연동·비용** — 과거의 나. 파인튜닝(공통 페르소나)+few-shot, 비용 정책
