@@ -1,0 +1,12 @@
+/**
+ * UserEntity — 우리 앱이 생각하는 "가입 사용자 한 명".
+ * passwordHash까지 들고 있는 내부 도메인 객체 (로그인 비교에 필요).
+ * 바깥(응답)으로는 절대 그대로 나가지 않는다 — AuthResponse로 추려서 내보냄.
+ */
+export class UserEntity {
+  id: string;
+  email: string;
+  passwordHash: string;
+  nickname: string | null;
+  createdAt: Date;
+}
