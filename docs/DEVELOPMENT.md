@@ -23,10 +23,11 @@
 11. **streak·통계 보강** — 연속 기록일(timezone 안전) selector + 단어장 3칸/마이페이지 표시
 12. **백엔드 마일스톤1 (NestJS+Prisma)** — 서버 기본 뼈대 1차 동작 확인. `back/` 스캐폴드, `GET /api/words` 풀 슬라이스 동작(controller→service→repository→SQLite). DB 교체 대비 repository 인터페이스로 격리
 13. **백엔드 auth/동기화 (마일스톤2)** — 이메일+PW 회원가입/로그인(access-only JWT 90일, bcryptjs) + `POST /api/journal/import`(로컬 entries 서버 동기화, `(userId,clientId)` 멱등 upsert). `User`·`Entry` 테이블 추가. curl 6스텝 검증 통과(가입201/중복409/로그인200/실패401/import 3→0/재import 0→3/무토큰401)
+14. **프론트 인증 연결 + 업로드 동기화 (1차)** — 마이페이지 진입 `/auth` 풀스크린(로그인↔가입 토글) + `auth-store`(async-storage persist) + `services/`(api-client·auth·journal) + `lib/sync-journal`. 가입·로그인 시 로컬 entries를 서버로 **멱등 업로드**(비치명적 — 실패해도 로그인 유지), 로그아웃은 로컬 단어장 보존. tsc 클린·웹 번들·백엔드 curl 계약 검증
 
 **🟡 다음 후보 (우선순위 미정)**
-- **★ 인증/동기화 — 프론트 연결 (백엔드 완료, 다음 차례)**: (프론트) `auth-store`(persist) + 가입 유도 게이트 컴포넌트(광장·회고·과거의나 탭) + 가입·로그인 화면(우리 톤) + 로그인 성공 시 로컬 entries → `POST /api/journal/import` 1회 업로드
-- 광장 — **백엔드 종속**. auth 다음 단계
+- **★ 가입 유도 게이트 — 프론트 2차 (다음 차례)**: 광장·회고·과거의나 3탭 진입 시 잠금/블러 + `/auth` 유도(auth-store 상태 재사용). + 다운로드 동기화(서버→로컬, `GET /journal` 선행)
+- 광장 — **백엔드 종속**. 게이트 다음 단계
 - 회고/검색/주간 회고 (좌2 탭 — 아바타 마을 유력, 기획 보류)
 - 과거의 나와 대화 (GPT API 종속)
 - 마이페이지 후속: 알림/PDF/프리미엄 실제 기능, 다크 톤 실기기 대비 점검
@@ -220,6 +221,15 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-07 — 프론트 인증 연결 + 업로드 동기화 1차 (RN/Expo) ★
+- **무엇**: 백엔드 마일스톤2 위에 프론트 인증을 연결. 브랜치 `feat/frontend-auth-sync`, 6 태스크 서브에이전트 구동(스펙+품질 리뷰). 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-07-frontend-auth-sync-*`. 게이트 3탭은 2차로 분리.
+- **신규**: `services/{api-client,auth-api,journal-api}.ts`(fetch 래퍼 + 도메인 함수) · `lib/sync-journal.ts`(journal-store entries → import payload 변환·업로드) · `store/auth-store.ts`(token·user·lastSyncedAt, async-storage persist) · `app/auth.tsx`(`/auth` 풀스크린, 로그인↔가입 토글, 인라인 에러). 수정: `app/mypage.tsx` 계정 섹션(로그인/로그아웃 ConfirmDialog).
+- **동기화 정책**: 가입·로그인 **둘 다** 트리거, 업로드 전용(로컬→서버), 멱등(`SavedEntry.id`→`clientId`). **비치명적** — 인증 성공 후 sync가 throw해도 로그인 롤백 X(다음 로그인 멱등 재동기화로 복구). 로그아웃은 인증만 해제, **로컬 단어장 보존**.
+- **관심사 분리**: auth-store는 journal-store를 직접 import하지 않고 `lib/sync-journal`이 매개. 토큰은 async-storage(웹 검증 유지; expo-secure-store는 웹 미지원이라 실기기 빌드 시 승격).
+- **검증**: tsc 클린(typedRoutes는 `expo start`가 `/auth` 타입 재생성) · `expo export --platform web` 번들 0에러 · 백엔드 curl 계약(signup 201 / import {imported,updated} / 재import 멱등) 재현. 인터랙티브 UI 클릭스루는 수동 잔여.
+- **비범위(후속)**: 게이트 3탭 · 다운로드 동기화(`GET /journal`) · 닉네임 서버↔로컬 정합 · 에러 카피 다듬기 · refresh/소셜.
+- **회고**: 계획이 참조한 `theme.spacing.s7`이 실제 토큰에 없어(s6→s8 점프) 구현 중 `s8`로 정정 — 스케일 확인 누락. `_layout.tsx`는 expo-router 자동 라우팅이라 스펙의 "수정" 항목이 불필요(코드 최소화).
 
 ### 2026-06-07 — 백엔드 auth/동기화 마일스톤2 (NestJS) ★
 - **무엇**: 익명우선 모델의 회원가입·로그인·로컬 단어장 서버 동기화 백엔드를 구현. 브랜치 `feat/backend-auth-sync`, 8 태스크를 서브에이전트 구동(태스크별 스펙+품질 2단계 리뷰)으로 진행. 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-07-backend-auth-sync-*`.
