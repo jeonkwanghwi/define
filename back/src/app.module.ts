@@ -13,6 +13,7 @@ import { ConfigModule } from '@nestjs/config';
 import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { JournalModule } from './modules/journal/journal.module';
 import { WordModule } from './modules/word/word.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { WordModule } from './modules/word/word.module';
     DatabaseModule,
     WordModule,
     AuthModule,
+    JournalModule,
   ],
 })
 export class AppModule {}
