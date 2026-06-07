@@ -24,3 +24,32 @@ model Word {
 
   @@map("words") // 실제 테이블명은 words (소문자 복수형 관례)
 }
+
+/// 가입 사용자. 익명 모델 → 가입 시 닉네임 미설정 허용(nullable).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  nickname     String?
+  createdAt    DateTime @default(now())
+  entries      Entry[]
+
+  @@map("users")
+}
+
+/// 사용자 정의 단어(entry) — 로컬 SavedEntry의 서버 쌍둥이.
+/// clientId = 로컬 SavedEntry.id 보존 → (userId, clientId) 유니크로 재import 중복 방지.
+model Entry {
+  id         String   @id @default(cuid())
+  clientId   String
+  userId     String
+  word       String
+  text       String
+  changeNote String?
+  savedAt    DateTime
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@map("entries")
+}

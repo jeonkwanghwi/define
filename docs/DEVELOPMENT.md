@@ -22,9 +22,10 @@
 10. **마이페이지 + 다크 모드 토글** — 헤더 진입점 / 라이트·다크·시스템 세그먼트 / 닉네임 편집 / 실제 통계 / 버전. 다크 토큰을 토글로 복원
 11. **streak·통계 보강** — 연속 기록일(timezone 안전) selector + 단어장 3칸/마이페이지 표시
 12. **백엔드 마일스톤1 (NestJS+Prisma)** — 서버 기본 뼈대 1차 동작 확인. `back/` 스캐폴드, `GET /api/words` 풀 슬라이스 동작(controller→service→repository→SQLite). DB 교체 대비 repository 인터페이스로 격리
+13. **백엔드 auth/동기화 (마일스톤2)** — 이메일+PW 회원가입/로그인(access-only JWT 90일, bcryptjs) + `POST /api/journal/import`(로컬 entries 서버 동기화, `(userId,clientId)` 멱등 upsert). `User`·`Entry` 테이블 추가. curl 6스텝 검증 통과(가입201/중복409/로그인200/실패401/import 3→0/재import 0→3/무토큰401)
 
 **🟡 다음 후보 (우선순위 미정)**
-- **★ 인증/동기화 (확정됨 — 착수 가능)**: (백엔드) auth(회원가입/로그인) + `POST /api/journal/import` / (프론트) `auth-store` + 가입 유도 게이트 컴포넌트(광장·회고·과거의나 탭) + 가입·로그인 화면
+- **★ 인증/동기화 — 프론트 연결 (백엔드 완료, 다음 차례)**: (프론트) `auth-store`(persist) + 가입 유도 게이트 컴포넌트(광장·회고·과거의나 탭) + 가입·로그인 화면(우리 톤) + 로그인 성공 시 로컬 entries → `POST /api/journal/import` 1회 업로드
 - 광장 — **백엔드 종속**. auth 다음 단계
 - 회고/검색/주간 회고 (좌2 탭 — 아바타 마을 유력, 기획 보류)
 - 과거의 나와 대화 (GPT API 종속)
@@ -219,6 +220,16 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-07 — 백엔드 auth/동기화 마일스톤2 (NestJS) ★
+- **무엇**: 익명우선 모델의 회원가입·로그인·로컬 단어장 서버 동기화 백엔드를 구현. 브랜치 `feat/backend-auth-sync`, 8 태스크를 서브에이전트 구동(태스크별 스펙+품질 2단계 리뷰)으로 진행. 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-07-backend-auth-sync-*`.
+- **DB**: `User`{email unique, passwordHash, nickname?} + `Entry`{clientId, userId, word, text, changeNote?, savedAt} 추가(마이그레이션 `add_user_entry`). 기존 `Word`(추천 풀) 무변경. `Entry`는 `@@unique([userId, clientId])` — 로컬 `SavedEntry.id`를 `clientId`로 보존해 재import 멱등성 보장.
+- **modules/auth**: `signup`/`login`(bcryptjs 해싱, 계정 열거 방지로 로그인 실패 메시지 통일) + **access-only JWT 90일**(refresh 없음). passport-jwt 전략 + `JwtAuthGuard`. repository 인터페이스↔Prisma 구현 DI 바인딩(word 모듈 패턴 동일).
+- **modules/journal**: `POST /api/journal/import`(JwtAuthGuard 보호). entries를 `(userId,clientId)` upsert(findUnique→create/update 분기)해 `{imported, updated}` 반환. 같은 payload 재전송 시 imported=0 → **중복 안 쌓임**. 중첩 배열 검증(`@ValidateNested`+`@Type`).
+- **검증**: 실제 구동+curl 6스텝 전부 통과(테스트 프레임워크 미도입 — 마일스톤1 컨벤션 따름). 멱등성은 DB COUNT=3(재import 후에도 6 아님)로 증명. 무토큰 401, 잘못된 entry 400(검증 동작)까지 확인.
+- **인증 방식 세부 확정**: 이메일+PW(소셜은 후속). 가입 수집 정보는 **이메일·비밀번호만**(닉네임·프로필은 미수집). 분석용 프로필(`gender`/`birthYear`)은 향후 nullable 컬럼/`Profile` 1:1로 — 가입 마찰 회피·성별 중립(PLANNING §9).
+- **비범위(보류)**: 프론트 연결(다음), 소셜 로그인, refresh 토큰, canonical 단어 연결(`Entry.wordId`), 로그아웃/탈퇴, 다중기기 양방향, 자동 e2e 테스트.
+- **회고**: 계획을 그대로 옮기는 기계적 태스크(3·5·7)는 통합 리뷰 1회로, 실제 서버 검증이 도는 통합 태스크(6·8)는 스펙+품질 2단계로 분리해 리뷰 비용을 차등. `@nestjs/jwt@11` 타입 강화로 `expiresIn`에 템플릿 리터럴 캐스트 1건 불가피(동작 무변화). 계획이 만든 미사용 `EntryEntity`는 YAGNI로 제거.
 
 ### 2026-06-06 — 문서 인프라: docs/ 재배치 + 노션 자동 동기화 + 가독성 점검
 - **docs/ 재배치**: `PLANNING.md`·`DEVELOPMENT.md`를 루트 → `docs/`로 이동(git mv, 히스토리 보존). 참조 링크 4개 파일 갱신(루트 CLAUDE.md, front/mobile/CLAUDE.md, back/README.md, 본 §2 트리). CLAUDE.md·README는 루트 유지(자동 로드/레포 readme).
