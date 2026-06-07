@@ -6,4 +6,9 @@
 export default () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
   databaseUrl: process.env.DATABASE_URL ?? 'file:./dev.db',
+  jwt: {
+    // 운영에서는 반드시 .env의 JWT_SECRET로 덮어쓸 것. 아래는 로컬 개발 폴백.
+    secret: process.env.JWT_SECRET ?? 'dev-secret-change-me',
+    expiresIn: process.env.JWT_EXPIRES_IN ?? '90d',
+  },
 });
