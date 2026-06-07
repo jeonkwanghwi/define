@@ -22,9 +22,11 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
+import { ConfirmDialog } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
+import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStreak } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
 import { useTheme } from '@/theme';
@@ -41,6 +43,11 @@ export default function MyPageScreen() {
   const streak = useJournalStreak();
 
   const [nicknameSheetOpen, setNicknameSheetOpen] = useState(false);
+  const token = useAuthStore((s) => s.token);
+  const accountEmail = useAuthStore((s) => s.user?.email ?? null);
+  const lastSyncedAt = useAuthStore((s) => s.lastSyncedAt);
+  const logout = useAuthStore((s) => s.logout);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const hasNickname = nickname.length > 0;
   const avatarLetter = hasNickname ? nickname[0] : '';
@@ -119,6 +126,35 @@ export default function MyPageScreen() {
           </View>
         </Pressable>
 
+        {/* ─── 계정 ─── */}
+        <SectionLabel theme={theme} text="계정" />
+        <Group theme={theme}>
+          {token ? (
+            <>
+              <Row
+                theme={theme}
+                icon="user"
+                label={accountEmail ?? '로그인됨'}
+                value={lastSyncedAt ? '동기화됨' : undefined}
+              />
+              <Divider theme={theme} />
+              <Row
+                theme={theme}
+                icon="close"
+                label="로그아웃"
+                onPress={() => setLogoutOpen(true)}
+              />
+            </>
+          ) : (
+            <Row
+              theme={theme}
+              icon="user"
+              label="로그인 / 회원가입"
+              onPress={() => router.push('/auth')}
+            />
+          )}
+        </Group>
+
         {/* ─── 화면 (테마) ─── */}
         <SectionLabel theme={theme} text="화면" />
         <ThemeModeToggle />
@@ -193,6 +229,16 @@ export default function MyPageScreen() {
         current={nickname}
         onSave={setNickname}
         onClose={() => setNicknameSheetOpen(false)}
+      />
+
+      {/* 로그아웃 확인 (시스템 Alert X) */}
+      <ConfirmDialog
+        visible={logoutOpen}
+        title="로그아웃할까요?"
+        message="기록한 단어는 이 기기에 그대로 남아요."
+        confirmLabel="로그아웃"
+        onConfirm={logout}
+        onClose={() => setLogoutOpen(false)}
       />
     </ThemedView>
   );
