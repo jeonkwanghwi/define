@@ -24,10 +24,11 @@
 12. **백엔드 마일스톤1 (NestJS+Prisma)** — 서버 기본 뼈대 1차 동작 확인. `back/` 스캐폴드, `GET /api/words` 풀 슬라이스 동작(controller→service→repository→SQLite). DB 교체 대비 repository 인터페이스로 격리
 13. **백엔드 auth/동기화 (마일스톤2)** — 이메일+PW 회원가입/로그인(access-only JWT 90일, bcryptjs) + `POST /api/journal/import`(로컬 entries 서버 동기화, `(userId,clientId)` 멱등 upsert). `User`·`Entry` 테이블 추가. curl 6스텝 검증 통과(가입201/중복409/로그인200/실패401/import 3→0/재import 0→3/무토큰401)
 14. **프론트 인증 연결 + 업로드 동기화 (1차)** — 마이페이지 진입 `/auth` 풀스크린(로그인↔가입 토글) + `auth-store`(async-storage persist) + `services/`(api-client·auth·journal) + `lib/sync-journal`. 가입·로그인 시 로컬 entries를 서버로 **멱등 업로드**(비치명적 — 실패해도 로그인 유지), 로그아웃은 로컬 단어장 보존. tsc 클린·웹 번들·백엔드 curl 계약 검증
+15. **가입 유도 게이트 (프론트 2차)** — `AuthGate`(token 분기) 컴포넌트로 광장·회고·과거의나 3탭에 잠금 화면 + "가입하고 시작하기" CTA(→`/auth`). 로그인 시 기존 placeholder, 로그아웃 시 게이트(자동 리렌더). 기록·단어장은 무가입. §5 탭 게이팅 정책 구현 — 전환 퍼널(가입 유도→/auth→동기화) 완성. tsc·웹 번들 검증
 
 **🟡 다음 후보 (우선순위 미정)**
-- **★ 가입 유도 게이트 — 프론트 2차 (다음 차례)**: 광장·회고·과거의나 3탭 진입 시 잠금/블러 + `/auth` 유도(auth-store 상태 재사용). + 다운로드 동기화(서버→로컬, `GET /journal` 선행)
-- 광장 — **백엔드 종속**. 게이트 다음 단계
+- **다운로드 동기화 (서버→로컬)**: `GET /journal` 백엔드 추가 → 재설치/다른 기기 로그인 시 서버 entries 복원. (현재는 업로드 전용)
+- **각 탭 실제 기능**: 광장(백엔드 종속) → 회고/과거의나. 게이트는 이미 깔림
 - 회고/검색/주간 회고 (좌2 탭 — 아바타 마을 유력, 기획 보류)
 - 과거의 나와 대화 (GPT API 종속)
 - 마이페이지 후속: 알림/PDF/프리미엄 실제 기능, 다크 톤 실기기 대비 점검
@@ -221,6 +222,14 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-07 — 가입 유도 게이트 프론트 2차 (RN/Expo) ★
+- **무엇**: §5 탭 게이팅 정책 구현. 브랜치 `feat/auth-gate`, 2 태스크 서브에이전트 구동. 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-07-auth-gate-*`.
+- **신규**: `components/domain/auth-gate.tsx` — `AuthGate`(props: icon·title·description·children). `useAuthStore` token 구독 → 있으면 children, 없으면 잠금 화면(탭 아이콘 + 유도 문구 + `lock` + "가입하고 시작하기" CTA→`/auth`). 수정: `(tabs)/{plaza,mood,past}.tsx`가 기존 `ScreenPlaceholder`를 `AuthGate`로 감쌈(탭별 문구).
+- **정책**: 광장·회고·과거의나만 게이트(가입 필요), 기록·단어장은 무가입. 탭바에서 **숨기지 않음**(진입 시 유도). CTA→`/auth`→성공 시 `router.back()`으로 해당 탭 복귀 → 게이트가 token 보고 children으로 자동 전환. 로그아웃 시 token=null → 게이트 자동 복귀(zustand 리렌더).
+- **시각**: 가짜 콘텐츠·블러 라이브러리 없는 **깔끔한 잠금 화면**(진짜 콘텐츠 없는 단계라 정직하게). 광장에 실제 정의 쌓이면 블러 티저로 승격은 후속.
+- **검증**: tsc 클린 + `expo export --platform web` 0에러(plaza/mood/past 라우트 포함). 인터랙티브 클릭스루는 수동 잔여.
+- **비범위(후속)**: 블러 티저 · 다운로드 동기화 · 각 탭 실제 기능 · 닉네임 정합.
 
 ### 2026-06-07 — 프론트 인증 연결 + 업로드 동기화 1차 (RN/Expo) ★
 - **무엇**: 백엔드 마일스톤2 위에 프론트 인증을 연결. 브랜치 `feat/frontend-auth-sync`, 6 태스크 서브에이전트 구동(스펙+품질 리뷰). 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-07-frontend-auth-sync-*`. 게이트 3탭은 2차로 분리.
