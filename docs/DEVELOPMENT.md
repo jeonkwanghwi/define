@@ -25,10 +25,12 @@
 13. **백엔드 auth/동기화 (마일스톤2)** — 이메일+PW 회원가입/로그인(access-only JWT 90일, bcryptjs) + `POST /api/journal/import`(로컬 entries 서버 동기화, `(userId,clientId)` 멱등 upsert). `User`·`Entry` 테이블 추가. curl 6스텝 검증 통과(가입201/중복409/로그인200/실패401/import 3→0/재import 0→3/무토큰401)
 14. **프론트 인증 연결 + 업로드 동기화 (1차)** — 마이페이지 진입 `/auth` 풀스크린(로그인↔가입 토글) + `auth-store`(async-storage persist) + `services/`(api-client·auth·journal) + `lib/sync-journal`. 가입·로그인 시 로컬 entries를 서버로 **멱등 업로드**(비치명적 — 실패해도 로그인 유지), 로그아웃은 로컬 단어장 보존. tsc 클린·웹 번들·백엔드 curl 계약 검증
 15. **가입 유도 게이트 (프론트 2차)** — `AuthGate`(token 분기) 컴포넌트로 광장·회고·과거의나 3탭에 잠금 화면 + "가입하고 시작하기" CTA(→`/auth`). 로그인 시 기존 placeholder, 로그아웃 시 게이트(자동 리렌더). 기록·단어장은 무가입. §5 탭 게이팅 정책 구현 — 전환 퍼널(가입 유도→/auth→동기화) 완성. tsc·웹 번들 검증
+16. **광장 1차 — 읽기 전용 MVP (컨셉1 단어 중심)** — 데모 시드(유저9+정의36) + `modules/plaza`(단어별 정의 조회, JwtAuthGuard, 내 정의 isMine 맨 위) + plaza 탭 stack 전환(리스트 `/plaza` + 상세 `/plaza/[word]`). 노출=시드+내 정의(나에게만 강조), 상호주의=로그인. 신규 DB 테이블 없음(Entry 재사용). 클린 DB curl+tsc+웹 번들 검증
 
 **🟡 다음 후보 (우선순위 미정)**
+- **광장 2차**: 추천(좋아요)+추천순 정렬 → 3차 신고/모더레이션
 - **다운로드 동기화 (서버→로컬)**: `GET /journal` 백엔드 추가 → 재설치/다른 기기 로그인 시 서버 entries 복원. (현재는 업로드 전용)
-- **각 탭 실제 기능**: 광장(백엔드 종속) → 회고/과거의나. 게이트는 이미 깔림
+- **각 탭 실제 기능**: 회고/과거의나 (광장은 1차 완료). 명시적 공개/비공개 동의는 배포·다유저 시
 - 회고/검색/주간 회고 (좌2 탭 — 아바타 마을 유력, 기획 보류)
 - 과거의 나와 대화 (GPT API 종속)
 - 마이페이지 후속: 알림/PDF/프리미엄 실제 기능, 다크 톤 실기기 대비 점검
@@ -222,6 +224,15 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-08 — 광장 1차: 읽기 전용 MVP (백엔드+프론트) ★
+- **무엇**: "남들은 이 단어를 어떻게 정의했나"를 보여주는 광장을 읽기 전용으로 구현. 브랜치 `feat/plaza-mvp`, 6 태스크 서브에이전트 구동. 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-08-plaza-mvp-*`. 추천·신고·컨셉2(아바타 마을)는 후속 슬라이스.
+- **콜드스타트 해결(시드)**: `prisma/seed-plaza.ts`(npm `db:seed:plaza`) — 닉네임 붙은 시드 유저 9명 + 추천 단어 12개에 큐레이션 정의 36개 분배(멱등). dev.db는 로컬 throwaway라 배포 무관, prod 시드는 후속.
+- **백엔드 `modules/plaza`**(신규 테이블 없음, Entry 재사용): `GET /api/plaza/words`(정의 있는 단어+count, 많은 순), `GET /api/plaza/words/:word`(정의들 + 내 정의 isMine 맨 위, 닉네임 없으면 '익명'). 모두 JwtAuthGuard. repository가 Entry를 `word`로 groupBy + User 닉네임 조인.
+- **프론트**: `services/plaza-api.ts` + plaza 탭을 journal처럼 **stack 전환**(`plaza/_layout`+`index`+`[word]`). index는 AuthGate 뒤에서 단어 리스트, `[word]`는 정의 카드(내 정의 포인트 보더+"내 정의" 배지). 로딩/빈/에러 상태 우리 톤.
+- **노출·상호주의 모델**: 시드 정의 + 내 정의(나에게만 강조). 진짜 타인 자동 공개는 배포·다유저 시 명시적 동의로 보류. 상호주의 게이팅 = 로그인(AuthGate + JwtAuthGuard 이중). canonical 클러스터링은 `word` 문자열 그대로(유사어 병합 후속).
+- **검증**: 클린 dev.db(`prisma migrate reset`+시드)에서 curl — 12단어 count 3, 행복 count 4(시드 3+내 1), 내 정의 isMine:true 맨 위, 무토큰 401. 프론트 tsc 0 + `expo export` 0에러(/plaza·/plaza/[word]). 인터랙티브 클릭스루는 수동 잔여.
+- **회고**: 세션 누적 curl 테스트 데이터가 dev.db에 쌓여 광장 count가 부풀어 보이는 일이 반복 → throwaway DB라 코드 문제 아니나, 데모 전 `migrate reset`+시드로 정리. 코드리뷰가 빈 정의 배열 상태 안내 누락을 잡아 보강(형제 리스트 화면과 일관).
 
 ### 2026-06-07 — 가입 유도 게이트 프론트 2차 (RN/Expo) ★
 - **무엇**: §5 탭 게이팅 정책 구현. 브랜치 `feat/auth-gate`, 2 태스크 서브에이전트 구동. 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-07-auth-gate-*`.
