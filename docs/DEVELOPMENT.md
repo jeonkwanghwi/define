@@ -226,7 +226,7 @@
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
 ### 2026-06-08 — 광장 1차: 읽기 전용 MVP (백엔드+프론트) ★
-- **무엇**: "남들은 이 단어를 어떻게 정의했나"를 보여주는 광장을 읽기 전용으로 구현. 브랜치 `feat/plaza-mvp`, 6 태스크 서브에이전트 구동. 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-08-plaza-mvp-*`. 추천·신고·컨셉2(아바타 마을)는 후속 슬라이스.
+- **무엇**: "남들은 이 단어를 어떻게 정의했나"를 보여주는 광장을 읽기 전용으로 구현. 브랜치 `feat/plaza-mvp`, 6 태스크 서브에이전트 구동(설계·계획은 세션 내 대화, 별도 문서 없음). 추천·신고·컨셉2(아바타 마을)는 후속 슬라이스.
 - **콜드스타트 해결(시드)**: `prisma/seed-plaza.ts`(npm `db:seed:plaza`) — 닉네임 붙은 시드 유저 9명 + 추천 단어 12개에 큐레이션 정의 36개 분배(멱등). dev.db는 로컬 throwaway라 배포 무관, prod 시드는 후속.
 - **백엔드 `modules/plaza`**(신규 테이블 없음, Entry 재사용): `GET /api/plaza/words`(정의 있는 단어+count, 많은 순), `GET /api/plaza/words/:word`(정의들 + 내 정의 isMine 맨 위, 닉네임 없으면 '익명'). 모두 JwtAuthGuard. repository가 Entry를 `word`로 groupBy + User 닉네임 조인.
 - **프론트**: `services/plaza-api.ts` + plaza 탭을 journal처럼 **stack 전환**(`plaza/_layout`+`index`+`[word]`). index는 AuthGate 뒤에서 단어 리스트, `[word]`는 정의 카드(내 정의 포인트 보더+"내 정의" 배지). 로딩/빈/에러 상태 우리 톤.
@@ -235,7 +235,7 @@
 - **회고**: 세션 누적 curl 테스트 데이터가 dev.db에 쌓여 광장 count가 부풀어 보이는 일이 반복 → throwaway DB라 코드 문제 아니나, 데모 전 `migrate reset`+시드로 정리. 코드리뷰가 빈 정의 배열 상태 안내 누락을 잡아 보강(형제 리스트 화면과 일관).
 
 ### 2026-06-07 — 가입 유도 게이트 프론트 2차 (RN/Expo) ★
-- **무엇**: §5 탭 게이팅 정책 구현. 브랜치 `feat/auth-gate`, 2 태스크 서브에이전트 구동. 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-07-auth-gate-*`.
+- **무엇**: §5 탭 게이팅 정책 구현. 브랜치 `feat/auth-gate`, 2 태스크 서브에이전트 구동(설계·계획은 세션 내 대화, 별도 문서 없음).
 - **신규**: `components/domain/auth-gate.tsx` — `AuthGate`(props: icon·title·description·children). `useAuthStore` token 구독 → 있으면 children, 없으면 잠금 화면(탭 아이콘 + 유도 문구 + `lock` + "가입하고 시작하기" CTA→`/auth`). 수정: `(tabs)/{plaza,mood,past}.tsx`가 기존 `ScreenPlaceholder`를 `AuthGate`로 감쌈(탭별 문구).
 - **정책**: 광장·회고·과거의나만 게이트(가입 필요), 기록·단어장은 무가입. 탭바에서 **숨기지 않음**(진입 시 유도). CTA→`/auth`→성공 시 `router.back()`으로 해당 탭 복귀 → 게이트가 token 보고 children으로 자동 전환. 로그아웃 시 token=null → 게이트 자동 복귀(zustand 리렌더).
 - **시각**: 가짜 콘텐츠·블러 라이브러리 없는 **깔끔한 잠금 화면**(진짜 콘텐츠 없는 단계라 정직하게). 광장에 실제 정의 쌓이면 블러 티저로 승격은 후속.
@@ -243,7 +243,7 @@
 - **비범위(후속)**: 블러 티저 · 다운로드 동기화 · 각 탭 실제 기능 · 닉네임 정합.
 
 ### 2026-06-07 — 프론트 인증 연결 + 업로드 동기화 1차 (RN/Expo) ★
-- **무엇**: 백엔드 마일스톤2 위에 프론트 인증을 연결. 브랜치 `feat/frontend-auth-sync`, 6 태스크 서브에이전트 구동(스펙+품질 리뷰). 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-07-frontend-auth-sync-*`. 게이트 3탭은 2차로 분리.
+- **무엇**: 백엔드 마일스톤2 위에 프론트 인증을 연결. 브랜치 `feat/frontend-auth-sync`, 6 태스크 서브에이전트 구동(스펙+품질 리뷰, 설계·계획은 세션 내 대화). 게이트 3탭은 2차로 분리.
 - **신규**: `services/{api-client,auth-api,journal-api}.ts`(fetch 래퍼 + 도메인 함수) · `lib/sync-journal.ts`(journal-store entries → import payload 변환·업로드) · `store/auth-store.ts`(token·user·lastSyncedAt, async-storage persist) · `app/auth.tsx`(`/auth` 풀스크린, 로그인↔가입 토글, 인라인 에러). 수정: `app/mypage.tsx` 계정 섹션(로그인/로그아웃 ConfirmDialog).
 - **동기화 정책**: 가입·로그인 **둘 다** 트리거, 업로드 전용(로컬→서버), 멱등(`SavedEntry.id`→`clientId`). **비치명적** — 인증 성공 후 sync가 throw해도 로그인 롤백 X(다음 로그인 멱등 재동기화로 복구). 로그아웃은 인증만 해제, **로컬 단어장 보존**.
 - **관심사 분리**: auth-store는 journal-store를 직접 import하지 않고 `lib/sync-journal`이 매개. 토큰은 async-storage(웹 검증 유지; expo-secure-store는 웹 미지원이라 실기기 빌드 시 승격).
@@ -252,7 +252,7 @@
 - **회고**: 계획이 참조한 `theme.spacing.s7`이 실제 토큰에 없어(s6→s8 점프) 구현 중 `s8`로 정정 — 스케일 확인 누락. `_layout.tsx`는 expo-router 자동 라우팅이라 스펙의 "수정" 항목이 불필요(코드 최소화).
 
 ### 2026-06-07 — 백엔드 auth/동기화 마일스톤2 (NestJS) ★
-- **무엇**: 익명우선 모델의 회원가입·로그인·로컬 단어장 서버 동기화 백엔드를 구현. 브랜치 `feat/backend-auth-sync`, 8 태스크를 서브에이전트 구동(태스크별 스펙+품질 2단계 리뷰)으로 진행. 스펙/계획: `docs/superpowers/{specs,plans}/2026-06-07-backend-auth-sync-*`.
+- **무엇**: 익명우선 모델의 회원가입·로그인·로컬 단어장 서버 동기화 백엔드를 구현. 브랜치 `feat/backend-auth-sync`, 8 태스크를 서브에이전트 구동(태스크별 스펙+품질 2단계 리뷰)으로 진행.
 - **DB**: `User`{email unique, passwordHash, nickname?} + `Entry`{clientId, userId, word, text, changeNote?, savedAt} 추가(마이그레이션 `add_user_entry`). 기존 `Word`(추천 풀) 무변경. `Entry`는 `@@unique([userId, clientId])` — 로컬 `SavedEntry.id`를 `clientId`로 보존해 재import 멱등성 보장.
 - **modules/auth**: `signup`/`login`(bcryptjs 해싱, 계정 열거 방지로 로그인 실패 메시지 통일) + **access-only JWT 90일**(refresh 없음). passport-jwt 전략 + `JwtAuthGuard`. repository 인터페이스↔Prisma 구현 DI 바인딩(word 모듈 패턴 동일).
 - **modules/journal**: `POST /api/journal/import`(JwtAuthGuard 보호). entries를 `(userId,clientId)` upsert(findUnique→create/update 분기)해 `{imported, updated}` 반환. 같은 payload 재전송 시 imported=0 → **중복 안 쌓임**. 중첩 배열 검증(`@ValidateNested`+`@Type`).
