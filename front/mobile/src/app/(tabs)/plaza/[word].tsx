@@ -64,6 +64,10 @@ export default function PlazaWordDetailScreen() {
           <ThemedText variant="body" tone="secondary" style={styles.centerText}>
             불러오는 중…
           </ThemedText>
+        ) : data.definitions.length === 0 ? (
+          <ThemedText variant="body" tone="secondary" style={styles.centerText}>
+            아직 정의가 없어요.
+          </ThemedText>
         ) : (
           data.definitions.map((d) => (
             <View
