@@ -14,6 +14,7 @@ import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JournalModule } from './modules/journal/journal.module';
+import { PlazaModule } from './modules/plaza/plaza.module';
 import { WordModule } from './modules/word/word.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { WordModule } from './modules/word/word.module';
     WordModule,
     AuthModule,
     JournalModule,
+    PlazaModule,
   ],
 })
 export class AppModule {}

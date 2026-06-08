@@ -23,3 +23,6 @@ Thumbs.db
 .env.*
 !.env.example
 *.pem
+
+# ─── superpowers 빌드 산출물 (스펙/계획 .md — 추적·노션동기화 제외) ───
+docs/superpowers/
