@@ -22,7 +22,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useTheme } from '@/theme';
 
 export type AuthGateProps = {
-  /** 탭 아이콘 (plaza/mood/past). */
+  /** 탭 아이콘 (plaza/village/past). */
   icon: IconName;
   /** 탭 이름. */
   title: string;

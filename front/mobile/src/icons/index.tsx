@@ -22,6 +22,7 @@ export type IconName =
   // 탭바 — 5개 메인 탭
   | 'plaza' // 광장 (compass)
   | 'mood' // 회고/구상중 (sparkle/seed)
+  | 'village' // 마을 (좌2 탭, 집)
   | 'feather' // 기록 (깃펜) — 중앙 메인 탭
   | 'past' // 과거의 나 (시계 + 화살표)
   | 'book' // 단어장
@@ -113,6 +114,14 @@ function renderIcon(name: IconName, p: StrokeProps) {
     case 'feather':
       return (
         <Path d="M20 5c-4 0-8 1.5-11 6-1.2 1.8-2 4-2.5 6.5M20 5c0 4-1.5 8-6 11-1.8 1.2-4 2-6.5 2.5M20 5l-9 9M11 14H7m0 0v4" {...p} />
+      );
+    case 'village':
+      return (
+        <>
+          <Path d="M4 11l8-6 8 6" {...p} />
+          <Path d="M6 9.7V20h12V9.7" {...p} />
+          <Path d="M10 20v-4.5h4V20" {...p} />
+        </>
       );
     case 'past':
       return (
