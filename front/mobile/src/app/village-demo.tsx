@@ -1,9 +1,10 @@
 /**
- * 마을 — 아바타 마을 목업 프로토타입 (백엔드 0, 감/톤 검증용).
+ * 마을 데모 — 아바타 마을 목업 프로토타입 (백엔드 0, 감/톤 검증용).
  *
- * 탭바에 없는 dev 라우트. 접근: expo-router로 `/village`
- *   - 웹: expo start 후 http://localhost:8081/village
- *   - 코드: router.push('/village')
+ * 탭바에 없는 dev 라우트. 접근: expo-router로 `/village-demo`
+ *   - 웹: expo start 후 http://localhost:8081/village-demo
+ *   - 코드: router.push('/village-demo')
+ *   (좌2 `마을` 탭(`(tabs)/village.tsx`)은 아직 placeholder. 2D/3D 확정 후 이 화면을 탭에 합칠 예정.)
  *
  * 이 화면이 "월드 상태 + 게임 로직"을 소유한다 (렌더러는 village-board가 담당):
  *   - 빈 땅 탭 → 그 지점으로 천천히 걸어감 (느린 산책 = 브랜드 톤)
@@ -26,7 +27,7 @@ import { useTheme } from '@/theme';
 // 집 "현관" = 집 중심에서 살짝 아래 (아바타가 문 앞에 서도록).
 const DOOR_OFFSET = 52;
 
-export default function VillageScreen() {
+export default function VillageDemoScreen() {
   const theme = useTheme();
   const router = useRouter();
 
