@@ -4,14 +4,14 @@
  * Expo Router의 file-based routing: 같은 폴더 안의 .tsx가 각 탭 화면.
  *   - index.tsx  → 기록 (중앙, 메인)
  *   - plaza.tsx  → 광장
- *   - mood.tsx   → 회고
+ *   - town.tsx   → 마을 (아바타 마을 = 광장 컨셉2, "사람 → 단어")
  *   - past.tsx   → 과거의 나
  *   - journal.tsx → 단어장
  *
  * Expo Router 5.x의 `(tabs)`처럼 괄호로 묶인 폴더는 URL에는 안 들어가는 그룹.
- * 따라서 라우트 경로는 /, /plaza, /mood, /past, /journal.
+ * 따라서 라우트 경로는 /, /plaza, /town, /past, /journal.
  *
- * 좌→우 순서 (배열 첫 항목이 왼쪽): plaza · mood · index(기록) · past · journal.
+ * 좌→우 순서 (배열 첫 항목이 왼쪽): plaza · town · index(기록) · past · journal.
  * 중앙 강조(칩 형태)는 Task #6 이후 별도 단계에서 추가 예정. 지금은 표준 탭바.
  */
 import { Tabs } from 'expo-router';
@@ -24,7 +24,7 @@ import { useTheme } from '@/theme';
 // center=true인 탭은 평이한 아이콘 대신 chip 강조 (현재는 record 한 개).
 const TAB_ORDER: { name: string; label: string; icon: IconName; center?: boolean }[] = [
   { name: 'plaza', label: '광장', icon: 'plaza' },
-  { name: 'mood', label: '회고', icon: 'mood' },
+  { name: 'town', label: '마을', icon: 'village' },
   { name: 'index', label: '기록', icon: 'feather', center: true },
   { name: 'past', label: '과거의 나', icon: 'past' },
   { name: 'journal', label: '단어장', icon: 'book' },
