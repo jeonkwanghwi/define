@@ -11,7 +11,18 @@ export interface EntryInput {
   savedAt: Date;
 }
 
+/** 서버가 돌려주는 entry 한 개 (다운로드용). 로컬 SavedEntry로 그대로 복원된다. */
+export interface EntryRecord {
+  clientId: string;
+  word: string;
+  text: string;
+  changeNote?: string;
+  savedAt: string; // ISO
+}
+
 export abstract class EntryRepository {
   /** (userId, clientId) 기준 upsert. 신규면 {created:true}, 기존이면 {created:false}. */
   abstract upsert(userId: string, input: EntryInput): Promise<{ created: boolean }>;
+  /** 한 사용자의 모든 entry를 최신순으로. 다운로드 동기화(서버→로컬)용. */
+  abstract findByUserId(userId: string): Promise<EntryRecord[]>;
 }

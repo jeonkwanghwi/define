@@ -26,10 +26,11 @@
 14. **프론트 인증 연결 + 업로드 동기화 (1차)** — 마이페이지 진입 `/auth` 풀스크린(로그인↔가입 토글) + `auth-store`(async-storage persist) + `services/`(api-client·auth·journal) + `lib/sync-journal`. 가입·로그인 시 로컬 entries를 서버로 **멱등 업로드**(비치명적 — 실패해도 로그인 유지), 로그아웃은 로컬 단어장 보존. tsc 클린·웹 번들·백엔드 curl 계약 검증
 15. **가입 유도 게이트 (프론트 2차)** — `AuthGate`(token 분기) 컴포넌트로 광장·회고·과거의나 3탭에 잠금 화면 + "가입하고 시작하기" CTA(→`/auth`). 로그인 시 기존 placeholder, 로그아웃 시 게이트(자동 리렌더). 기록·단어장은 무가입. §5 탭 게이팅 정책 구현 — 전환 퍼널(가입 유도→/auth→동기화) 완성. tsc·웹 번들 검증
 16. **광장 1차 — 읽기 전용 MVP (컨셉1 단어 중심)** — 데모 시드(유저9+정의36) + `modules/plaza`(단어별 정의 조회, JwtAuthGuard, 내 정의 isMine 맨 위) + plaza 탭 stack 전환(리스트 `/plaza` + 상세 `/plaza/[word]`). 노출=시드+내 정의(나에게만 강조), 상호주의=로그인. 신규 DB 테이블 없음(Entry 재사용). 클린 DB curl+tsc+웹 번들 검증
+17. **다운로드 동기화 (서버→로컬) + 로그인 reconcile** — `GET /api/journal`(JwtAuthGuard, 내 entries 최신순) + 프론트 `getJournal`/`downloadJournal`/store `mergeEntries`(id=clientId union·로컬우선·멱등·savedAt정렬). 로그인/가입 시 **업로드 후 다운로드**(reconcile, 비치명적) → **새 기기·재설치에서 단어장 복원**. 신규 DB 테이블 없음(Entry 재사용). curl 계약+merge 로직+실서버 e2e(login→GET→복원3)+tsc 검증
 
 **🟡 다음 후보 (우선순위 미정)**
 - **광장 2차**: 추천(좋아요)+추천순 정렬 → 3차 신고/모더레이션
-- **다운로드 동기화 (서버→로컬)**: `GET /journal` 백엔드 추가 → 재설치/다른 기기 로그인 시 서버 entries 복원. (현재는 업로드 전용)
+- **저장-시 업로드 + 삭제 동기화**: 현재 업로드는 로그인 때 1회 → 매 변경(addEntry/edit) 시 push로 확장. 삭제는 delete 엔드포인트/tombstone 필요. (다운로드는 17에서 완료)
 - **각 탭 실제 기능**: 마을(좌2)/과거의나 (광장은 1차 완료). 명시적 공개/비공개 동의는 배포·다유저 시
 - **좌2 마을** — 2D 픽셀아트 목업 구동(`/village-demo` dev 라우트, 백엔드 0). 탭 라우트는 `village`. **2D/3D 렌더링 방향은 팀 논의 중**(§6 결정 브리프). 회고/검색/주간 회고는 대체 후보로 보류
 - 과거의 나와 대화 (GPT API 종속)
@@ -233,6 +234,15 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-14 — 다운로드 동기화 (서버→로컬) + 로그인 양방향 reconcile ★
+- **무엇**: 업로드 전용이던 동기화에 **서버→로컬 다운로드**를 추가. 이제 로그인/가입 시 업로드(로컬→서버) 후 다운로드(서버→로컬)까지 = **reconcile** → 재설치/새 기기에서 단어장 복원됨. 브랜치 `feat/journal-download-sync`.
+- **왜**: 기존엔 올리기만 되고 내려받기가 없어서, 앱 재설치/다른 기기 로그인 시 서버에 데이터가 있어도 로컬이 비어 단어장이 빈 채로 보였음(데이터 유실처럼 느껴짐).
+- **백엔드**: `GET /api/journal`(JwtAuthGuard 상속) — 내 entries 최신순. `EntryRepository.findByUserId`(인터페이스+Prisma `findMany`) + `EntryRecord` 출력 타입 + `JournalService.list`. 신규 테이블 없음(Entry 재사용).
+- **프론트**: `journal-api.getJournal` · `lib/sync-journal.downloadJournal`(ServerEntry→SavedEntry 매핑) · `store/journal-store.mergeEntries`(**id=clientId 기준 union, 로컬 우선·덮어쓰기 X, savedAt 역순 정렬, 멱등** — 새 추가 없으면 같은 배열 반환해 리렌더 회피). `auth-store.runSync`가 `syncJournal`(업로드) 후 `downloadJournal`(다운로드) 호출, **비치명적** 유지.
+- **동기화 모델 정리**(설계 합의): UI는 항상 로컬(local-first) → 로컬→서버 업로드는 **수시**(저장 시, 후속), 서버→로컬 다운로드는 **로그인 때만**(이 기기가 뒤처졌을 때 = 새 기기/재설치). "앱 종료 시 push"는 모바일에서 비신뢰라 채택 X.
+- **검증**: 백엔드 curl 계약(signup→import 3→**GET 3개 최신순·changeNote 보존**→무토큰 401→재import 멱등 count 3) · `mergeEntries` 단위(union/로컬우선/정렬/멱등·동일참조) · **실서버 e2e**(login→GET /journal→매핑→빈 로컬 머지→복원 3, changeNote/순서/멱등) · 백엔드·프론트 tsc 0. 브라우저 CORS 미설정이라 웹 인터랙티브 로그인은 수동 잔여(실기기 무관).
+- **비범위(후속)**: 저장-시 업로드(매 변경 push)·삭제 동기화(delete/tombstone)·멀티기기 포그라운드 당김·CORS(웹 검증용).
 
 ### 2026-06-13 — 네이밍 통일: 마을 코드명을 `village`로 일원화 (`town` 제거)
 - **무엇**: 좌2 탭 라우트가 `town`, 나머지 마을 자산(컴포넌트·데이터·에셋·아이콘·생성기)은 `village`로 갈려 있던 불일치를 `village`로 통일. `town`은 코드에서 완전 제거.

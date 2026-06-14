@@ -6,7 +6,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { ImportJournalDto } from './dto/import-journal.dto';
-import { EntryRepository } from './entry.repository';
+import { EntryRecord, EntryRepository } from './entry.repository';
 
 @Injectable()
 export class JournalService {
@@ -35,5 +35,10 @@ export class JournalService {
     }
 
     return { imported, updated };
+  }
+
+  /** 다운로드 동기화 — 한 사용자의 서버 entries 전체(최신순). */
+  list(userId: string): Promise<EntryRecord[]> {
+    return this.entries.findByUserId(userId);
   }
 }

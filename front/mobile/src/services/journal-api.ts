@@ -26,3 +26,11 @@ export function importJournal(token: string, entries: ImportEntry[]): Promise<Im
     body: { entries },
   });
 }
+
+/** 서버가 돌려주는 entry 한 개 (다운로드용). ImportEntry와 같은 모양. */
+export type ServerEntry = ImportEntry;
+
+/** GET /api/journal — 내 단어장 전체(서버→로컬 복원용). */
+export function getJournal(token: string): Promise<ServerEntry[]> {
+  return apiRequest<ServerEntry[]>('/journal', { method: 'GET', token });
+}
