@@ -7,7 +7,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../../database/prisma.service';
-import { EntryInput, EntryRepository } from './entry.repository';
+import { EntryInput, EntryRecord, EntryRepository } from './entry.repository';
 
 @Injectable()
 export class PrismaEntryRepository extends EntryRepository {
@@ -36,5 +36,19 @@ export class PrismaEntryRepository extends EntryRepository {
       data: { userId, clientId: input.clientId, ...data },
     });
     return { created: true };
+  }
+
+  async findByUserId(userId: string): Promise<EntryRecord[]> {
+    const rows = await this.prisma.entry.findMany({
+      where: { userId },
+      orderBy: { savedAt: 'desc' },
+    });
+    return rows.map((e) => ({
+      clientId: e.clientId,
+      word: e.word,
+      text: e.text,
+      changeNote: e.changeNote ?? undefined,
+      savedAt: e.savedAt.toISOString(),
+    }));
   }
 }

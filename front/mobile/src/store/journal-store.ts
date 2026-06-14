@@ -51,6 +51,12 @@ type JournalState = {
    */
   updateChangeNote: (id: string, changeNote: string) => void;
   removeEntry: (id: string) => void;
+  /**
+   * 서버에서 받은 entries를 로컬에 머지 (다운로드 동기화: 새 기기·재설치 복원).
+   * id(=서버 clientId) 기준 union — 로컬에 없는 것만 추가(로컬 우선, 중복/덮어쓰기 X).
+   * 두 번 호출해도 안전(멱등). 머지 후 savedAt 역순 정렬로 "최신 먼저" 불변식 유지.
+   */
+  mergeEntries: (incoming: SavedEntry[]) => void;
   clearAll: () => void;
 };
 
@@ -94,6 +100,17 @@ export const useJournalStore = create<JournalState>()(
         set((state) => ({
           entries: state.entries.filter((e) => e.id !== id),
         })),
+      mergeEntries: (incoming) =>
+        set((state) => {
+          const known = new Set(state.entries.map((e) => e.id));
+          const additions = incoming.filter((e) => !known.has(e.id));
+          if (additions.length === 0) return state; // 새로 추가할 게 없으면 그대로(불필요한 리렌더 방지)
+          return {
+            entries: [...state.entries, ...additions].sort((a, b) =>
+              b.savedAt.localeCompare(a.savedAt),
+            ),
+          };
+        }),
       clearAll: () => set({ entries: [] }),
     }),
     {
