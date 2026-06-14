@@ -49,7 +49,7 @@ export default function RecordScreen() {
 
   // 단어 풀과 현재 인덱스. 진입 시 랜덤 1개 선택.
   // 사용자가 커스텀 단어를 추가할 수 있으므로 mutable.
-  const [pool, setPool] = useState<string[]>(() => [...RECOMMENDED_WORDS]);
+  const [pool, setPool] = useState<string[]>(() => RECOMMENDED_WORDS.map((w) => w.word));
   const [wordIdx, setWordIdx] = useState(() => Math.floor(Math.random() * RECOMMENDED_WORDS.length));
 
   const [definition, setDefinition] = useState('');

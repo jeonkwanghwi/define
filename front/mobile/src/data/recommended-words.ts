@@ -1,17 +1,39 @@
 /**
- * 오늘의 추천 단어 풀.
+ * 오늘의 추천 단어 풀 (50선 큐레이션).
  *
- * PLANNING.md 5-1 동작 로직: 앱 진입 시 이 풀에서 사용자가 오늘 아직 정의하지 않은
- * 단어를 랜덤으로 한 개 노출. 백엔드 붙으면 서버가 이 풀을 제공하므로
- * `services/word-api.ts`로 교체될 자리.
+ * 동작(PLANNING §추천 단어 정책): 앱 진입 시 이 풀에서 사용자가 오늘 아직 정의하지
+ * 않은 단어를 랜덤 1개 노출. 백엔드 붙으면 서버가 이 풀을 제공 → `services/word-api.ts`로 교체.
  *
- * design-source/app/data.jsx의 todayWords와 동일 목록.
+ * ── 형식/성격 결정 (2026-06-14, 확정) ──
+ *   • 저장 형식 = **객체 `{ word }`** (형식 B). 단순 string이 아니라 객체로 둔 이유:
+ *     나중에 "성격"(tags 등)을 붙이고 싶어질 때 마이그레이션 없이 `{ word, tags? }`로 확장 가능.
+ *   • **카테고리/성격은 데이터에 넣지 않는다.** 단어는 다의적이고("봄"=계절이자 시작·낭만)
+ *     분류가 본질적으로 자의적이라, 고정 분류는 브랜드("각자의 정의")와 충돌 + 손실적.
+ *     아래 테마 주석은 **큐레이션 참고용일 뿐, 데이터 필드가 아님.**
+ *   • 만약 훗날 태그를 넣는다면: 단일 분류 X → 복수 soft tags, 그리고 시스템 단어(이 풀)에만.
+ *     사용자 정의에는 절대 안 붙임(그 사람 글 자체가 '성격'을 말함). 이상적으론 데이터에서 발현.
  */
-export const RECOMMENDED_WORDS: readonly string[] = [
-  '행복',
-  '사랑',
-  '돈',
-  '시간',
-  '용기',
-  '어른',
+export type RecommendedWord = {
+  word: string;
+  // tags?: string[];  // (보류) 추후 발견용 soft tags 자리. 지금은 넣지 않음.
+};
+
+export const RECOMMENDED_WORDS: readonly RecommendedWord[] = [
+  // 감정·마음
+  { word: '사랑' }, { word: '행복' }, { word: '외로움' }, { word: '불안' }, { word: '그리움' },
+  { word: '설렘' }, { word: '위로' }, { word: '후회' }, { word: '두려움' }, { word: '질투' },
+  // 관계
+  { word: '가족' }, { word: '친구' }, { word: '우정' }, { word: '부모' }, { word: '이별' },
+  { word: '인연' }, { word: '신뢰' }, { word: '어른' },
+  // 나 자신
+  { word: '나' }, { word: '자존감' }, { word: '욕심' }, { word: '결핍' }, { word: '취향' },
+  { word: '혼자' }, { word: '습관' }, { word: '자유' },
+  // 삶·시간
+  { word: '시간' }, { word: '청춘' }, { word: '죽음' }, { word: '나이듦' }, { word: '성장' },
+  { word: '일상' }, { word: '추억' }, { word: '변화' }, { word: '시작' }, { word: '끝' },
+  // 가치·꿈
+  { word: '용기' }, { word: '꿈' }, { word: '성공' }, { word: '노력' }, { word: '선택' },
+  { word: '책임' }, { word: '진심' }, { word: '희망' },
+  // 현실·물질
+  { word: '돈' }, { word: '일' }, { word: '집' }, { word: '여행' }, { word: '휴식' }, { word: '행운' },
 ];
