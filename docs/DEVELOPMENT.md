@@ -223,6 +223,7 @@
 - [ ] **출석 체크** — 출석 시 루비 지급(예: 10루비). 게이미피케이션 노출 정책과 연동
 - [x] **추천 단어 풀 — 형식·성격 확정 + 50선 반영(2026-06-14)** — ✅ 형식 **B(객체 `{ word }[]`)** 채택(나중 `{word, tags?}` 무마이그레이션 확장 여지). **카테고리/성격은 데이터에 안 넣음**(단어 다의적·분류 자의적·브랜드 충돌). 50선을 `RECOMMENDED_WORDS`에 반영(테마는 주석=큐레이션 참고용, 데이터 필드 아님). 미래 태그는 단일분류 X→복수 soft tags·시스템 단어에만. **남은 것**: 저장 위치 — 현재 로컬 파일(앱 배포 콘텐츠). 앱 업데이트 없이 단어 추가하려면 원격(백엔드/호스팅 JSON) 승격 필요(후속).
 - [ ] **탭2 마을 — 렌더링: 2D~2.5D 프로토타입 먼저, 퀄리티 보고 3D 판단** ★ — *2026-06-15 갱신*
+  - **🅿️ (2026-06-20) 인터랙티브 빌드 보류** — 디자인-우선으로 전환. **컨셉 이미지로 시점·룩 먼저 합의** 후 빌드. 그동안 토대 작업(동기화 등) 진행. **재개 메모 = 작업 로그 2026-06-20**(컨셉 프롬프트·재개 절차 포함).
   - **결정 방식(2026-06-15 회의)**: 2D/3D를 지금 못 박지 않고 **2D~2.5D 수준 프로토타입을 먼저 만들어 다같이 퀄리티 보고 결정**. 렌더러 분리 구조라 3D 전환은 가역적(아래).
   - **회의 확정 기능 → 구현 함의(상세 기획 PLANNING §4)**:
     - **세로(portrait) 고정** — 가로 대응 불필요.
@@ -244,6 +245,17 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-20 — 마을 프로토타입: 빌드 보류 + 디자인-우선 전환 (재개 메모) 🅿️
+- **결정**: 마을 **인터랙티브 빌드는 보류**, 토대 작업(동기화 등)으로 복귀. 이유 — 마을은 디자인+백엔드(동의·프로필·루비)에 다 묶이고 **2D/3D 퀄 결정 자체가 미정**이라, 폴리시 빌드 전에 **방향(컨셉)부터** 잡는 게 순서. 빌드가 오래 걸려서 ROI 안 맞음.
+- **디자인 접근(확정)**: AI 이미지 생성(클로드 디자인)은 **컨셉/무드 전용** — 타일·스프라이트로 **직접 못 씀**(이음매 없는 반복 X, 조각 간 스타일 불일치, 투명배경 X, 아이소 격자 들쭉날쭉). 흐름: ① 컨셉 이미지로 **시점·룩 합의** → ② 합의 후 인터랙티브 빌드(내 픽셀아트 or CC0 팩으로 매칭).
+- **열린 결정**: 시점 = **아이소메트릭 2.5D(추천)** vs 탑다운. A/B 컨셉 이미지 비교로 결정.
+- **재개 시 절차**: (a) 뽑아둔 컨셉 이미지 보고 **시점·아트디렉션 확정** → (b) 그 룩에 맞춰 인터랙티브 제작(**세로**) → (c) 기능: 내 집(짓기·꾸미기)·남의 집 랜덤+필터·집 입장(꾸민것+단어)·캐릭터 이동 잔상/효과음. 선행(진짜 데이터): 공개/비공개 동의·프로필(가입 시)·루비 경제 — 프로토타입은 목업이라 무관하게 선행 가능.
+- **현 자산**: `/village-demo` 2D 픽셀아트 목업(걷기 + 집→정의 시트, 탑다운, 프로그래머아트). 렌더러 분리(`components/village/village-board.tsx`)라 교체 쉬움. 좌2 탭(`(tabs)/village.tsx`)은 아직 게이트 placeholder.
+- **컨셉 이미지 프롬프트(보존 — 클로드 디자인에 그대로)**:
+  - **A. 아이소메트릭 2.5D (세로)**: `Isometric 2.5D mobile game concept art, portrait orientation. A cozy, calm village seen from a slightly elevated 3/4 angle. Small cute houses with distinct muted roof colors (terracotta, sage green, mustard, soft violet), winding dirt paths, scattered round trees and tiny flowers on a warm green lawn. One small rounded character avatar standing on a path. Soft warm daylight, gentle long shadows. Muted warm palette: warm cream-paper base (#FCFAF6), deep indigo accents (#2E3192), a single ruby-pink accent (#D6456A). Mood: contemplative, slow, Animal Crossing / Stardew Valley coziness — NOT loud, NOT busy, NOT neon. Clean, polished, minimal, generous negative space. Cohesive soft pixel-art style.`
+  - **B. 탑다운 (비교용)**: A에서 `Isometric 2.5D ... 3/4 angle` → `Flat top-down view seen from directly above`로 교체.
+  - 추가 컷(원하면): 내 집 입장 화면(꾸민 방+단어 카드) / 캐릭터 단독(메인탭 질문 아바타) / 건물 설치중·완료.
 
 ### 2026-06-15 — 회의 결정 기록: 마을 기능 상세 + 메인 아바타 질문 (코드 0)
 - **마을 렌더링**: 2D~2.5D 프로토타입 먼저 → 퀄리티 보고 3D 판단(§6 갱신). 지금 코드 변경 없음, 기록만.
