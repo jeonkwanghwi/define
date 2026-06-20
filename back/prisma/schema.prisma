@@ -33,6 +33,10 @@ model User {
   nickname     String?
   createdAt    DateTime @default(now())
   entries      Entry[]
+  // ─── 프로필(마을 필터용). 완성 전까지 null. ───
+  birthYear    Int?
+  gender       String?        // 'male' | 'female'
+  interests    UserInterest[]
 
   @@map("users")
 }
@@ -52,4 +56,16 @@ model Entry {
 
   @@unique([userId, clientId])
   @@map("entries")
+}
+
+/// 가입 프로필의 관심사 — User N:1. 고정 12개 중 하나(검증은 DTO).
+/// JSON 컬럼이 아니라 관계 테이블: SQLite는 스칼라 리스트 미지원 + 마을 필터 쿼리 대비.
+model UserInterest {
+  id       String @id @default(cuid())
+  userId   String
+  interest String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, interest])
+  @@map("user_interests")
 }
