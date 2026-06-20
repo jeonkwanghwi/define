@@ -11,7 +11,12 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { downloadJournal, syncJournal } from '@/lib/sync-journal';
-import { login as loginApi, signup as signupApi, type AuthUser } from '@/services/auth-api';
+import {
+  login as loginApi,
+  signup as signupApi,
+  updateProfile as updateProfileApi,
+  type AuthUser,
+} from '@/services/auth-api';
 
 type AuthState = {
   token: string | null;
@@ -21,13 +26,19 @@ type AuthState = {
   /** 실패 시 throw(화면이 인라인 에러로 표시). 성공 시에만 상태 갱신. */
   signup: (email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  /** 프로필 완성/수정. 성공 시 user 갱신. 실패 시 throw(화면이 인라인 에러). */
+  updateProfile: (input: {
+    birthYear: number;
+    gender: 'male' | 'female';
+    interests: string[];
+  }) => Promise<void>;
   /** 인증만 해제. 로컬 단어장은 보존. */
   logout: () => void;
 };
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       token: null,
       user: null,
       lastSyncedAt: null,
@@ -40,6 +51,12 @@ export const useAuthStore = create<AuthState>()(
         const { token, user } = await loginApi(email, password);
         set({ token, user });
         await runSync(token, set);
+      },
+      updateProfile: async (input) => {
+        const token = get().token;
+        if (!token) throw new Error('로그인이 필요합니다.');
+        const { user } = await updateProfileApi(token, input);
+        set({ user });
       },
       logout: () => set({ token: null, user: null, lastSyncedAt: null }),
     }),
