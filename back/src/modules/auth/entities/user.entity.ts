@@ -8,5 +8,8 @@ export class UserEntity {
   email: string;
   passwordHash: string;
   nickname: string | null;
+  birthYear: number | null;
+  gender: string | null; // 'male' | 'female' | null
+  interests: string[]; // 미완성이면 빈 배열
   createdAt: Date;
 }

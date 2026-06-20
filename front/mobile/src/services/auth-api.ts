@@ -8,6 +8,10 @@ export type AuthUser = {
   id: string;
   email: string;
   nickname: string | null;
+  birthYear: number | null;
+  gender: 'male' | 'female' | null;
+  interests: string[];
+  profileCompleted: boolean;
 };
 
 export type AuthResult = {
@@ -28,5 +32,17 @@ export function login(email: string, password: string): Promise<AuthResult> {
   return apiRequest<AuthResult>('/auth/login', {
     method: 'POST',
     body: { email, password },
+  });
+}
+
+/** PATCH /api/auth/profile — 프로필 완성/수정. */
+export function updateProfile(
+  token: string,
+  input: { birthYear: number; gender: 'male' | 'female'; interests: string[] },
+): Promise<AuthResult> {
+  return apiRequest<AuthResult>('/auth/profile', {
+    method: 'PATCH',
+    token,
+    body: input,
   });
 }

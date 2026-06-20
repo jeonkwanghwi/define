@@ -1,19 +1,21 @@
 /**
  * AuthController — /api/auth/* 매핑. 로직 없음, service 호출만.
- * @HttpCode로 상태코드 명시(기본 POST는 201이라 login만 200으로).
+ * signup/login은 공개, profile은 JwtAuthGuard로 보호.
  */
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Patch, Post, Req, UseGuards } from '@nestjs/common';
 
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { AuthResponse } from './dto/auth.response';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** POST /api/auth/signup — 이메일+비밀번호 가입. */
+  /** POST /api/auth/signup — 이메일+비밀번호 가입(프로필은 별도 PATCH). */
   @Post('signup')
   @HttpCode(201)
   signup(@Body() dto: SignupDto): Promise<AuthResponse> {
@@ -25,5 +27,16 @@ export class AuthController {
   @HttpCode(200)
   login(@Body() dto: LoginDto): Promise<AuthResponse> {
     return this.auth.login(dto);
+  }
+
+  /** PATCH /api/auth/profile — 프로필 완성/수정(토큰 필수). */
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  updateProfile(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: UpdateProfileDto,
+  ): Promise<AuthResponse> {
+    return this.auth.updateProfile(req.user.userId, dto);
   }
 }
