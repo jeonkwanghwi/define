@@ -27,10 +27,11 @@
 15. **가입 유도 게이트 (프론트 2차)** — `AuthGate`(token 분기) 컴포넌트로 광장·회고·과거의나 3탭에 잠금 화면 + "가입하고 시작하기" CTA(→`/auth`). 로그인 시 기존 placeholder, 로그아웃 시 게이트(자동 리렌더). 기록·단어장은 무가입. §5 탭 게이팅 정책 구현 — 전환 퍼널(가입 유도→/auth→동기화) 완성. tsc·웹 번들 검증
 16. **광장 1차 — 읽기 전용 MVP (컨셉1 단어 중심)** — 데모 시드(유저9+정의36) + `modules/plaza`(단어별 정의 조회, JwtAuthGuard, 내 정의 isMine 맨 위) + plaza 탭 stack 전환(리스트 `/plaza` + 상세 `/plaza/[word]`). 노출=시드+내 정의(나에게만 강조), 상호주의=로그인. 신규 DB 테이블 없음(Entry 재사용). 클린 DB curl+tsc+웹 번들 검증
 17. **다운로드 동기화 (서버→로컬) + 로그인 reconcile** — `GET /api/journal`(JwtAuthGuard, 내 entries 최신순) + 프론트 `getJournal`/`downloadJournal`/store `mergeEntries`(id=clientId union·로컬우선·멱등·savedAt정렬). 로그인/가입 시 **업로드 후 다운로드**(reconcile, 비치명적) → **새 기기·재설치에서 단어장 복원**. 신규 DB 테이블 없음(Entry 재사용). curl 계약+merge 로직+실서버 e2e(login→GET→복원3)+tsc 검증
+18. **회원가입 프로필 수집 + 인증/프로필 분리** — 가입 시 나이(출생연도)·성별·관심사를 **인증과 분리된 단일 프로필 게이트**로 수집(`PATCH /api/auth/profile`, `User`+`UserInterest`). 이메일 가입에 본인인증(PASS) 목업. 소셜 도입 대비 "프로필 진실 출처=우리 단계 하나" 구조. 브랜치 `feat/auth-profile-collection`
 
 **🟡 다음 후보 (우선순위 미정)**
 - **광장 2차**: 추천(좋아요)+추천순 정렬 → 3차 신고/모더레이션
-- **저장-시 업로드 + 삭제 동기화**: 현재 업로드는 로그인 때 1회 → 매 변경(addEntry/edit) 시 push로 확장. 삭제는 delete 엔드포인트/tombstone 필요. (다운로드는 17에서 완료)
+- **저장-시 업로드 + 삭제 동기화 (B-1, 설계 완료·보류)**: 현재 업로드는 로그인 때 1회 → 매 변경(addEntry/edit) 시 push로 확장. 삭제는 delete 엔드포인트(하드 삭제, 툼스톤 보류) 필요. 설계 문서 `docs/superpowers/specs/2026-06-20-journal-save-delete-sync-design.md`. (다운로드는 17에서 완료. 프로필 수집 작업으로 보류됨 — api-client에 DELETE 추가 필요.)
 - **각 탭 실제 기능**: 마을(좌2)/과거의나 (광장은 1차 완료). 명시적 공개/비공개 동의는 배포·다유저 시
 - **좌2 마을** — 2D 픽셀아트 목업 구동(`/village-demo` dev 라우트, 백엔드 0). 탭 라우트는 `village`. **2D/3D 렌더링 방향은 팀 논의 중**(§6 결정 브리프). 회고/검색/주간 회고는 대체 후보로 보류
 - 과거의 나와 대화 (GPT API 종속)
@@ -245,6 +246,14 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-20 — 회원가입 프로필 수집 + 인증/프로필 분리 ★
+- **무엇**: 가입 시 나이(출생연도)·성별·관심사 수집을 **인증과 분리된 단일 프로필 게이트**로 구현. 이메일 가입에 **본인인증(PASS) 목업** 1장. 브랜치 `feat/auth-profile-collection` (서브에이전트 11태스크 구동; 설계·계획은 `docs/superpowers/specs|plans/2026-06-20-auth-profile-collection*`).
+- **왜**: 2026-06-15 확정(마을 필터용 프로필 필수)이 구현 미반영이었음(당일 플로우 점검에서 발견). + 소셜 로그인 도입 시 프로필 데이터 꼬임 방지를 위해 **프로필 진실 출처를 우리 단계 하나로** 고정(소셜은 추후 pre-fill만).
+- **백엔드**(신규 테이블 1개): `User`에 `birthYear`/`gender` + 관심사 관계 테이블 `UserInterest`(SQLite 스칼라리스트 미지원 + 마을 필터 쿼리 대비, 무마이그레이션 확장). `PATCH /api/auth/profile`(JwtAuthGuard) — 검증(1900–2026·male/female·관심사 12 화이트리스트·최소1) + 관심사 통째 교체(멱등). `AuthResponse.user`에 프로필 + `profileCompleted`(파생). signup/login 무변경.
+- **프론트**: api-client `PATCH` 허용 / `auth-api.updateProfile`+`AuthUser` 확장 / `auth-store.updateProfile` / `constants/interests.ts`(백엔드와 동일 12개, 수동 동기화) / `components/domain/verify-identity-mock.tsx` / `app/profile-setup.tsx`(출생연도·성별·관심사 칩) / `app/auth.tsx` step 배선(가입: 폼→본인인증→계정생성→`/profile-setup`; 로그인: 미완성이면 `/profile-setup`).
+- **검증**: 백엔드 curl 계약(profileCompleted False→True, 검증 4종 400, 무토큰 401, 관심사 멱등) + e2e(signup→PATCH OK). 프론트 tsc 0 + `expo export` 0(`/profile-setup` 번들 포함).
+- **비범위(후속)**: 실제 PASS 연동(현재 목업), 소셜 OAuth(구조 자리만 보장), 마을 필터 쿼리, 연령 정책, 관심사 원격 설정, 재로그인 유도 배너.
 
 ### 2026-06-20 — 마을 프로토타입: 빌드 보류 + 디자인-우선 전환 (재개 메모) 🅿️
 - **결정**: 마을 **인터랙티브 빌드는 보류**, 토대 작업(동기화 등)으로 복귀. 이유 — 마을은 디자인+백엔드(동의·프로필·루비)에 다 묶이고 **2D/3D 퀄 결정 자체가 미정**이라, 폴리시 빌드 전에 **방향(컨셉)부터** 잡는 게 순서. 빌드가 오래 걸려서 ROI 안 맞음.
