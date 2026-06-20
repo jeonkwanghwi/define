@@ -15,6 +15,7 @@ import * as bcrypt from 'bcryptjs';
 import { AuthResponse } from './dto/auth.response';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserEntity } from './entities/user.entity';
 import { UserRepository } from './user.repository';
 
@@ -48,11 +49,30 @@ export class AuthService {
     return this.buildAuthResponse(user);
   }
 
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<AuthResponse> {
+    const user = await this.users.updateProfile(userId, {
+      birthYear: dto.birthYear,
+      gender: dto.gender,
+      interests: dto.interests,
+    });
+    return this.buildAuthResponse(user);
+  }
+
   private buildAuthResponse(user: UserEntity): AuthResponse {
     const token = this.jwt.sign({ sub: user.id, email: user.email });
+    const profileCompleted =
+      user.birthYear != null && user.gender != null && user.interests.length > 0;
     return {
       token,
-      user: { id: user.id, email: user.email, nickname: user.nickname ?? null },
+      user: {
+        id: user.id,
+        email: user.email,
+        nickname: user.nickname ?? null,
+        birthYear: user.birthYear,
+        gender: user.gender,
+        interests: user.interests,
+        profileCompleted,
+      },
     };
   }
 }
