@@ -2,7 +2,7 @@
  * JournalController — /api/journal/import. JwtAuthGuard로 보호(토큰 필수).
  * req.user는 JwtStrategy.validate가 심은 { userId, email }.
  */
-import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ImportJournalDto } from './dto/import-journal.dto';
@@ -28,5 +28,15 @@ export class JournalController {
   @Get()
   list(@Req() req: { user: { userId: string } }): Promise<EntryRecord[]> {
     return this.journal.list(req.user.userId);
+  }
+
+  /** DELETE /api/journal/:clientId — 한 entry 삭제 동기화(멱등, 204). */
+  @Delete(':clientId')
+  @HttpCode(204)
+  remove(
+    @Req() req: { user: { userId: string } },
+    @Param('clientId') clientId: string,
+  ): Promise<void> {
+    return this.journal.delete(req.user.userId, clientId);
   }
 }

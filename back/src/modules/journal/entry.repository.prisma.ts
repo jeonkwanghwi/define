@@ -38,6 +38,11 @@ export class PrismaEntryRepository extends EntryRepository {
     return { created: true };
   }
 
+  async deleteByClientId(userId: string, clientId: string): Promise<void> {
+    // deleteMany는 대상이 없어도 count 0 반환(에러 X) → 멱등.
+    await this.prisma.entry.deleteMany({ where: { userId, clientId } });
+  }
+
   async findByUserId(userId: string): Promise<EntryRecord[]> {
     const rows = await this.prisma.entry.findMany({
       where: { userId },

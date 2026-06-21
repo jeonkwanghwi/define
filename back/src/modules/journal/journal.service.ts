@@ -41,4 +41,9 @@ export class JournalService {
   list(userId: string): Promise<EntryRecord[]> {
     return this.entries.findByUserId(userId);
   }
+
+  /** 삭제 동기화 — (userId, clientId) entry 제거. 멱등. */
+  delete(userId: string, clientId: string): Promise<void> {
+    return this.entries.deleteByClientId(userId, clientId);
+  }
 }
