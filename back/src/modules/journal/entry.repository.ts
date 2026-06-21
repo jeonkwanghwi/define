@@ -25,4 +25,6 @@ export abstract class EntryRepository {
   abstract upsert(userId: string, input: EntryInput): Promise<{ created: boolean }>;
   /** 한 사용자의 모든 entry를 최신순으로. 다운로드 동기화(서버→로컬)용. */
   abstract findByUserId(userId: string): Promise<EntryRecord[]>;
+  /** (userId, clientId) 기준 삭제. 대상 없어도 에러 없이 멱등(삭제 동기화용). */
+  abstract deleteByClientId(userId: string, clientId: string): Promise<void>;
 }

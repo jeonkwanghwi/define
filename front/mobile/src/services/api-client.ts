@@ -15,7 +15,7 @@ export const API_BASE = 'http://localhost:3000/api';
 export type ApiError = { status: number; message: string };
 
 type RequestOptions = {
-  method: 'GET' | 'POST' | 'PATCH';
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   token?: string;
 };

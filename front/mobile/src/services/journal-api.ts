@@ -34,3 +34,11 @@ export type ServerEntry = ImportEntry;
 export function getJournal(token: string): Promise<ServerEntry[]> {
   return apiRequest<ServerEntry[]>('/journal', { method: 'GET', token });
 }
+
+/** DELETE /api/journal/:clientId — 한 entry 삭제 동기화(멱등). */
+export function deleteJournalEntry(token: string, clientId: string): Promise<void> {
+  return apiRequest<void>(`/journal/${encodeURIComponent(clientId)}`, {
+    method: 'DELETE',
+    token,
+  });
+}

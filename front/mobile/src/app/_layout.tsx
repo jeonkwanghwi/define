@@ -12,6 +12,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { startAutoSync } from '@/lib/auto-sync';
 
 // 폰트 로드 완료까지 스플래시 화면 자동 해제 막기 (깜빡임 방지)
 SplashScreen.preventAutoHideAsync();
@@ -28,6 +29,12 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded, error]);
+
+  // 단어장 변경 → 서버 자동 동기화(로그인 상태에서만). 언마운트 시 해제.
+  useEffect(() => {
+    const stop = startAutoSync();
+    return stop;
+  }, []);
 
   // 로드 중에는 아무것도 렌더하지 않음 → 스플래시 유지
   if (!loaded && !error) {
