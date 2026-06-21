@@ -15,6 +15,11 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // CORS — 브라우저(expo web :8081 등)에서 교차 출처로 API 호출 허용.
+  // origin: true = 요청 출처를 그대로 반영(개발 편의). 운영에선 허용 도메인 화이트리스트로 제한할 것.
+  // 인증은 Authorization: Bearer 헤더라 cors 기본 allowedHeaders(요청 헤더 반영)로 통과됨.
+  app.enableCors({ origin: true });
+
   // whitelist: dto에 없는 필드는 잘라냄 / transform: 타입 자동 변환
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
