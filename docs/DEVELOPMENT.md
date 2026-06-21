@@ -28,10 +28,10 @@
 16. **광장 1차 — 읽기 전용 MVP (컨셉1 단어 중심)** — 데모 시드(유저9+정의36) + `modules/plaza`(단어별 정의 조회, JwtAuthGuard, 내 정의 isMine 맨 위) + plaza 탭 stack 전환(리스트 `/plaza` + 상세 `/plaza/[word]`). 노출=시드+내 정의(나에게만 강조), 상호주의=로그인. 신규 DB 테이블 없음(Entry 재사용). 클린 DB curl+tsc+웹 번들 검증
 17. **다운로드 동기화 (서버→로컬) + 로그인 reconcile** — `GET /api/journal`(JwtAuthGuard, 내 entries 최신순) + 프론트 `getJournal`/`downloadJournal`/store `mergeEntries`(id=clientId union·로컬우선·멱등·savedAt정렬). 로그인/가입 시 **업로드 후 다운로드**(reconcile, 비치명적) → **새 기기·재설치에서 단어장 복원**. 신규 DB 테이블 없음(Entry 재사용). curl 계약+merge 로직+실서버 e2e(login→GET→복원3)+tsc 검증
 18. **회원가입 프로필 수집 + 인증/프로필 분리** — 가입 시 나이(출생연도)·성별·관심사를 **인증과 분리된 단일 프로필 게이트**로 수집(`PATCH /api/auth/profile`, `User`+`UserInterest`). 이메일 가입에 본인인증(PASS) 목업. 소셜 도입 대비 "프로필 진실 출처=우리 단계 하나" 구조. 브랜치 `feat/auth-profile-collection`
+19. **저장-시 업로드 + 삭제 동기화 (B-1)** — `lib/auto-sync`가 journal-store 변경을 구독 → 로그인 상태면 삭제는 즉시 `DELETE /journal/:clientId`(멱등), 추가/수정은 디바운스 후 전체 재업로드(`syncJournal`). 좀비(지운 게 재로그인에 되살아남) 해결. 알려진 한계: 삭제 요청 블립 / 로그아웃 중 삭제는 잔존 가능(데이터 유실 아님). 브랜치 `feat/journal-save-delete-sync`
 
 **🟡 다음 후보 (우선순위 미정)**
 - **광장 2차**: 추천(좋아요)+추천순 정렬 → 3차 신고/모더레이션
-- **저장-시 업로드 + 삭제 동기화 (B-1, 설계 완료·보류)**: 현재 업로드는 로그인 때 1회 → 매 변경(addEntry/edit) 시 push로 확장. 삭제는 delete 엔드포인트(하드 삭제, 툼스톤 보류) 필요. 설계 문서 `docs/superpowers/specs/2026-06-20-journal-save-delete-sync-design.md`. (다운로드는 17에서 완료. 프로필 수집 작업으로 보류됨 — api-client에 DELETE 추가 필요.)
 - **각 탭 실제 기능**: 마을(좌2)/과거의나 (광장은 1차 완료). 명시적 공개/비공개 동의는 배포·다유저 시
 - **좌2 마을** — 2D 픽셀아트 목업 구동(`/village-demo` dev 라우트, 백엔드 0). 탭 라우트는 `village`. **2D/3D 렌더링 방향은 팀 논의 중**(§6 결정 브리프). 회고/검색/주간 회고는 대체 후보로 보류
 - 과거의 나와 대화 (GPT API 종속)
@@ -246,6 +246,16 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-21 — 저장-시 업로드 + 삭제 동기화 (B-1) ★
+- **무엇**: 동기화를 "로그인 때 1회"에서 "변경 때마다"로 확장 + 로컬 삭제를 서버에 반영. 브랜치 `feat/journal-save-delete-sync` (서브에이전트 5태스크; 설계·계획 `docs/superpowers/specs|plans/2026-0*-journal-save-delete-sync*`).
+- **왜**: ① 단어 저장/수정이 다음 로그인 전까지 서버에 안 올라감 ② 삭제 엔드포인트가 없어 로컬에서 지운 entry가 재로그인 다운로드에 **되살아남(좀비)**.
+- **백엔드**(스키마 무변경): `DELETE /api/journal/:clientId`(JwtAuthGuard) — `deleteMany({userId,clientId})`로 **멱등**(대상 없어도 204). repository 계약+Prisma 구현+service+controller.
+- **프론트**: api-client `'DELETE'` 허용 / `journal-api.deleteJournalEntry` / **`lib/auto-sync`**(신규) — `useJournalStore.subscribe`로 변경 구독 → 로그인 시 삭제된 id는 즉시 DELETE(best-effort), 추가/수정은 디바운스(1.5s) 후 `syncJournal`(전체 멱등 import) 재호출. `app/_layout`에서 마운트 시 `startAutoSync()`. **journal-store는 auth 무의존 유지(auto-sync가 매개).**
+- **결정(설계)**: 삭제=하드 삭제(툼스톤 X, YAGNI) / 업로드=디바운스 전체 재업로드(단건 delta X, 개인 단어장은 작음). 모든 동기화 비치명적(실패=console.warn).
+- **검증**: 백엔드 curl 계약(import3→DELETE 204→count2→멱등 재DELETE 204→없는 id 204→무토큰 401) + **e2e(삭제 후 재로그인 다운로드 = 안 되살아남, `['x2']`)**. 프론트 tsc 0 + `expo export` 0(20라우트).
+- **알려진 한계(의도적 수용)**: 삭제 요청 순간 실패 / 로그아웃(이력 보유) 중 삭제 → 다음 로그인에 되살아날 수 있음. 둘 다 **데이터 유실 아님**(다운로드 머지가 add-only·로컬 우선). 실제 문제 시 툼스톤 승격.
+- **비범위(후속)**: 재로그인 유도 배너 · `lastSyncedAt` auto-sync 갱신 · 인터랙티브 클릭스루(시뮬레이터/실기기).
 
 ### 2026-06-20 — 회원가입 프로필 수집 + 인증/프로필 분리 ★
 - **무엇**: 가입 시 나이(출생연도)·성별·관심사 수집을 **인증과 분리된 단일 프로필 게이트**로 구현. 이메일 가입에 **본인인증(PASS) 목업** 1장. 브랜치 `feat/auth-profile-collection` (서브에이전트 11태스크 구동; 설계·계획은 `docs/superpowers/specs|plans/2026-06-20-auth-profile-collection*`).
