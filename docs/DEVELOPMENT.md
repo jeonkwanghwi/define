@@ -34,7 +34,7 @@
 - **광장 2차**: 추천(좋아요)+추천순 정렬 → 3차 신고/모더레이션
 - **각 탭 실제 기능**: 마을(좌2)/과거의나 (광장은 1차 완료). 명시적 공개/비공개 동의는 배포·다유저 시
 - **좌2 마을** — 2D 픽셀아트 목업 구동(`/village-demo` dev 라우트, 백엔드 0). 탭 라우트는 `village`. **2D/3D 렌더링 방향은 팀 논의 중**(§6 결정 브리프). 회고/검색/주간 회고는 대체 후보로 보류
-- **재화(잉크/루비) 시스템 (B, 보류)** — `User`에 balance 컬럼 + 적립(출석체크)/소비, 서버 권위, 잔액 UI. tab3 유료화의 선행. 게이미피케이션(PLANNING §8)과 연동. *방향 채택 2026-06-21, 착수 보류.*
+- **재화(잉크) 시스템 v1 ✅** — `User.balance`+`lastAttendanceDate`, `POST /currency/attendance`(앱 열 때 자동 +10/일·멱등), 마이페이지 잔액 카드+메인 헤더 잉크 칩. 소비(차감)는 tab3 결합. 기록 연속 보너스는 v2.
 - **tab3 회상(과거의 나와 대화)** — 설계 완료(`docs/superpowers/specs/2026-06-21-recall-past-self-design.md`), GPT 종속 + **재화 선행으로 보류**. 내 엔트리+birthYear로 페르소나, 나이/기간 필터, 인캐릭터 시간봉인, ephemeral 대화. OpenAI 키 준비됨.
 - 마이페이지 후속: 알림/PDF/프리미엄 실제 기능, 다크 톤 실기기 대비 점검
 
@@ -247,6 +247,14 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-06-28 — 재화("잉크") 시스템 v1 (출석 적립 + 잔액) ★
+- **무엇**: 로그인 사용자에 앱 열 때 자동 출석 적립(+10/일, 멱등) + 잔액 서버 저장·표시. 브랜치 `feat/ink-currency-v1`. (설계 `docs/superpowers/specs/2026-06-28-ink-currency-v1-design.md`.)
+- **백엔드**(신규 테이블 0): `User`에 `balance`(중립어)·`lastAttendanceDate` 2컬럼. 신규 `modules/currency` — `POST /currency/attendance`(JwtAuthGuard), 클라 로컬 날짜로 `lastAttendanceDate` 비교해 하루 1회 +10(멱등). `AuthResponse.user`에 balance 동봉.
+- **프론트**: `currency-api`·`auth-store.setBalance`·`lib/attendance`(앱 마운트 시 1회 claim, 비치명적) + `InkRewardToast`(우리 톤) + 마이페이지 잔액 카드 + 메인 헤더 잉크 칩(로그인 시만).
+- **결정**: 이름 "잉크" 표시/코드 `balance` 분리. "오늘"=클라 로컬 날짜(서버 UTC 미사용). 연속출석 보너스 없음(flat). §9 노출 정책 완화(헤더 칩 허용).
+- **검증**: 백엔드 curl(첫 +10 claimed / 같은날 0 / 익일 +10 / 무토큰 401 / 잘못된 날짜 400) + tsc 0. 프론트 tsc 0 + `expo export` 0 + 웹 캡처(칩·카드).
+- **비범위(후속)**: 실제 소비/차감(tab3 결합) · **기록 연속 보너스(v2)** · 악용 하드닝 · 보상형 광고.
 
 ### 2026-06-21 — 저장-시 업로드 + 삭제 동기화 (B-1) ★
 - **무엇**: 동기화를 "로그인 때 1회"에서 "변경 때마다"로 확장 + 로컬 삭제를 서버에 반영. 브랜치 `feat/journal-save-delete-sync` (서브에이전트 5태스크; 설계·계획 `docs/superpowers/specs|plans/2026-0*-journal-save-delete-sync*`).
