@@ -37,6 +37,7 @@ import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
 import { formatKoreanDate, isSameDay } from '@/lib/format-date';
+import { useAuthStore } from '@/store/auth-store';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
 import { useTheme } from '@/theme';
@@ -46,6 +47,7 @@ export default function RecordScreen() {
   const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
   const nickname = useSettingsStore((s) => s.nickname);
+  const inkBalance = useAuthStore((s) => (s.token ? (s.user?.balance ?? 0) : null));
 
   // 단어 풀과 현재 인덱스. 진입 시 랜덤 1개 선택.
   // 사용자가 커스텀 단어를 추가할 수 있으므로 mutable.
@@ -158,30 +160,44 @@ export default function RecordScreen() {
           {/* ─── 0. 앱 헤더 — 워드마크 + 마이페이지 진입 (IA: 헤더 우상단) ─── */}
           <View style={styles.appHeader}>
             <ThemedText style={styles.wordmark}>define</ThemedText>
-            <Pressable
-              onPress={() => router.push('/mypage')}
-              hitSlop={8}
-              style={({ pressed }) => [
-                styles.avatarBtn,
-                {
-                  backgroundColor: pressed
-                    ? theme.colors.surface.nested
-                    : theme.colors.surface.base,
-                  borderColor: theme.colors.line.base,
-                },
-              ]}
-            >
-              {nickname.length > 0 ? (
-                <ThemedText
-                  variant="bodyMd"
-                  style={{ color: theme.colors.point.p600, fontWeight: '700' }}
-                >
-                  {nickname[0]}
-                </ThemedText>
-              ) : (
-                <Icon name="user" size={19} color={theme.colors.ink.secondary} />
+            <View style={styles.headerRight}>
+              {inkBalance != null && (
+                <View style={styles.inkChip}>
+                  <Icon name="ruby" size={14} color={theme.colors.ruby.base} />
+                  <ThemedText
+                    variant="sm"
+                    style={{ color: theme.colors.ink.secondary, fontWeight: '700' }}
+                  >
+                    {inkBalance}
+                  </ThemedText>
+                </View>
               )}
-            </Pressable>
+              {/* 기존 avatar Pressable 을 여기로 이동(그대로) */}
+              <Pressable
+                onPress={() => router.push('/mypage')}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.avatarBtn,
+                  {
+                    backgroundColor: pressed
+                      ? theme.colors.surface.nested
+                      : theme.colors.surface.base,
+                    borderColor: theme.colors.line.base,
+                  },
+                ]}
+              >
+                {nickname.length > 0 ? (
+                  <ThemedText
+                    variant="bodyMd"
+                    style={{ color: theme.colors.point.p600, fontWeight: '700' }}
+                  >
+                    {nickname[0]}
+                  </ThemedText>
+                ) : (
+                  <Icon name="user" size={19} color={theme.colors.ink.secondary} />
+                )}
+              </Pressable>
+            </View>
           </View>
 
           {/* ─── 1. 날짜 칩 ─── */}
@@ -424,6 +440,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  inkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 999,
   },
 
   dateChipWrap: { alignItems: 'center' },
