@@ -11,5 +11,6 @@ export class AuthResponse {
     gender: string | null;
     interests: string[];
     profileCompleted: boolean;
+    balance: number;
   };
 }

@@ -44,6 +44,7 @@ export default function MyPageScreen() {
 
   const [nicknameSheetOpen, setNicknameSheetOpen] = useState(false);
   const token = useAuthStore((s) => s.token);
+  const balance = useAuthStore((s) => s.user?.balance ?? 0);
   const accountEmail = useAuthStore((s) => s.user?.email ?? null);
   const lastSyncedAt = useAuthStore((s) => s.lastSyncedAt);
   const logout = useAuthStore((s) => s.logout);
@@ -187,6 +188,16 @@ export default function MyPageScreen() {
             disabled
           />
         </Group>
+
+        {/* ─── 잉크(재화) — 로그인 사용자만 ─── */}
+        {token && (
+          <>
+            <SectionLabel theme={theme} text="잉크" />
+            <Group theme={theme}>
+              <Row theme={theme} icon="ruby" label="내 잉크" value={`${balance}개`} />
+            </Group>
+          </>
+        )}
 
         {/* ─── 곧 만나요 (BM 로드맵) ─── */}
         <SectionLabel theme={theme} text="곧 만나요" />

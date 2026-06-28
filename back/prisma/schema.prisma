@@ -37,6 +37,9 @@ model User {
   birthYear    Int?
   gender       String?        // 'male' | 'female'
   interests    UserInterest[]
+  // ─── 재화(잉크). balance는 중립어(이름 안 박음). lastAttendanceDate로 하루 1회 적립 멱등. ───
+  balance            Int     @default(0)
+  lastAttendanceDate String?
 
   @@map("users")
 }

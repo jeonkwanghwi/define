@@ -17,6 +17,7 @@ type Row = {
   birthYear: number | null;
   gender: string | null;
   createdAt: Date;
+  balance: number;
   interests: { interest: string }[];
 };
 
@@ -29,6 +30,7 @@ function toEntity(row: Row): UserEntity {
     birthYear: row.birthYear,
     gender: row.gender,
     createdAt: row.createdAt,
+    balance: row.balance,
     interests: row.interests.map((i) => i.interest),
   };
 }

@@ -32,6 +32,8 @@ type AuthState = {
     gender: 'male' | 'female';
     interests: string[];
   }) => Promise<void>;
+  /** 출석 적립 등으로 잔액만 갱신(서버 응답값으로). */
+  setBalance: (balance: number) => void;
   /** 인증만 해제. 로컬 단어장은 보존. */
   logout: () => void;
 };
@@ -57,6 +59,10 @@ export const useAuthStore = create<AuthState>()(
         if (!token) throw new Error('로그인이 필요합니다.');
         const { user } = await updateProfileApi(token, input);
         set({ user });
+      },
+      setBalance: (balance) => {
+        const user = get().user;
+        if (user) set({ user: { ...user, balance } });
       },
       logout: () => set({ token: null, user: null, lastSyncedAt: null }),
     }),
