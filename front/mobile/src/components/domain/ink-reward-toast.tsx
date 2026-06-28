@@ -26,7 +26,7 @@ export function InkRewardToast({ amount, onDone }: { amount: number; onDone: () 
       ]).start(onDone);
     }, 1800);
     return () => clearTimeout(t);
-  }, [translateY, opacity, onDone]);
+  }, [translateY, opacity]); // onDone은 마운트 시 1회 캡처(토스트는 호출 후 언마운트) — deps에 넣으면 부모 리렌더로 타이머 재시작
 
   return (
     <Animated.View
