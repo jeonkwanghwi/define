@@ -72,6 +72,7 @@ export class AuthService {
         gender: user.gender,
         interests: user.interests,
         profileCompleted,
+        balance: user.balance,
       },
     };
   }

@@ -11,5 +11,6 @@ export class UserEntity {
   birthYear: number | null;
   gender: string | null; // 'male' | 'female' | null
   interests: string[]; // 미완성이면 빈 배열
+  balance: number; // 잉크 잔액(중립어). 신규/익명 0.
   createdAt: Date;
 }
