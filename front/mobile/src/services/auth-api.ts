@@ -12,6 +12,7 @@ export type AuthUser = {
   gender: 'male' | 'female' | null;
   interests: string[];
   profileCompleted: boolean;
+  balance: number;
 };
 
 export type AuthResult = {
