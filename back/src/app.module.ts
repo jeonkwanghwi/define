@@ -14,6 +14,7 @@ import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JournalModule } from './modules/journal/journal.module';
+import { CurrencyModule } from './modules/currency/currency.module';
 import { PlazaModule } from './modules/plaza/plaza.module';
 import { WordModule } from './modules/word/word.module';
 
@@ -25,6 +26,7 @@ import { WordModule } from './modules/word/word.module';
     AuthModule,
     JournalModule,
     PlazaModule,
+    CurrencyModule,
   ],
 })
 export class AppModule {}
