@@ -40,6 +40,7 @@ model User {
   // ─── 재화(잉크). balance는 중립어(이름 안 박음). lastAttendanceDate로 하루 1회 적립 멱등. ───
   balance            Int     @default(0)
   lastAttendanceDate String?
+  recallConsentAt    DateTime?   // tab3 회상 AI 데이터 동의 시각. null=미동의.
 
   @@map("users")
 }

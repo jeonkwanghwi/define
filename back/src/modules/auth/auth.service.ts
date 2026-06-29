@@ -73,6 +73,7 @@ export class AuthService {
         interests: user.interests,
         profileCompleted,
         balance: user.balance,
+        recallConsented: user.recallConsentAt != null,
       },
     };
   }
