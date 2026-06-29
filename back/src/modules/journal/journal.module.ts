@@ -4,12 +4,14 @@
  */
 import { Module } from '@nestjs/common';
 
+import { CurrencyModule } from '../currency/currency.module';
 import { EntryRepository } from './entry.repository';
 import { PrismaEntryRepository } from './entry.repository.prisma';
 import { JournalController } from './journal.controller';
 import { JournalService } from './journal.service';
 
 @Module({
+  imports: [CurrencyModule],
   controllers: [JournalController],
   providers: [
     JournalService,

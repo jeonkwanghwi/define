@@ -38,4 +38,29 @@ export class PrismaCurrencyRepository extends CurrencyRepository {
     });
     return { ok: res.count > 0, balance: row?.balance ?? 0 };
   }
+
+  async getLastRewardedStreakDay(userId: string): Promise<number> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { lastRewardedStreakDay: true },
+    });
+    return row?.lastRewardedStreakDay ?? 0;
+  }
+
+  async grantRecord(
+    userId: string,
+    amount: number,
+    streak: number,
+  ): Promise<{ granted: boolean; balance: number }> {
+    // 마커가 streak보다 작은 행만 갱신 → 동시 import의 이중지급 방지.
+    const res = await this.prisma.user.updateMany({
+      where: { id: userId, lastRewardedStreakDay: { lt: streak } },
+      data: { balance: { increment: amount }, lastRewardedStreakDay: streak },
+    });
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { balance: true },
+    });
+    return { granted: res.count > 0, balance: row?.balance ?? 0 };
+  }
 }

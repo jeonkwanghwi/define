@@ -17,6 +17,7 @@ import { InkRewardToast } from '@/components/domain/ink-reward-toast';
 import { runAttendanceClaim } from '@/lib/attendance';
 import { startAutoSync } from '@/lib/auto-sync';
 import { useAuthStore } from '@/store/auth-store';
+import { useRewardStore } from '@/store/reward-store';
 
 // 폰트 로드 완료까지 스플래시 화면 자동 해제 막기 (깜빡임 방지)
 SplashScreen.preventAutoHideAsync();
@@ -30,6 +31,8 @@ export default function RootLayout() {
   const token = useAuthStore((s) => s.token);
   const [reward, setReward] = useState<number | null>(null);
   const claimedRef = useRef(false);
+  const recordReward = useRewardStore((s) => s.pending);
+  const clearRecordReward = useRewardStore((s) => s.clear);
 
   // 토큰이 (하이드레이션 후) 준비되면 앱 세션당 1회 출석 적립 시도.
   useEffect(() => {
@@ -65,6 +68,14 @@ export default function RootLayout() {
     <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }} />
       {reward != null && <InkRewardToast amount={reward} onDone={() => setReward(null)} />}
+      {recordReward && (
+        <InkRewardToast
+          amount={recordReward.amount}
+          label={`${recordReward.streak}일 연속 기록`}
+          topOffset={124}
+          onDone={clearRecordReward}
+        />
+      )}
     </View>
   );
 }

@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { CurrencyRepository } from './currency.repository';
+import { recordRewardForDay } from './record-reward';
 
 /** 출석 1회 적립액(잉크). v1 고정 상수. */
 export const ATTENDANCE_AMOUNT = 10;
 
 export type AttendanceResult = { balance: number; claimed: boolean; amount: number };
+export type RecordBonus = { milestone: number; amount: number; balance: number };
 
 @Injectable()
 export class CurrencyService {
@@ -36,5 +38,20 @@ export class CurrencyService {
   async getBalance(userId: string): Promise<number> {
     const state = await this.currency.findState(userId);
     return state?.balance ?? 0;
+  }
+
+  /**
+   * 연속 기록 streak에 대해 (마지막 보상, streak] 구간 보상을 합산 지급. 멱등.
+   * 새로 줄 게 없으면(이미 보상했거나 구간 합 0) null.
+   */
+  async grantRecordMilestone(userId: string, streak: number): Promise<RecordBonus | null> {
+    const last = await this.currency.getLastRewardedStreakDay(userId);
+    if (streak <= last) return null;
+    let amount = 0;
+    for (let d = last + 1; d <= streak; d++) amount += recordRewardForDay(d);
+    if (amount === 0) return null;
+    const { granted, balance } = await this.currency.grantRecord(userId, amount, streak);
+    if (!granted) return null;
+    return { milestone: streak, amount, balance };
   }
 }

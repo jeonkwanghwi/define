@@ -8,6 +8,7 @@
 import { syncJournal } from '@/lib/sync-journal';
 import { deleteJournalEntry } from '@/services/journal-api';
 import { useAuthStore } from '@/store/auth-store';
+import { useRewardStore } from '@/store/reward-store';
 import { type SavedEntry, useJournalStore } from '@/store/journal-store';
 
 const DEBOUNCE_MS = 1500;
@@ -40,7 +41,18 @@ export function startAutoSync(): () => void {
     timer = setTimeout(() => {
       timer = null;
       const t = useAuthStore.getState().token;
-      if (t) syncJournal(t).catch((e) => console.warn('[auto-sync] 업로드 실패:', e));
+      if (t) {
+        syncJournal(t)
+          .then((res) => {
+            if (res.recordBonus) {
+              useAuthStore.getState().setBalance(res.recordBonus.balance);
+              useRewardStore
+                .getState()
+                .push({ streak: res.recordBonus.milestone, amount: res.recordBonus.amount });
+            }
+          })
+          .catch((e) => console.warn('[auto-sync] 업로드 실패:', e));
+      }
     }, DEBOUNCE_MS);
   });
 

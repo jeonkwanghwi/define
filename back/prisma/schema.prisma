@@ -41,6 +41,7 @@ model User {
   balance            Int     @default(0)
   lastAttendanceDate String?
   recallConsentAt    DateTime?   // tab3 회상 AI 데이터 동의 시각. null=미동의.
+  lastRewardedStreakDay Int      @default(0)   // 기록 연속 보너스: 지급한 최고 연속일(멱등 마커).
 
   @@map("users")
 }
