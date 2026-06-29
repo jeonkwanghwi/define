@@ -13,10 +13,12 @@ export function InkRewardToast({
   amount,
   onDone,
   label = '오늘의 잉크',
+  topOffset = 60,
 }: {
   amount: number;
   onDone: () => void;
   label?: string;
+  topOffset?: number;
 }) {
   const theme = useTheme();
   const translateY = useRef(new Animated.Value(-80)).current;
@@ -46,6 +48,7 @@ export function InkRewardToast({
           borderColor: theme.colors.line.base,
           transform: [{ translateY }],
           opacity,
+          top: topOffset,
         },
       ]}
     >

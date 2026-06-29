@@ -72,6 +72,7 @@ export default function RootLayout() {
         <InkRewardToast
           amount={recordReward.amount}
           label={`${recordReward.streak}일 연속 기록`}
+          topOffset={124}
           onDone={clearRecordReward}
         />
       )}
