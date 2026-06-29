@@ -75,6 +75,8 @@ export default function RecallChatScreen() {
         setError(`잉크 ${RECALL_COST}개가 필요해요 · 출석으로 모아보세요`);
       } else if (err.status === 503) {
         setError('지금 과거의 나를 부를 수 없어요. 잠시 후 다시 시도해 주세요.');
+      } else if (err.status === 403) {
+        setError('회상을 시작하려면 동의가 필요해요. 이전 화면에서 다시 시작해 주세요.');
       } else {
         setError('전송하지 못했어요. 다시 시도해 주세요.');
       }
