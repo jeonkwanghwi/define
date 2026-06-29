@@ -34,6 +34,8 @@ type AuthState = {
   }) => Promise<void>;
   /** 출석 적립 등으로 잔액만 갱신(서버 응답값으로). */
   setBalance: (balance: number) => void;
+  /** 동의 완료 표시(서버 기록 후). */
+  setRecallConsented: () => void;
   /** 인증만 해제. 로컬 단어장은 보존. */
   logout: () => void;
 };
@@ -63,6 +65,10 @@ export const useAuthStore = create<AuthState>()(
       setBalance: (balance) => {
         const user = get().user;
         if (user) set({ user: { ...user, balance } });
+      },
+      setRecallConsented: () => {
+        const user = get().user;
+        if (user) set({ user: { ...user, recallConsented: true } });
       },
       logout: () => set({ token: null, user: null, lastSyncedAt: null }),
     }),

@@ -13,6 +13,7 @@ export type AuthUser = {
   interests: string[];
   profileCompleted: boolean;
   balance: number;
+  recallConsented: boolean;
 };
 
 export type AuthResult = {
