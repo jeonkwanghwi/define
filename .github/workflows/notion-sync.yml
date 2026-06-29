@@ -16,7 +16,20 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 20   # ⚠️ 22로 올리면 node-fetch v2(md-to-notion 내부)가 ERR_STREAM_PREMATURE_CLOSE → 20 유지
-      - run: npx @vrerv/md-to-notion -t "$NOTION_TOKEN" -p "$NOTION_PAGE_ID" ./docs
+      # 버전 고정(npx latest 자동변경 변수 제거) + 재시도(premature-close 같은 flaky 끊김 흡수)
+      - name: Sync docs to Notion (pinned + retry)
+        run: |
+          for i in 1 2 3; do
+            echo "Attempt $i/3..."
+            if npx @vrerv/md-to-notion@1.1.1 -t "$NOTION_TOKEN" -p "$NOTION_PAGE_ID" ./docs; then
+              echo "Synced on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed; retrying in 10s..."
+            sleep 10
+          done
+          echo "All 3 attempts failed"
+          exit 1
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
