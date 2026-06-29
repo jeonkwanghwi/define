@@ -13,4 +13,17 @@ export abstract class CurrencyRepository {
 
   /** balance >= cost 일 때만 원자적 차감. 차감되면 {ok:true}, 부족/없음이면 {ok:false}. balance=차감 후(또는 현재). */
   abstract spend(userId: string, cost: number): Promise<{ ok: boolean; balance: number }>;
+
+  /** 마지막으로 보상한 최고 연속 기록일. 없으면 0. */
+  abstract getLastRewardedStreakDay(userId: string): Promise<number>;
+
+  /**
+   * lastRewardedStreakDay < streak 일 때만 원자적으로 balance += amount, marker = streak.
+   * granted=false면 동시성으로 이미 처리됨(이중지급 방지). balance=현재.
+   */
+  abstract grantRecord(
+    userId: string,
+    amount: number,
+    streak: number,
+  ): Promise<{ granted: boolean; balance: number }>;
 }
