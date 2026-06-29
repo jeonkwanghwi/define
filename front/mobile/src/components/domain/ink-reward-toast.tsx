@@ -9,7 +9,15 @@ import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { useTheme } from '@/theme';
 
-export function InkRewardToast({ amount, onDone }: { amount: number; onDone: () => void }) {
+export function InkRewardToast({
+  amount,
+  onDone,
+  label = '오늘의 잉크',
+}: {
+  amount: number;
+  onDone: () => void;
+  label?: string;
+}) {
   const theme = useTheme();
   const translateY = useRef(new Animated.Value(-80)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -43,7 +51,7 @@ export function InkRewardToast({ amount, onDone }: { amount: number; onDone: () 
     >
       <Icon name="ruby" size={18} color={theme.colors.ruby.base} />
       <ThemedText variant="bodyMd" style={{ color: theme.colors.ink.primary, fontWeight: '700' }}>
-        오늘의 잉크 +{amount}
+        {label} +{amount}
       </ThemedText>
     </Animated.View>
   );

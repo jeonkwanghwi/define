@@ -16,6 +16,7 @@ export type ImportEntry = {
 export type ImportResult = {
   imported: number;
   updated: number;
+  recordBonus?: { milestone: number; amount: number; balance: number };
 };
 
 /** POST /api/journal/import */
