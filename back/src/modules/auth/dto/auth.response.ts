@@ -12,5 +12,6 @@ export class AuthResponse {
     interests: string[];
     profileCompleted: boolean;
     balance: number;
+    recallConsented: boolean;
   };
 }

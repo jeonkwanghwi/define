@@ -25,4 +25,17 @@ export class PrismaCurrencyRepository extends CurrencyRepository {
     });
     return row.balance;
   }
+
+  async spend(userId: string, cost: number): Promise<{ ok: boolean; balance: number }> {
+    // 원자적 조건부 차감: balance >= cost 인 행만 갱신 → 동시성에도 음수/이중차감 없음.
+    const res = await this.prisma.user.updateMany({
+      where: { id: userId, balance: { gte: cost } },
+      data: { balance: { decrement: cost } },
+    });
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { balance: true },
+    });
+    return { ok: res.count > 0, balance: row?.balance ?? 0 };
+  }
 }
