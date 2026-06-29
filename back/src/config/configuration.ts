@@ -11,4 +11,5 @@ export default () => ({
     secret: process.env.JWT_SECRET ?? 'dev-secret-change-me',
     expiresIn: process.env.JWT_EXPIRES_IN ?? '90d',
   },
+  openai: { apiKey: process.env.OPENAI_API_KEY ?? '' },
 });
