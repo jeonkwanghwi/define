@@ -5,17 +5,22 @@
  */
 import { Injectable } from '@nestjs/common';
 
+import { CurrencyService, RecordBonus } from '../currency/currency.service';
 import { ImportJournalDto } from './dto/import-journal.dto';
 import { EntryRecord, EntryRepository } from './entry.repository';
+import { computeRecordStreak } from './record-streak';
 
 @Injectable()
 export class JournalService {
-  constructor(private readonly entries: EntryRepository) {}
+  constructor(
+    private readonly entries: EntryRepository,
+    private readonly currency: CurrencyService,
+  ) {}
 
   async import(
     userId: string,
     dto: ImportJournalDto,
-  ): Promise<{ imported: number; updated: number }> {
+  ): Promise<{ imported: number; updated: number; recordBonus?: RecordBonus }> {
     let imported = 0;
     let updated = 0;
 
@@ -34,7 +39,12 @@ export class JournalService {
       }
     }
 
-    return { imported, updated };
+    // 업서트 후 현재 연속 기록일로 보너스 계산(멱등). 비치명적이지만 import는 멱등이라 안전.
+    const all = await this.entries.findByUserId(userId);
+    const streak = computeRecordStreak(all.map((e) => new Date(e.savedAt)));
+    const recordBonus = (await this.currency.grantRecordMilestone(userId, streak)) ?? undefined;
+
+    return { imported, updated, recordBonus };
   }
 
   /** 다운로드 동기화 — 한 사용자의 서버 entries 전체(최신순). */
