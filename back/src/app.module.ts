@@ -16,6 +16,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { JournalModule } from './modules/journal/journal.module';
 import { CurrencyModule } from './modules/currency/currency.module';
 import { PlazaModule } from './modules/plaza/plaza.module';
+import { RecallModule } from './modules/recall/recall.module';
 import { WordModule } from './modules/word/word.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { WordModule } from './modules/word/word.module';
     JournalModule,
     PlazaModule,
     CurrencyModule,
+    RecallModule,
   ],
 })
 export class AppModule {}
