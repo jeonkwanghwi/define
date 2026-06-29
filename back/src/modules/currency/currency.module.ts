@@ -15,5 +15,6 @@ import { CurrencyService } from './currency.service';
     CurrencyService,
     { provide: CurrencyRepository, useClass: PrismaCurrencyRepository },
   ],
+  exports: [CurrencyService],
 })
 export class CurrencyModule {}

@@ -10,4 +10,7 @@ export abstract class CurrencyRepository {
 
   /** balance += amount, lastAttendanceDate = localDate. 갱신된 balance 반환. */
   abstract grantAttendance(userId: string, amount: number, localDate: string): Promise<number>;
+
+  /** balance >= cost 일 때만 원자적 차감. 차감되면 {ok:true}, 부족/없음이면 {ok:false}. balance=차감 후(또는 현재). */
+  abstract spend(userId: string, cost: number): Promise<{ ok: boolean; balance: number }>;
 }

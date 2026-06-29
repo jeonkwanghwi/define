@@ -26,4 +26,15 @@ export class CurrencyService {
     const balance = await this.currency.grantAttendance(userId, ATTENDANCE_AMOUNT, localDate);
     return { balance, claimed: true, amount: ATTENDANCE_AMOUNT };
   }
+
+  /** balance >= cost 면 원자적 차감 후 {ok:true,balance}. 부족하면 {ok:false,balance}. */
+  async spend(userId: string, cost: number): Promise<{ ok: boolean; balance: number }> {
+    return this.currency.spend(userId, cost);
+  }
+
+  /** 현재 잔액. 없으면 0. */
+  async getBalance(userId: string): Promise<number> {
+    const state = await this.currency.findState(userId);
+    return state?.balance ?? 0;
+  }
 }
