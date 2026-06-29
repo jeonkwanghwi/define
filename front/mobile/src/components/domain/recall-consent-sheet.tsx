@@ -8,7 +8,6 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  View,
 } from 'react-native';
 
 import { Button } from '@/components/primitives';

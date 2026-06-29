@@ -93,15 +93,13 @@ function RecallHome() {
   };
 
   const startChat = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const push = router.push as (route: any) => void;
     if (mode === 'age' && selAge != null) {
-      push({
+      router.push({
         pathname: '/recall-chat',
         params: { label: `${selAge}살의 나`, age: String(selAge) },
       });
     } else if (mode === 'year' && selYear != null) {
-      push({
+      router.push({
         pathname: '/recall-chat',
         params: {
           label: `${selYear}년의 나`,

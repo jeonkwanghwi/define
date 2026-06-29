@@ -72,7 +72,7 @@ export default function RecallChatScreen() {
       setMessages((m) => m.slice(0, -1));
       setInput(text);
       if (err.status === 402) {
-        setError(`잉크 ${RECALL_COST}개가 필요해요. 출석으로 모아보세요.`);
+        setError(`잉크 ${RECALL_COST}개가 필요해요 · 출석으로 모아보세요`);
       } else if (err.status === 503) {
         setError('지금 과거의 나를 부를 수 없어요. 잠시 후 다시 시도해 주세요.');
       } else {
