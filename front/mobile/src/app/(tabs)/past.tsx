@@ -18,6 +18,7 @@ import {
   availableYears,
   countForAge,
   countForYear,
+  pickRandomQuestionTarget,
 } from '@/lib/recall-range';
 import { recallConsent } from '@/services/recall-api';
 import { useAuthStore } from '@/store/auth-store';
@@ -49,6 +50,7 @@ function RecallHome() {
   const setRecallConsented = useAuthStore((s) => s.setRecallConsented);
 
   const [consentOpen, setConsentOpen] = useState(false);
+  const [convoMode, setConvoMode] = useState<'free' | 'question'>('free');
   const [mode, setMode] = useState<'age' | 'year'>('age');
   const [selAge, setSelAge] = useState<number | null>(null);
   const [selYear, setSelYear] = useState<number | null>(null);
@@ -110,6 +112,21 @@ function RecallHome() {
     }
   };
 
+  const startQuestion = () => {
+    const target = pickRandomQuestionTarget(entries);
+    if (!target) return;
+    router.push({
+      pathname: '/recall-chat',
+      params: {
+        label: target.label,
+        periodStart: target.periodStart,
+        periodEnd: target.periodEnd,
+        mode: 'question',
+        focusWord: target.focusWord,
+      },
+    });
+  };
+
   const sliceCount =
     mode === 'age'
       ? selAge != null
@@ -128,6 +145,45 @@ function RecallHome() {
           이 기능은 생성형 AI를 활용해요
         </ThemedText>
 
+        {/* 대화 방식 */}
+        <View style={[styles.segment, { marginTop: theme.spacing.s4 }]}>
+          {(['free', 'question'] as const).map((cm) => {
+            const active = convoMode === cm;
+            return (
+              <Pressable
+                key={cm}
+                onPress={() => setConvoMode(cm)}
+                style={[
+                  styles.segItem,
+                  {
+                    backgroundColor: active ? theme.colors.point.p600 : theme.colors.surface.base,
+                    borderColor: theme.colors.line.base,
+                  },
+                ]}
+              >
+                <ThemedText
+                  variant="bodyMd"
+                  style={{ color: active ? theme.colors.paper.base : theme.colors.ink.secondary }}
+                >
+                  {cm === 'free' ? '자유롭게 대화' : '질문 받기'}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {convoMode === 'question' && (
+          <ThemedText
+            variant="body"
+            tone="secondary"
+            style={{ marginTop: theme.spacing.s5, lineHeight: 24 }}
+          >
+            랜덤한 시기의 내가 그때 적은 단어 하나로 먼저 물어봐요. 시기는 고르지 않아요.
+          </ThemedText>
+        )}
+
+        {convoMode === 'free' && (
+        <>
         {/* 시절 선택 세그먼트 */}
         <View style={[styles.segment, { marginTop: theme.spacing.s5 }]}>
           {(['age', 'year'] as const).map((m) => {
@@ -195,16 +251,27 @@ function RecallHome() {
             그 시절 기록 {sliceCount}개
           </ThemedText>
         )}
+        </>
+        )}
       </ScrollView>
 
       {/* CTA — 비용 명시 */}
       <View style={[styles.cta, { borderTopColor: theme.colors.line.base }]}>
         <Button
-          label={`과거의 나 만나기 · ${RECALL_COST}잉크`}
-          disabled={!canStart}
+          label={
+            convoMode === 'question'
+              ? `질문 받기 · ${RECALL_COST}잉크`
+              : `과거의 나 만나기 · ${RECALL_COST}잉크`
+          }
+          disabled={convoMode === 'free' && !canStart}
           onPress={() => {
-            if (!recallConsented) setConsentOpen(true);
-            else startChat();
+            if (!recallConsented) {
+              setConsentOpen(true);
+            } else if (convoMode === 'question') {
+              startQuestion();
+            } else {
+              startChat();
+            }
           }}
         />
       </View>
