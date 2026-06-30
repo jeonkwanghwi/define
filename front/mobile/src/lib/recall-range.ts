@@ -40,3 +40,27 @@ export function countForAge(
 export function countForYear(entries: DatedEntry[], year: number): number {
   return entries.filter((e) => yearOf(e.savedAt) === year).length;
 }
+
+type WordedEntry = { word: string; savedAt: string };
+export type QuestionTarget = {
+  label: string;
+  periodStart: string;
+  periodEnd: string;
+  focusWord: string;
+};
+
+/**
+ * 질문모드용 랜덤 대상 — 기록 있는 연도 중 하나 + 그 해의 단어 하나. 기록 없으면 null.
+ * rng는 테스트 주입용(기본 Math.random).
+ */
+export function pickRandomQuestionTarget(
+  entries: WordedEntry[],
+  rng: () => number = Math.random,
+): QuestionTarget | null {
+  if (entries.length === 0) return null;
+  const years = availableYears(entries);
+  const year = years[Math.floor(rng() * years.length)];
+  const inYear = entries.filter((e) => yearOf(e.savedAt) === year);
+  const focusWord = inYear[Math.floor(rng() * inYear.length)].word;
+  return { label: `${year}년의 나`, periodStart: `${year}-01-01`, periodEnd: `${year}-12-31`, focusWord };
+}

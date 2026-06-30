@@ -58,7 +58,11 @@ export class RecallService {
     }
 
     const entries = this.applyFilter(await this.recall.findEntries(userId), dto.filter, ctx.birthYear);
-    const system = buildSystemPrompt({ entries: entries.slice(0, MAX_ENTRIES), mode: dto.mode ?? 'free' });
+    const system = buildSystemPrompt({
+      entries: entries.slice(0, MAX_ENTRIES),
+      mode: dto.mode ?? 'free',
+      focusWord: dto.focusWord,
+    });
     const messages: ChatMessage[] = [
       { role: 'system', content: system },
       ...dto.messages.map((m) => ({ role: m.role, content: m.content })),

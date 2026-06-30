@@ -23,7 +23,8 @@ export function recallChat(
     filter: RecallFilter;
     messages: RecallMessage[];
     isNewConversation: boolean;
-    mode?: 'free';
+    mode?: 'free' | 'question';
+    focusWord?: string;
   },
 ): Promise<RecallChatResult> {
   return apiRequest<RecallChatResult>('/recall/chat', {

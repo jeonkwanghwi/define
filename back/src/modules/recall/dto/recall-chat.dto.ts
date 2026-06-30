@@ -28,6 +28,8 @@ export class RecallChatDto {
   @IsArray() @ValidateNested({ each: true }) @Type(() => RecallMessageDto)
   messages: RecallMessageDto[];
   @IsBoolean() isNewConversation: boolean;
-  /** v1은 'free'만 허용. 후속에서 enum 확장. */
-  @IsOptional() @IsIn(['free']) mode?: 'free';
+  /** v1: 'free'(사용자 먼저) | 'question'(과거의 내가 먼저 질문). */
+  @IsOptional() @IsIn(['free', 'question']) mode?: 'free' | 'question';
+  /** 질문모드: 이 단어를 콕 집어 묻게 함. */
+  @IsOptional() @IsString() focusWord?: string;
 }
