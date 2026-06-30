@@ -10,7 +10,6 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  View,
 } from 'react-native';
 
 import { Button } from '@/components/primitives';
