@@ -249,6 +249,12 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-06-30 — 📌 (보류·트리거 메모) staging 배포로 팀 원격 테스트
+- **언제**: **tab2 마을 완료 후** 착수(분산 팀이 기능 테스트하려면 공개 환경 필요 — 지금은 localhost라 원격 불가).
+- **핵심 함정**: 프론트 번들만 공유 불가 — `API_BASE`(`front/mobile/src/services/api-client.ts:12` = `http://localhost:3000/api`)가 localhost라 **백엔드도 공개 주소여야** 함.
+- **할 일**: ⒜ `API_BASE` → **`EXPO_PUBLIC_API_URL` 환경변수화**(로컬/배포 전환). ⒝ **백엔드 staging 배포**(Railway/Render — SQLite는 영구 볼륨 or Postgres). ⒞ 프론트는 **Expo Go + `eas update`** 로 공유(앱스토어 출시 불필요).
+- **주의(staging ≠ prod)**: 공유 DB=샌드박스(실데이터 X·리셋 가능) · prod와 DB/시크릿 분리 · OpenAI 키는 **예산 캡 건 staging 전용 키**.
+
 ### 2026-06-30 — 회상 질문생성 모드 (역할 반전 + 다시 정의 루프) ★
 - **무엇**: 회상에 `mode:'question'` 추가 — 랜덤 시기의 과거의 내가 그 시절 단어(focusWord) 옛 정의를 인용해 먼저 질문. 채팅 "다시 정의" → `addEntry(focusWord)`로 재정의(새 엔트리). 브랜치 `feat/recall-question-mode`.
 - **백엔드**(가벼움): `prompt.ts` RecallMode += 'question' + focusWord 분기(역할반전 지시) · DTO `@IsIn(['free','question'])`+focusWord · service가 focusWord 전달(빈 messages=system-only 첫 질문). 차감/동의/잔액 무변경.
