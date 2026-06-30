@@ -249,6 +249,14 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-06-30 — 회상 질문생성 모드 (역할 반전 + 다시 정의 루프) ★
+- **무엇**: 회상에 `mode:'question'` 추가 — 랜덤 시기의 과거의 내가 그 시절 단어(focusWord) 옛 정의를 인용해 먼저 질문. 채팅 "다시 정의" → `addEntry(focusWord)`로 재정의(새 엔트리). 브랜치 `feat/recall-question-mode`.
+- **백엔드**(가벼움): `prompt.ts` RecallMode += 'question' + focusWord 분기(역할반전 지시) · DTO `@IsIn(['free','question'])`+focusWord · service가 focusWord 전달(빈 messages=system-only 첫 질문). 차감/동의/잔액 무변경.
+- **프론트**: `recall-api` mode/focusWord · `recall-range.pickRandomQuestionTarget`(랜덤 연도+단어) · `past.tsx` 대화 방식 선택(자유/질문 받기) · `RedefineSheet` · `recall-chat` 질문모드 자동 첫 질문 + 다시 정의 버튼.
+- **결정**: 토론모드 = 필터(이미 구현) 오해 → 별도 모드 X(문서 정정). 답변 비저장(ephemeral)·페르소나화 X. 랜덤 선택은 클라.
+- **검증**: `buildSystemPrompt('question')` ts-node · `pickRandomQuestionTarget` node · curl(질문 첫 요청 messages:[]→focusWord 인용 질문·차감30 / 401) · 프론트 tsc·expo export.
+- **비범위**: 토론 별도 주제 모드 · 단톡 · 대화 저장 · 질문 대상 가중치.
+
 ### 2026-06-30 — 기록 단어 연출 탐색(만년필/타이핑) — 프로토타입·보류 🅿️
 - **무엇**: 메인 기록의 단어 연출(잉크·만년필 모티프) 방식 탐색. throwaway dev 라우트 `/pen-demo`에 3안 프로토타입 — ① 만년필 단선 손글씨(획순) ② 폰트-트레이스(opentype 외곽선) ③ 타이핑(토독토독). **전부 미커밋 scratch**(`components/{pen-write-animation,glyph-write-animation,handwrite-word,type-write-word}`, `app/pen-demo.tsx`, `data/glyph-paths.ts`, `scripts/gen-glyph-paths.mjs`, devDep `opentype.js`/`svg-path-properties`).
 - **핵심 결론(재연구 방지)**:
