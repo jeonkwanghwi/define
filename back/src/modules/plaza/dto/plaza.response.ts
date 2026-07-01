@@ -17,3 +17,5 @@ export type PlazaWordDetailResponse = {
   word: string;
   definitions: PlazaDefinitionResponse[];
 };
+
+export type PlazaLikeResponse = { liked: boolean; likeCount: number };

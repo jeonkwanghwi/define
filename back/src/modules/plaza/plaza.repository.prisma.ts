@@ -51,4 +51,28 @@ export class PrismaPlazaRepository extends PlazaRepository {
       likedByMe: r.likes.length > 0,
     }));
   }
+
+  async getEntryOwner(entryId: string): Promise<string | null> {
+    const entry = await this.prisma.entry.findUnique({
+      where: { id: entryId },
+      select: { userId: true },
+    });
+    return entry?.userId ?? null;
+  }
+
+  async toggleLike(
+    userId: string,
+    entryId: string,
+  ): Promise<{ liked: boolean; likeCount: number }> {
+    const existing = await this.prisma.like.findUnique({
+      where: { userId_entryId: { userId, entryId } },
+    });
+    if (existing) {
+      await this.prisma.like.delete({ where: { id: existing.id } });
+    } else {
+      await this.prisma.like.create({ data: { userId, entryId } });
+    }
+    const likeCount = await this.prisma.like.count({ where: { entryId } });
+    return { liked: existing === null, likeCount };
+  }
 }

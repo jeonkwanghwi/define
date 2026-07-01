@@ -22,4 +22,11 @@ export abstract class PlazaRepository {
     word: string,
     userId: string,
   ): Promise<PlazaDefinitionRow[]>;
+  /** 정의(Entry)의 작성자 userId. 없으면 null. (자기 좋아요 판정용) */
+  abstract getEntryOwner(entryId: string): Promise<string | null>;
+  /** 좋아요를 토글하고 토글 후 상태·총 개수를 반환. (userId,entryId) 유니크로 멱등. */
+  abstract toggleLike(
+    userId: string,
+    entryId: string,
+  ): Promise<{ liked: boolean; likeCount: number }>;
 }

@@ -2,10 +2,11 @@
  * PlazaController — /api/plaza/*. 모두 JwtAuthGuard(상호주의 = 로그인).
  * :word는 한글이라 클라가 encodeURIComponent로 보내고, @Param이 디코드해서 받는다.
  */
-import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
+  PlazaLikeResponse,
   PlazaWordDetailResponse,
   PlazaWordResponse,
 } from './dto/plaza.response';
@@ -29,5 +30,14 @@ export class PlazaController {
     @Req() req: { user: { userId: string } },
   ): Promise<PlazaWordDetailResponse> {
     return this.plaza.getWord(word, req.user.userId);
+  }
+
+  /** POST /api/plaza/definitions/:entryId/like — 좋아요 토글(내 정의 불가). */
+  @Post('definitions/:entryId/like')
+  toggleLike(
+    @Param('entryId') entryId: string,
+    @Req() req: { user: { userId: string } },
+  ): Promise<PlazaLikeResponse> {
+    return this.plaza.toggleLike(req.user.userId, entryId);
   }
 }
