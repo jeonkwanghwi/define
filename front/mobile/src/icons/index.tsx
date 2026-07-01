@@ -49,7 +49,8 @@ export type IconName =
   | 'arrowUp'
   | 'edit'
   | 'search'
-  | 'sparkle';
+  | 'sparkle'
+  | 'heart'; // 광장 좋아요(추천)
 
 export type IconProps = Omit<SvgProps, 'width' | 'height' | 'viewBox'> & {
   name: IconName;
@@ -224,6 +225,10 @@ function renderIcon(name: IconName, p: StrokeProps) {
           <Circle cx="11" cy="11" r="6.5" {...p} />
           <Path d="M16 16l4 4" {...p} />
         </>
+      );
+    case 'heart':
+      return (
+        <Path d="M12 20s-6.6-4.2-9-8.3C1.4 8.9 3 5.5 6.2 5.5c1.9 0 3.1 1.1 3.8 2.2.7-1.1 1.9-2.2 3.8-2.2 3.2 0 4.8 3.4 3.2 6.2-2.4 4.1-9 8.3-9 8.3z" {...p} />
       );
     case 'sparkle':
       return <Path d="M12 4l1.8 5.2L19 11l-5.2 1.8L12 18l-1.8-5.2L5 11l5.2-1.8z" {...p} />;
