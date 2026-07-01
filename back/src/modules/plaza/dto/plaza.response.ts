@@ -9,6 +9,8 @@ export type PlazaDefinitionResponse = {
   text: string;
   savedAt: string; // ISO
   isMine: boolean;
+  likeCount: number;
+  isLiked: boolean; // 요청 사용자가 이 정의에 좋아요를 눌렀는지
 };
 
 export type PlazaWordDetailResponse = {

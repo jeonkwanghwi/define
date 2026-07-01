@@ -21,16 +21,20 @@ export class PlazaService {
   }
 
   async getWord(word: string, userId: string): Promise<PlazaWordDetailResponse> {
-    const rows = await this.repo.findDefinitionsByWord(word);
+    const rows = await this.repo.findDefinitionsByWord(word, userId);
     const definitions = rows.map((r) => ({
       id: r.id,
       nickname: r.nickname ?? '익명',
       text: r.text,
       savedAt: r.savedAt.toISOString(),
       isMine: r.userId === userId,
+      likeCount: r.likeCount,
+      isLiked: r.likedByMe,
     }));
-    // 내 정의(isMine=true)를 맨 위로. repo가 이미 savedAt 역순이라 그 안에서 순서 유지.
-    definitions.sort((a, b) => Number(b.isMine) - Number(a.isMine));
+    // 내 정의 맨 위 → 좋아요 많은 순. repo가 savedAt 역순이라 동점은 안정 정렬로 최신 우선 유지.
+    definitions.sort(
+      (a, b) => Number(b.isMine) - Number(a.isMine) || b.likeCount - a.likeCount,
+    );
     return { word, definitions };
   }
 }

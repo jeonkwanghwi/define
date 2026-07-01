@@ -10,11 +10,16 @@ export type PlazaDefinitionRow = {
   nickname: string | null;
   text: string;
   savedAt: Date;
+  likeCount: number;
+  likedByMe: boolean;
 };
 
 export abstract class PlazaRepository {
   /** 정의가 1개 이상인 단어 목록 + 정의 수. */
   abstract listWordsWithCounts(): Promise<PlazaWordCount[]>;
-  /** 한 단어의 모든 정의(작성자 닉네임 포함), savedAt 역순. */
-  abstract findDefinitionsByWord(word: string): Promise<PlazaDefinitionRow[]>;
+  /** 한 단어의 모든 정의(닉네임·좋아요 집계 포함), savedAt 역순. userId로 likedByMe 판정. */
+  abstract findDefinitionsByWord(
+    word: string,
+    userId: string,
+  ): Promise<PlazaDefinitionRow[]>;
 }
