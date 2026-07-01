@@ -31,9 +31,10 @@
 19. **저장-시 업로드 + 삭제 동기화 (B-1)** — `lib/auto-sync`가 journal-store 변경을 구독 → 로그인 상태면 삭제는 즉시 `DELETE /journal/:clientId`(멱등), 추가/수정은 디바운스 후 전체 재업로드(`syncJournal`). 좀비(지운 게 재로그인에 되살아남) 해결. 알려진 한계: 삭제 요청 블립 / 로그아웃 중 삭제는 잔존 가능(데이터 유실 아님). 브랜치 `feat/journal-save-delete-sync`
 20. **재화(잉크) 시스템 v1 + v2** — 출석 자동 적립(+10/일·멱등)+잔액(마이페이지 카드·메인 헤더 칩) / **기록 연속 보너스**(streak 마일스톤 멱등 지급). 소비=회상 대화당 30잉크 차감. 코드 식별자 중립(`balance`), 표시만 "잉크". (브랜치 `feat/ink-currency-v1`·v2)
 21. **회상(과거의 나) v1 — 자유모드 + 질문생성 모드** — GPT 페르소나(내 엔트리+birthYear)·나이/기간 필터·시간봉인·ephemeral·대화당 30잉크. 열림 게이트=서로 다른 단어 20개·동의 1회(`recallConsentAt`). **질문생성**=랜덤 시기 과거의 내가 그 시절 단어 인용해 먼저 질문 + "다시 정의" 루프. 모델 gpt-4.1-mini. (브랜치 `feat/recall-v1`·`feat/recall-question-mode`)
+22. **광장 2단계 — 좋아요(추천) + 추천순 정렬** — 신규 `Like` 테이블 + `POST /plaza/definitions/:entryId/like`(토글·멱등·자기좋아요 400)·정의에 `likeCount`/`isLiked` 노출·정렬 `내 정의→좋아요순→최신순`. 프론트 정의 카드 좋아요 버튼(내 정의엔 숨김)·optimistic 토글(서버 응답으로 확정·실패 시 조용히 revert)·하트 아이콘. (브랜치 `feat/plaza-likes`)
 
 **🟡 다음 후보 (우선순위 미정)**
-- **광장 2단계** ★ **다음 착수 예정(현재 보류)** — 정의에 **추천(좋아요)** + **추천순 정렬**, 단 **내 정의는 항상 맨 위 테두리 하이라이트**(정렬과 무관). 이후 3단계=신고/모더레이션. (백+프론트. "N단계"=광장 탭 개발 회차, 탭 번호 아님.)
+- **광장 3단계 — 신고/모더레이션** — 신고 누적 모니터링 · 임계값 자동 조치(기록 숨김/삭제·유저 차단) · (추후) AI 사전 감지. 방향 메모는 §6/작업 로그 2026-07-01, 기획 [PLANNING.md](./PLANNING.md) §8. (백+프론트. "N단계"=광장 탭 개발 회차, 탭 번호 아님.)
 - **tab2 마을** — 🔴 **AI 이미지 자동생성 전환**(2026-06-28, 프리셋 X): 별도 설계 사이클(생성 파이프라인·비용·저장·아이템↔메모 매핑 + 마이페이지 "아이템 보기"). **친구가 데모 제작 중.** `/village-demo` 목업은 참고용. §6 갱신
 - **메모 이벤트 입력** — Entry 모델 확장(기록 탭) → 회상이 나중에 활용(후속 로드맵).
 - **마이페이지 후속** — 알림/PDF/프리미엄 실제 기능 · (마을 후)"아이템 보기" · 다크 톤 실기기 점검.
@@ -156,7 +157,7 @@
 | **메인 — 기록** (`/`) | ✅ 완료 | 헤더(워드마크+마이페이지) / 단어 swap / DateSheet / CustomWordSheet / SaveConfirmation / **재정의 시 변화 노트 입력**. 저장 시 store.addEntry |
 | **단어장 리스트** (`/journal`) | ✅ 완료 | 가나다 정렬, 통계(총 기록/생각 변화), 빈 상태 안내, 변화 뱃지 |
 | **단어 상세** (`/journal/[word]`) | ✅ 완료 | 타임라인(노드별 **변화 노트** 표시) + 인라인 편집 + 삭제(ConfirmDialog) + entries=0 시 자동 router.back |
-| 광장 (`/plaza`) | ✅ 1단계 | 읽기전용 MVP(리스트+상세, 시드+내 정의 isMine 맨 위). **2단계(좋아요·추천순)=다음 예정** |
+| 광장 (`/plaza`) | ✅ 2단계 | 읽기전용 MVP + **좋아요(추천)·추천순 정렬**(내 정의 맨 위 유지·자기좋아요 숨김). **3단계(신고/모더레이션)=다음** |
 | 마을 (`/village`) | 🟡 placeholder | AI 이미지 전환(2026-06-28)·친구 데모 제작 중 · `/village-demo` 목업 별도 · 가입 필요 탭 |
 | 과거의 나 (`/past`) | ✅ 완료 | 회상 v1 자유모드 + 질문생성 모드(랜덤 시기·다시 정의 루프)·대화당 30잉크 |
 | **마이페이지** (`/mypage`) | ✅ 완료 | 헤더 우상단 아바타 진입 / 테마 토글(라·다·시) / 닉네임 편집 / 실제 통계 / 버전. 알림·PDF·프리미엄은 준비중 |
@@ -253,6 +254,16 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-07-01 — 광장 2단계: 좋아요(추천) + 추천순 정렬 ★
+- **무엇**: 광장 정의에 좋아요(추천)와 추천순 정렬을 추가. 브랜치 `feat/plaza-likes`, 서브에이전트 구동 6태스크(각 태스크 스펙+품질 리뷰). 설계·계획 `docs/superpowers/plans/2026-07-01-plaza-stage2-likes.md`.
+- **DB**(신규 테이블 1개): `Like`{userId, entryId, createdAt} + `@@unique([userId,entryId])`(멱등)·`onDelete: Cascade`. `Entry.likes`/`User.likes` 관계. 마이그레이션 `add_entry_like`.
+- **백엔드 `modules/plaza`**: read 경로 — `findDefinitionsByWord(word, userId)`가 `_count.likes`(총 좋아요)+per-user `likes where {userId}`(내 좋아요 여부) include → 응답 `likeCount`/`isLiked`. 정렬 `isMine desc → likeCount desc → savedAt desc`(savedAt은 repo의 savedAt-desc + V8 안정 정렬 유지, 명시 comparator X). write 경로 — `POST /plaza/definitions/:entryId/like` 토글(`findUnique→create/delete→count`, `{liked,likeCount}` 반환)·가드 순서 not-found(404)→self-like(400)·JwtAuthGuard 상속(무토큰 401).
+- **프론트**: `plaza-api` `PlazaDefinition`에 `likeCount`/`isLiked` + `toggleEntryLike` · 하트 아이콘 신규(`Icon name="heart"`) · `[word].tsx` 정의 카드 좋아요 버튼(**내 정의엔 렌더 X**)·**optimistic 토글**(즉시 반영→서버 응답으로 확정→실패 시 조용히 revert, **재정렬 X**로 손가락 밑 카드 안 튐)·Alert 금지.
+- **결정**: 정렬=추천순 고정(토글 UI 없음, YAGNI) · 자기 좋아요는 UI 숨김 + 서버 400 이중 차단 · 좋아요 대상=서버 `Entry.id`.
+- **검증**: 백엔드 tsc 0 + curl 계약(read likeCount:0/isLiked:false / 토글 ON `{liked:true,likeCount:1}`→OFF `{liked:false,likeCount:0}` / 없는정의 404 / 무토큰 401 / 자기좋아요 400 / read에 좋아요·정렬 반영). 프론트 tsc 0 + `expo export` 0(21라우트, `/plaza/[word]` 포함).
+- **알려진 한계(Minor, 후속)**: 토글 `findUnique→create` 비원자 → 동시요청 시 P2002 500 가능(개인 규모·저빈도라 수용, 필요 시 `$transaction`/upsert 승격). `plaza.service.ts` 상단 JSDoc에 `toggleLike` 미기재(문서 nit).
+- **비범위(후속)**: 광장 3단계(신고/모더레이션) · 정렬 토글 · 좋아요 애니메이션 · 인터랙티브 실기기 클릭스루.
 
 ### 2026-07-01 — 📌 (메모) 광장 3단계 신고/모더레이션 데이터·AI 사전 감지 (코드 0)
 - **무엇**: 광장 3단계(신고/모더레이션) 개발 방향을 §6에 등록. 코드 변경 없음, 기획 요청 반영 메모.
