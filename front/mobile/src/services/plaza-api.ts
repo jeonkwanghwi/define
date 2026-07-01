@@ -41,7 +41,7 @@ export function toggleEntryLike(
   token: string,
   entryId: string,
 ): Promise<PlazaLikeResult> {
-  return apiRequest<PlazaLikeResult>(`/plaza/definitions/${entryId}/like`, {
+  return apiRequest<PlazaLikeResult>(`/plaza/definitions/${encodeURIComponent(entryId)}/like`, {
     method: 'POST',
     token,
   });

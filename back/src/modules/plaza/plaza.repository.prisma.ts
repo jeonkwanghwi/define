@@ -68,9 +68,13 @@ export class PrismaPlazaRepository extends PlazaRepository {
       where: { userId_entryId: { userId, entryId } },
     });
     if (existing) {
-      await this.prisma.like.delete({ where: { id: existing.id } });
+      await this.prisma.like.deleteMany({ where: { userId, entryId } });
     } else {
-      await this.prisma.like.create({ data: { userId, entryId } });
+      await this.prisma.like.upsert({
+        where: { userId_entryId: { userId, entryId } },
+        create: { userId, entryId },
+        update: {},
+      });
     }
     const likeCount = await this.prisma.like.count({ where: { entryId } });
     return { liked: existing === null, likeCount };

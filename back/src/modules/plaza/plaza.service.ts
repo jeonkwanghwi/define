@@ -2,6 +2,7 @@
  * PlazaService — 광장 로직.
  *   - listWords: 단어+정의 수 목록.
  *   - getWord: 한 단어의 정의들에 isMine 표시 + 내 정의를 맨 위로.
+ *   - toggleLike: 좋아요 토글(멱등). 내 정의 불가(400)·없는 정의(404).
  * 닉네임 없으면 '익명'. 내 정의 맨 위 정렬은 V8 안정 정렬에 의존(그 외 savedAt 역순 유지).
  */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
