@@ -33,6 +33,7 @@ model User {
   nickname     String?
   createdAt    DateTime @default(now())
   entries      Entry[]
+  likes        Like[]
   // ─── 프로필(마을 필터용). 완성 전까지 null. ───
   birthYear    Int?
   gender       String?        // 'male' | 'female'
@@ -58,6 +59,7 @@ model Entry {
   savedAt    DateTime
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes      Like[]
 
   @@unique([userId, clientId])
   @@map("entries")
@@ -73,4 +75,18 @@ model UserInterest {
 
   @@unique([userId, interest])
   @@map("user_interests")
+}
+
+/// 광장 좋아요(추천) — 한 사용자가 한 정의(Entry)에 1회. (userId, entryId) 유니크로 멱등.
+/// 신규 테이블. 광장 2단계에서 도입.
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  entryId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryId])
+  @@map("likes")
 }
