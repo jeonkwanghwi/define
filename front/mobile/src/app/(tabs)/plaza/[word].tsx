@@ -12,7 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
 import { formatRelativeLabel } from '@/lib/format-date';
-import { getPlazaWord, type PlazaWordDetail } from '@/services/plaza-api';
+import { getPlazaWord, toggleEntryLike, type PlazaWordDetail } from '@/services/plaza-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useTheme } from '@/theme';
 
@@ -41,6 +41,52 @@ export default function PlazaWordDetailScreen() {
       alive = false;
     };
   }, [token, word]);
+
+  function handleToggleLike(entryId: string) {
+    if (!token) return;
+    // optimistic: 즉시 반영(정렬은 재정렬 안 함 — 손가락 밑에서 카드가 튀지 않게)
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            definitions: prev.definitions.map((d) =>
+              d.id === entryId
+                ? { ...d, isLiked: !d.isLiked, likeCount: d.likeCount + (d.isLiked ? -1 : 1) }
+                : d,
+            ),
+          }
+        : prev,
+    );
+    toggleEntryLike(token, entryId)
+      .then((res) => {
+        // 서버 값으로 확정
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                definitions: prev.definitions.map((d) =>
+                  d.id === entryId ? { ...d, isLiked: res.liked, likeCount: res.likeCount } : d,
+                ),
+              }
+            : prev,
+        );
+      })
+      .catch(() => {
+        // 실패 시 optimistic 되돌림(조용히)
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                definitions: prev.definitions.map((d) =>
+                  d.id === entryId
+                    ? { ...d, isLiked: !d.isLiked, likeCount: d.likeCount + (d.isLiked ? -1 : 1) }
+                    : d,
+                ),
+              }
+            : prev,
+        );
+      });
+  }
 
   return (
     <ThemedView bg="paper" style={styles.root}>
@@ -101,6 +147,35 @@ export default function PlazaWordDetailScreen() {
               <ThemedText variant="body" style={{ marginTop: theme.spacing.s2, lineHeight: 24 }}>
                 {d.text}
               </ThemedText>
+              {!d.isMine ? (
+                <Pressable
+                  onPress={() => handleToggleLike(d.id)}
+                  hitSlop={8}
+                  style={[
+                    styles.likeBtn,
+                    {
+                      borderColor: d.isLiked ? theme.colors.point.p300 : theme.colors.line.base,
+                      backgroundColor: d.isLiked ? theme.colors.point.p100 : 'transparent',
+                    },
+                  ]}
+                >
+                  <Icon
+                    name="heart"
+                    size={16}
+                    color={d.isLiked ? theme.colors.point.p600 : theme.colors.ink.placeholder}
+                  />
+                  {d.likeCount > 0 ? (
+                    <ThemedText
+                      variant="caption"
+                      style={{
+                        color: d.isLiked ? theme.colors.point.p700 : theme.colors.ink.secondary,
+                      }}
+                    >
+                      {d.likeCount}
+                    </ThemedText>
+                  ) : null}
+                </Pressable>
+              ) : null}
             </View>
           ))
         )}
@@ -124,4 +199,15 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 18 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 999 },
+  likeBtn: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: 999,
+  },
 });

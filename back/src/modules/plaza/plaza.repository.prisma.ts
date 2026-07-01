@@ -28,11 +28,18 @@ export class PrismaPlazaRepository extends PlazaRepository {
       .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word, 'ko'));
   }
 
-  async findDefinitionsByWord(word: string): Promise<PlazaDefinitionRow[]> {
+  async findDefinitionsByWord(
+    word: string,
+    userId: string,
+  ): Promise<PlazaDefinitionRow[]> {
     const rows = await this.prisma.entry.findMany({
       where: { word },
       orderBy: { savedAt: 'desc' },
-      include: { user: { select: { nickname: true } } },
+      include: {
+        user: { select: { nickname: true } },
+        _count: { select: { likes: true } },
+        likes: { where: { userId }, select: { id: true } },
+      },
     });
     return rows.map((r) => ({
       id: r.id,
@@ -40,6 +47,36 @@ export class PrismaPlazaRepository extends PlazaRepository {
       nickname: r.user.nickname,
       text: r.text,
       savedAt: r.savedAt,
+      likeCount: r._count.likes,
+      likedByMe: r.likes.length > 0,
     }));
+  }
+
+  async getEntryOwner(entryId: string): Promise<string | null> {
+    const entry = await this.prisma.entry.findUnique({
+      where: { id: entryId },
+      select: { userId: true },
+    });
+    return entry?.userId ?? null;
+  }
+
+  async toggleLike(
+    userId: string,
+    entryId: string,
+  ): Promise<{ liked: boolean; likeCount: number }> {
+    const existing = await this.prisma.like.findUnique({
+      where: { userId_entryId: { userId, entryId } },
+    });
+    if (existing) {
+      await this.prisma.like.deleteMany({ where: { userId, entryId } });
+    } else {
+      await this.prisma.like.upsert({
+        where: { userId_entryId: { userId, entryId } },
+        create: { userId, entryId },
+        update: {},
+      });
+    }
+    const likeCount = await this.prisma.like.count({ where: { entryId } });
+    return { liked: existing === null, likeCount };
   }
 }

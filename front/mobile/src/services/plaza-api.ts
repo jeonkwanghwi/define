@@ -12,6 +12,8 @@ export type PlazaDefinition = {
   text: string;
   savedAt: string;
   isMine: boolean;
+  likeCount: number;
+  isLiked: boolean;
 };
 
 export type PlazaWordDetail = {
@@ -28,6 +30,19 @@ export function getPlazaWords(token: string): Promise<PlazaWord[]> {
 export function getPlazaWord(token: string, word: string): Promise<PlazaWordDetail> {
   return apiRequest<PlazaWordDetail>(`/plaza/words/${encodeURIComponent(word)}`, {
     method: 'GET',
+    token,
+  });
+}
+
+export type PlazaLikeResult = { liked: boolean; likeCount: number };
+
+/** POST /api/plaza/definitions/:entryId/like — 좋아요 토글. */
+export function toggleEntryLike(
+  token: string,
+  entryId: string,
+): Promise<PlazaLikeResult> {
+  return apiRequest<PlazaLikeResult>(`/plaza/definitions/${encodeURIComponent(entryId)}/like`, {
+    method: 'POST',
     token,
   });
 }
