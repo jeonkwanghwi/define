@@ -90,3 +90,23 @@ model Like {
   @@unique([userId, entryId])
   @@map("likes")
 }
+
+/// LLM 호출 사용량·비용 원장. 호출 1건 = 1행. 회상(및 향후 AI 기능) 토큰·비용 모니터링.
+/// 원시 토큰이 진실의 원천 — costUsd는 가격표로 계산한 편의값(가격 바뀌면 토큰에서 재계산).
+model LlmUsage {
+  id               String   @id @default(cuid())
+  userId           String
+  feature          String   // 'recall' 등 호출 기능 구분
+  model            String   // 실제 응답 모델(예: gpt-4.1-mini-2025-04-14)
+  promptTokens     Int
+  cachedTokens     Int      @default(0)
+  completionTokens Int
+  totalTokens      Int
+  costUsd          Float
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([model])
+  @@map("llm_usage")
+}
