@@ -24,7 +24,7 @@ export type ScreenHeaderProps = {
   right?: ReactNode;
   /** 하단 구분선 — 스크롤 콘텐츠와 경계가 필요한 화면(채팅)에서만 */
   bordered?: boolean;
-  /** 미지정 시 router.back() */
+  /** 미지정 시 뒤로가기(히스토리 없으면 홈으로) */
   onBack?: () => void;
 };
 
@@ -32,6 +32,13 @@ export function ScreenHeader({ title, subtitle, right, bordered, onBack }: Scree
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  // 딥링크·웹 새로고침으로 이 화면에 바로 진입하면 돌아갈 히스토리가 없어
+  // router.back()이 "GO_BACK not handled" 경고를 낸다 → 없으면 홈으로 대체.
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  };
 
   return (
     <View
@@ -42,7 +49,7 @@ export function ScreenHeader({ title, subtitle, right, bordered, onBack }: Scree
       ]}
     >
       <Pressable
-        onPress={onBack ?? (() => router.back())}
+        onPress={onBack ?? goBack}
         hitSlop={4}
         style={({ pressed }) => [
           styles.iconBtn,

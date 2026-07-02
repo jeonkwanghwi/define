@@ -94,7 +94,9 @@ export default function AuthScreen() {
       setError(null);
       return;
     }
-    router.back();
+    // 딥링크로 /auth에 바로 들어오면 히스토리가 없어 back이 경고를 낸다 → 홈으로 대체.
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
   }
 
   return (
