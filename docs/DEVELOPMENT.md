@@ -255,6 +255,15 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-07-02 — LLM 사용량·비용 원장
+- **무엇**: 회상(GPT) 호출마다 토큰 사용량·추정 비용($)을 중앙 `llm_usage` 테이블에 1행씩 기록. 유저별 cost 컬럼이 아니라 **호출 1건=1행 원장**(모델별·유저별·기간별 집계는 SUM으로 도출). 브랜치 `feat/llm-usage-tracking`. 설계 `docs/superpowers/plans/2026-07-02-llm-usage-tracking.md`.
+- **왜**: GPT 비용 모니터링 기반 필요(모델 버전별 단가 반영 + 향후 다른 AI 기능도 같은 원장 공유).
+- **DB**(신규 테이블): `LlmUsage`{userId, feature, model, promptTokens, cachedTokens, completionTokens, totalTokens, costUsd, createdAt} — User 관계 안 걸음(유저 삭제돼도 비용 기록 보존). 마이그레이션 `add_llm_usage`(기존 데이터 보존 확인: users 12·entries 99·likes 2 불변).
+- **백엔드 `modules/usage`**: `llm-pricing.ts`(모델별 단가표 USD/1M tokens + `priceFor()` 순수 함수, 캐시 입력은 더 싼 단가) · `UsageRepository`(abstract) + `PrismaUsageRepository`(create + `totals()`/`byModel()`/`byUser()` 집계) · `UsageService.recordLlm()`(비치명적 — try/catch로 실패 삼킴, 호출부 흐름 무영향) · `UsageModule`(currency 패턴과 동일 구조, controller 없음).
+- **회상 배선**: `openai.client.ts` `chat()` 반환을 `string` → `ChatResult{content, model, usage}`(SDK v6 `res.usage.prompt_tokens_details?.cached_tokens` 옵셔널 체이닝). `recall.service.ts`가 매 턴(모든 호출이 토큰 소비) `usage.recordLlm()` 호출 후 `result.content` 반환.
+- **검증**: `npx tsc --noEmit` 0(Task별). 가격계산 단위 검증(`priceFor` 3케이스: 0.0012 / 0.00105 / 0+경고) + prisma 스키마·집계 스모크(create→aggregate→cleanup) 실행 확인. OPENAI_API_KEY 미설정이라 실제 GPT 호출 검증은 불가.
+- **비범위(후속)**: 어드민 조회 API/화면(관리자 모드 때, 당분간 조회는 SQL/스크립트).
+
 ### 2026-07-02 — UI/UX 폴리시: 체감 문제 6건 + 규격 표준 정렬 ★
 - **무엇**: 전 화면 감사(코드 정적 감사 + 실화면 스크린샷 15장) 후 체감 문제와 규격 불일치를 일괄 수정. 브랜치 `feat/ui-polish`, 서브에이전트 구동 5태스크(+컨트롤러 최종 검증). 스펙 `docs/superpowers/specs/2026-07-02-ui-ux-polish-design.md`(로컬 전용).
 - **체감 수정**: ⒜ 한국어 조사 자동 처리 `lib/korean.ts` `topicSuffix`("용기이란"→"용기란", 히어로·placeholder·재정의 시트 3곳) ⒝ 잉크 적립 토스트(날짜 칩 가림) 제거 → 헤더 `InkBalanceChip` 펄스+카운트업(증가만 연출, 차감 즉시 — §9 조용한 톤). **의도적 후퇴: "N일 연속 기록" streak 토스트도 함께 제거**(reward-store·ink-reward-toast 삭제, streak는 mypage statLine에 잔존) ⒞ 잉크방울 아이콘 `Icon name="ink"` 신설, 보석(ruby) 표시 대체(만년필 본 에셋은 기획 후속) ⒟ 공용 `ScreenHeader`(back 40pt+hitSlop·중앙 타이틀·safe-area)로 5화면 통일 — journal/[word] 좌측 대형→중앙, recall-chat paddingTop:56 하드코딩 해소 ⒠ '과거의 나' 섹션 라벨("대화 방식"/"어느 시절의 나") + 안내 카드로 위계·빈 공간 해결 ⒡ 터치 타겟(아바타 38→40, 캘린더 내비 hitSlop).
