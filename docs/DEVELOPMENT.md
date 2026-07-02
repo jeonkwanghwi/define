@@ -255,6 +255,15 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-07-02 — LLM 사용량·비용 원장
+- **무엇**: 회상(GPT) 호출마다 토큰 사용량·추정 비용($)을 중앙 `llm_usage` 테이블에 1행씩 기록. 유저별 cost 컬럼이 아니라 **호출 1건=1행 원장**(모델별·유저별·기간별 집계는 SUM으로 도출). 브랜치 `feat/llm-usage-tracking`. 설계 `docs/superpowers/plans/2026-07-02-llm-usage-tracking.md`.
+- **왜**: GPT 비용 모니터링 기반 필요(모델 버전별 단가 반영 + 향후 다른 AI 기능도 같은 원장 공유).
+- **DB**(신규 테이블): `LlmUsage`{userId, feature, model, promptTokens, cachedTokens, completionTokens, totalTokens, costUsd, createdAt} — User 관계 안 걸음(유저 삭제돼도 비용 기록 보존). 마이그레이션 `add_llm_usage`(기존 데이터 보존 확인: users 12·entries 99·likes 2 불변).
+- **백엔드 `modules/usage`**: `llm-pricing.ts`(모델별 단가표 USD/1M tokens + `priceFor()` 순수 함수, 캐시 입력은 더 싼 단가) · `UsageRepository`(abstract) + `PrismaUsageRepository`(create + `totals()`/`byModel()`/`byUser()` 집계) · `UsageService.recordLlm()`(비치명적 — try/catch로 실패 삼킴, 호출부 흐름 무영향) · `UsageModule`(currency 패턴과 동일 구조, controller 없음).
+- **회상 배선**: `openai.client.ts` `chat()` 반환을 `string` → `ChatResult{content, model, usage}`(SDK v6 `res.usage.prompt_tokens_details?.cached_tokens` 옵셔널 체이닝). `recall.service.ts`가 매 턴(모든 호출이 토큰 소비) `usage.recordLlm()` 호출 후 `result.content` 반환.
+- **검증**: `npx tsc --noEmit` 0(Task별). 가격계산 단위 검증(`priceFor` 3케이스: 0.0012 / 0.00105 / 0+경고) + prisma 스키마·집계 스모크(create→aggregate→cleanup) 실행 확인. OPENAI_API_KEY 미설정이라 실제 GPT 호출 검증은 불가.
+- **비범위(후속)**: 어드민 조회 API/화면(관리자 모드 때, 당분간 조회는 SQL/스크립트).
+
 ### 2026-07-01 — 광장 2단계: 좋아요(추천) + 추천순 정렬 ★
 - **무엇**: 광장 정의에 좋아요(추천)와 추천순 정렬을 추가. 브랜치 `feat/plaza-likes`, 서브에이전트 구동 6태스크(각 태스크 스펙+품질 리뷰). 설계·계획 `docs/superpowers/plans/2026-07-01-plaza-stage2-likes.md`.
 - **DB**(신규 테이블 1개): `Like`{userId, entryId, createdAt} + `@@unique([userId,entryId])`(멱등)·`onDelete: Cascade`. `Entry.likes`/`User.likes` 관계. 마이그레이션 `add_entry_like`.

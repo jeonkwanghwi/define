@@ -5,6 +5,7 @@
 import { Module } from '@nestjs/common';
 
 import { CurrencyModule } from '../currency/currency.module';
+import { UsageModule } from '../usage/usage.module';
 import { OpenAiClient } from './openai.client';
 import { RecallController } from './recall.controller';
 import { RecallRepository } from './recall.repository';
@@ -12,7 +13,7 @@ import { PrismaRecallRepository } from './recall.repository.prisma';
 import { RecallService } from './recall.service';
 
 @Module({
-  imports: [CurrencyModule],
+  imports: [CurrencyModule, UsageModule],
   controllers: [RecallController],
   providers: [
     RecallService,

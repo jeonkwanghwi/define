@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { CurrencyService } from '../currency/currency.service';
+import { UsageService } from '../usage/usage.service';
 import { RecallChatDto } from './dto/recall-chat.dto';
 import { ChatMessage, OpenAiClient } from './openai.client';
 import { buildSystemPrompt } from './prompt';
@@ -23,6 +24,7 @@ export class RecallService {
     private readonly recall: RecallRepository,
     private readonly openai: OpenAiClient,
     private readonly currency: CurrencyService,
+    private readonly usage: UsageService,
   ) {}
 
   /** AI 데이터 동의 기록(멱등 — 다시 부르면 시각만 갱신). */
@@ -68,7 +70,14 @@ export class RecallService {
       ...dto.messages.map((m) => ({ role: m.role, content: m.content })),
     ];
 
-    const reply = await this.openai.chat(messages); // 실패 시 여기서 throw → 미차감
+    const result = await this.openai.chat(messages); // 실패 시 throw → 미차감·미기록
+    // 사용량·비용 기록(비치명적). 매 턴 기록 — 모든 호출이 토큰을 소비.
+    await this.usage.recordLlm({
+      userId,
+      feature: 'recall',
+      model: result.model,
+      usage: result.usage,
+    });
 
     // 성공 후 차감(새 대화 시작에만). 선검사를 통과했으니 보통 ok:true.
     let balance: number;
@@ -79,7 +88,7 @@ export class RecallService {
       balance = await this.currency.getBalance(userId);
     }
 
-    return { message: reply, balance };
+    return { message: result.content, balance };
   }
 
   /** 나이(savedAt.year - birthYear === age) 또는 기간으로 필터. 둘 다 없으면 전체. */
