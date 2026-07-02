@@ -6,7 +6,10 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
+import type { TokenUsage } from '../usage/llm-pricing';
+
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+export type ChatResult = { content: string; model: string; usage: TokenUsage & { totalTokens: number } };
 
 @Injectable()
 export class OpenAiClient {
@@ -18,7 +21,7 @@ export class OpenAiClient {
   }
 
   /** 메시지 배열로 1회 완성. 키 미설정이면 503. */
-  async chat(messages: ChatMessage[]): Promise<string> {
+  async chat(messages: ChatMessage[]): Promise<ChatResult> {
     if (!this.client) {
       throw new ServiceUnavailableException(
         '지금 과거의 나를 부를 수 없어요. 잠시 후 다시 시도해 주세요.',
@@ -29,6 +32,16 @@ export class OpenAiClient {
       messages,
       temperature: 0.9,
     });
-    return res.choices[0]?.message?.content ?? '';
+    const u = res.usage;
+    return {
+      content: res.choices[0]?.message?.content ?? '',
+      model: res.model,
+      usage: {
+        promptTokens: u?.prompt_tokens ?? 0,
+        cachedTokens: u?.prompt_tokens_details?.cached_tokens ?? 0,
+        completionTokens: u?.completion_tokens ?? 0,
+        totalTokens: u?.total_tokens ?? 0,
+      },
+    };
   }
 }
