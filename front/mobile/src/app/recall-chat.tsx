@@ -10,7 +10,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   TextInput,
   View,
@@ -19,6 +18,7 @@ import {
 import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { RedefineSheet } from '@/components/domain/redefine-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
+import { FadeIn, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
@@ -132,23 +132,27 @@ export default function RecallChatScreen() {
           data={messages}
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View
-              style={[
-                styles.bubble,
-                item.role === 'user'
-                  ? { alignSelf: 'flex-end', backgroundColor: theme.colors.point.p600 }
-                  : { alignSelf: 'flex-start', backgroundColor: theme.colors.surface.nested },
-              ]}
-            >
-              <ThemedText
-                variant="body"
-                style={{ color: item.role === 'user' ? theme.colors.paper.base : theme.colors.ink.primary }}
+          renderItem={({ item }) => {
+            const bubble = (
+              <View
+                style={[
+                  styles.bubble,
+                  item.role === 'user'
+                    ? { alignSelf: 'flex-end', backgroundColor: theme.colors.point.p600 }
+                    : { alignSelf: 'flex-start', backgroundColor: theme.colors.surface.nested },
+                ]}
               >
-                {item.content}
-              </ThemedText>
-            </View>
-          )}
+                <ThemedText
+                  variant="body"
+                  style={{ color: item.role === 'user' ? theme.colors.paper.base : theme.colors.ink.primary }}
+                >
+                  {item.content}
+                </ThemedText>
+              </View>
+            );
+            // 과거의 나(assistant) 답변은 통째로 스르륵 등장. 내가 친 말(user)은 즉시.
+            return item.role === 'assistant' ? <FadeIn>{bubble}</FadeIn> : bubble;
+          }}
           ListEmptyComponent={
             <ThemedText variant="body" tone="placeholder" style={{ textAlign: 'center', marginTop: 40 }}>
               {mode === 'question' ? '과거의 내가 곧 말을 걸어요…' : '그 시절의 나에게 말을 걸어보세요.'}
@@ -172,7 +176,7 @@ export default function RecallChatScreen() {
 
         {/* 질문모드: 그 단어 다시 정의 */}
         {focusWord && (
-          <Pressable
+          <PressableScale
             onPress={() => setRedefineOpen(true)}
             style={[styles.redefineBar, { borderTopColor: theme.colors.line.base }]}
           >
@@ -180,7 +184,7 @@ export default function RecallChatScreen() {
             <ThemedText variant="bodyMd" style={{ color: theme.colors.point.p600, fontWeight: '700' }}>
               '{focusWord}' 지금 다시 정의하기
             </ThemedText>
-          </Pressable>
+          </PressableScale>
         )}
 
         <View style={[styles.inputRow, { borderTopColor: theme.colors.line.base }]}>
@@ -193,13 +197,13 @@ export default function RecallChatScreen() {
             multiline
             editable={!sending}
           />
-          <Pressable
+          <PressableScale
             onPress={send}
             disabled={sending || input.trim().length === 0}
             style={[styles.sendBtn, { backgroundColor: input.trim().length === 0 ? theme.colors.surface.nested : theme.colors.point.p600 }]}
           >
             <Icon name="send" size={20} color={input.trim().length === 0 ? theme.colors.ink.placeholder : theme.colors.paper.base} />
-          </Pressable>
+          </PressableScale>
         </View>
       </KeyboardAvoidingView>
 

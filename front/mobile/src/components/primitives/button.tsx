@@ -15,17 +15,12 @@
  *   <Button label="다시 뽑기" variant="ghost" size="sm" leftIcon={<Icon name="shuffle" size={16} />} />
  */
 import type { ReactNode } from 'react';
-import {
-  Pressable,
-  type PressableProps,
-  StyleSheet,
-  type StyleProp,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { type PressableProps, StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/theme';
+
+import { PressableScale } from './pressable-scale';
 
 type Variant = 'primary' | 'soft' | 'ghost';
 type Size = 'md' | 'sm';
@@ -84,9 +79,9 @@ export function Button({
   }[variant];
 
   return (
-    <Pressable
+    <PressableScale
       disabled={disabled}
-      style={({ pressed }) => [
+      style={[
         styles.base,
         sizeStyle,
         {
@@ -96,7 +91,6 @@ export function Button({
         palette.shadow,
         fullWidth && styles.fullWidth,
         disabled && { opacity: 0.4 },
-        pressed && !disabled && { opacity: 0.85 },
         // 외부 style은 마지막 — margin/flex 등 컨테이너 배치 prop을 호출 측이 덮어쓸 수 있게
         style,
       ]}
@@ -107,7 +101,7 @@ export function Button({
         {label}
       </ThemedText>
       {rightIcon ? <View>{rightIcon}</View> : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 

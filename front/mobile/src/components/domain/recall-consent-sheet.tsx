@@ -25,7 +25,7 @@ export function RecallConsentSheet({ visible, onConsent, onClose }: RecallConsen
   const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose}>
+      <Pressable style={[styles.scrim, { backgroundColor: theme.colors.scrim }]} onPress={onClose}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.scrimInner}
@@ -61,7 +61,7 @@ export function RecallConsentSheet({ visible, onConsent, onClose }: RecallConsen
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
+  scrim: { flex: 1, justifyContent: 'flex-end' },
   scrimInner: { width: '100%' },
   sheet: {
     alignItems: 'center',

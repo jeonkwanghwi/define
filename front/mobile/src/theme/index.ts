@@ -26,6 +26,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSettingsStore } from '@/store/settings-store';
 
 import { darkColors, lightColors, type Colors } from './colors';
+import { motion } from './motion';
 import { radii } from './radii';
 import { darkShadows, lightShadows, type Shadows } from './shadows';
 import { controlPresets, spacing } from './spacing';
@@ -39,6 +40,7 @@ export type Theme = {
   spacing: typeof spacing;
   radii: typeof radii;
   presets: typeof controlPresets;
+  motion: typeof motion;
 };
 
 const lightTheme: Theme = {
@@ -49,6 +51,7 @@ const lightTheme: Theme = {
   spacing,
   radii,
   presets: controlPresets,
+  motion,
 };
 
 const darkTheme: Theme = {
@@ -59,6 +62,7 @@ const darkTheme: Theme = {
   spacing,
   radii,
   presets: controlPresets,
+  motion,
 };
 
 /**
@@ -87,6 +91,7 @@ export {
   spacing,
   controlPresets,
   radii,
+  motion,
 };
 export type { Colors, Shadows };
 export type { TypographyVariant } from './typography';

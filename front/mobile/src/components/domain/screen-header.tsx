@@ -9,9 +9,10 @@
  */
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { useTheme } from '@/theme';
@@ -48,16 +49,13 @@ export function ScreenHeader({ title, subtitle, right, bordered, onBack }: Scree
         bordered && { borderBottomWidth: 1, borderBottomColor: theme.colors.line.base },
       ]}
     >
-      <Pressable
+      <PressableScale
         onPress={onBack ?? goBack}
         hitSlop={4}
-        style={({ pressed }) => [
-          styles.iconBtn,
-          { backgroundColor: pressed ? theme.colors.surface.nested : 'transparent' },
-        ]}
+        style={[styles.iconBtn, { backgroundColor: 'transparent' }]}
       >
         <Icon name="back" size={22} color={theme.colors.ink.strong} />
-      </Pressable>
+      </PressableScale>
       <View style={styles.center}>
         <ThemedText variant="h3" numberOfLines={1}>
           {title}

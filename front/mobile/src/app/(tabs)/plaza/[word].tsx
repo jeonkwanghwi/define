@@ -6,12 +6,13 @@
  */
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { LikeButton } from '@/components/domain/like-button';
 import { ScreenHeader } from '@/components/domain/screen-header';
+import { FadeIn } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Icon } from '@/icons';
 import { formatRelativeLabel } from '@/lib/format-date';
 import { getPlazaWord, toggleEntryLike, type PlazaWordDetail } from '@/services/plaza-api';
 import { useAuthStore } from '@/store/auth-store';
@@ -106,68 +107,47 @@ export default function PlazaWordDetailScreen() {
             아직 정의가 없어요.
           </ThemedText>
         ) : (
-          data.definitions.map((d) => (
-            <View
-              key={d.id}
-              style={[
-                styles.card,
-                {
-                  backgroundColor: theme.colors.surface.base,
-                  borderColor: d.isMine ? theme.colors.point.p500 : theme.colors.line.base,
-                  borderRadius: theme.radii.lg,
-                },
-                theme.shadows.sm,
-              ]}
-            >
-              <View style={styles.cardHead}>
-                <ThemedText variant="bodyMd" tone="strong">
-                  {d.nickname}
-                </ThemedText>
-                {d.isMine ? (
-                  <View style={[styles.badge, { backgroundColor: theme.colors.point.p100 }]}>
-                    <ThemedText variant="caption" style={{ color: theme.colors.point.p700 }}>
-                      내 정의
-                    </ThemedText>
-                  </View>
-                ) : null}
-                <View style={{ flex: 1 }} />
-                <ThemedText variant="caption" tone="placeholder">
-                  {formatRelativeLabel(new Date(d.savedAt), new Date())}
-                </ThemedText>
-              </View>
-              <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
-                {d.text}
-              </ThemedText>
-              {!d.isMine ? (
-                <Pressable
-                  onPress={() => handleToggleLike(d.id)}
-                  hitSlop={8}
-                  style={[
-                    styles.likeBtn,
-                    {
-                      borderColor: d.isLiked ? theme.colors.point.p300 : theme.colors.line.base,
-                      backgroundColor: d.isLiked ? theme.colors.point.p100 : 'transparent',
-                    },
-                  ]}
-                >
-                  <Icon
-                    name="heart"
-                    size={16}
-                    color={d.isLiked ? theme.colors.point.p600 : theme.colors.ink.placeholder}
-                  />
-                  {d.likeCount > 0 ? (
-                    <ThemedText
-                      variant="caption"
-                      style={{
-                        color: d.isLiked ? theme.colors.point.p700 : theme.colors.ink.secondary,
-                      }}
-                    >
-                      {d.likeCount}
-                    </ThemedText>
+          data.definitions.map((d, i) => (
+            <FadeIn key={d.id} delay={Math.min(i, 8) * 40}>
+              <View
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: theme.colors.surface.base,
+                    borderColor: d.isMine ? theme.colors.point.p500 : theme.colors.line.base,
+                    borderRadius: theme.radii.lg,
+                  },
+                  theme.shadows.sm,
+                ]}
+              >
+                <View style={styles.cardHead}>
+                  <ThemedText variant="bodyMd" tone="strong">
+                    {d.nickname}
+                  </ThemedText>
+                  {d.isMine ? (
+                    <View style={[styles.badge, { backgroundColor: theme.colors.point.p100 }]}>
+                      <ThemedText variant="caption" style={{ color: theme.colors.point.p700 }}>
+                        내 정의
+                      </ThemedText>
+                    </View>
                   ) : null}
-                </Pressable>
-              ) : null}
-            </View>
+                  <View style={{ flex: 1 }} />
+                  <ThemedText variant="caption" tone="placeholder">
+                    {formatRelativeLabel(new Date(d.savedAt), new Date())}
+                  </ThemedText>
+                </View>
+                <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
+                  {d.text}
+                </ThemedText>
+                {!d.isMine ? (
+                  <LikeButton
+                    liked={d.isLiked}
+                    count={d.likeCount}
+                    onToggle={() => handleToggleLike(d.id)}
+                  />
+                ) : null}
+              </View>
+            </FadeIn>
           ))
         )}
       </ScrollView>
@@ -182,14 +162,4 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: { ...controlPresets.badge, borderRadius: 999 },
-  likeBtn: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    ...controlPresets.pill,
-    borderWidth: 1,
-    borderRadius: 999,
-  },
 });

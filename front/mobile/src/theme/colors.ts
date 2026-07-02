@@ -22,6 +22,8 @@ export type Colors = {
   line: { base: string; strong: string };
   point: { p700: string; p600: string; p500: string; p300: string; p100: string; p050: string };
   ruby: { base: string; soft: string };
+  /** 모달/시트 뒤 어둡게 덮는 배경(반투명). 라이트=웜 차콜, 다크=더 진하게. */
+  scrim: string;
 };
 
 // ---- Light theme: warm paper + ink ----
@@ -58,6 +60,7 @@ export const lightColors: Colors = {
     base: '#D6456A',
     soft: '#FBE6EC',
   },
+  scrim: 'rgba(20,18,15,0.45)',
 };
 
 // ---- Dark theme: warm charcoal + off-white ----
@@ -93,4 +96,5 @@ export const darkColors: Colors = {
     base: '#EE85A0',
     soft: '#3A2730',
   },
+  scrim: 'rgba(0,0,0,0.6)',
 };

@@ -4,11 +4,11 @@
  */
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AuthGate } from '@/components/domain/auth-gate';
 import { RecallConsentSheet } from '@/components/domain/recall-consent-sheet';
-import { Button, Card } from '@/components/primitives';
+import { Button, Card, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
@@ -151,7 +151,7 @@ function RecallHome() {
           {(['free', 'question'] as const).map((cm) => {
             const active = convoMode === cm;
             return (
-              <Pressable
+              <PressableScale
                 key={cm}
                 onPress={() => setConvoMode(cm)}
                 style={[
@@ -168,7 +168,7 @@ function RecallHome() {
                 >
                   {cm === 'free' ? '자유롭게 대화' : '질문 받기'}
                 </ThemedText>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -187,7 +187,7 @@ function RecallHome() {
               {(['age', 'year'] as const).map((m) => {
                 const active = mode === m;
                 return (
-                  <Pressable
+                  <PressableScale
                     key={m}
                     onPress={() => setMode(m)}
                     style={[
@@ -208,7 +208,7 @@ function RecallHome() {
                     >
                       {m === 'age' ? '나이로' : '연도로'}
                     </ThemedText>
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </View>
@@ -221,7 +221,7 @@ function RecallHome() {
                   : ages.map((a) => {
                       const active = selAge === a;
                       return (
-                        <Pressable
+                        <PressableScale
                           key={a}
                           onPress={() => setSelAge(a)}
                           style={[styles.chip, { borderColor: active ? theme.colors.point.p600 : theme.colors.line.base, backgroundColor: active ? theme.colors.point.p050 : theme.colors.surface.base }]}
@@ -229,13 +229,13 @@ function RecallHome() {
                           <ThemedText variant="bodyMd" style={{ color: active ? theme.colors.point.p700 : theme.colors.ink.primary }}>
                             {a}살
                           </ThemedText>
-                        </Pressable>
+                        </PressableScale>
                       );
                     })
                 : years.map((y) => {
                     const active = selYear === y;
                     return (
-                      <Pressable
+                      <PressableScale
                         key={y}
                         onPress={() => setSelYear(y)}
                         style={[styles.chip, { borderColor: active ? theme.colors.point.p600 : theme.colors.line.base, backgroundColor: active ? theme.colors.point.p050 : theme.colors.surface.base }]}
@@ -243,7 +243,7 @@ function RecallHome() {
                         <ThemedText variant="bodyMd" style={{ color: active ? theme.colors.point.p700 : theme.colors.ink.primary }}>
                           {y}년
                         </ThemedText>
-                      </Pressable>
+                      </PressableScale>
                     );
                   })}
             </View>

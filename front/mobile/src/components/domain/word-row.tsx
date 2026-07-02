@@ -6,9 +6,9 @@
  *
  * 누름 시 onPress 호출. 화면 측에서 router.push로 단어 상세로 이동.
  */
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { Card } from '@/components/primitives';
+import { Card, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { controlPresets, useTheme } from '@/theme';
@@ -23,7 +23,7 @@ export function WordRow({ item, onPress }: WordRowProps) {
   const theme = useTheme();
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && { opacity: 0.85 }}>
+    <PressableScale onPress={onPress}>
       <Card style={styles.row}>
         {/* 좌측 메인 정보 */}
         <View style={styles.main}>
@@ -85,7 +85,7 @@ export function WordRow({ item, onPress }: WordRowProps) {
           <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} />
         </View>
       </Card>
-    </Pressable>
+    </PressableScale>
   );
 }
 

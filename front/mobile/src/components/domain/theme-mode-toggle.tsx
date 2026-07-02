@@ -12,8 +12,9 @@
  *   <ThemeModeToggle />
  */
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 
+import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon, type IconName } from '@/icons';
 import { useSettingsStore, type ThemeMode } from '@/store/settings-store';
@@ -87,7 +88,7 @@ export function ThemeModeToggle() {
         const selected = opt.mode === themeMode;
         const color = selected ? theme.colors.point.p600 : theme.colors.ink.placeholder;
         return (
-          <Pressable
+          <PressableScale
             key={opt.mode}
             onPress={() => setThemeMode(opt.mode)}
             style={styles.segment}
@@ -100,7 +101,7 @@ export function ThemeModeToggle() {
             >
               {opt.label}
             </ThemedText>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>

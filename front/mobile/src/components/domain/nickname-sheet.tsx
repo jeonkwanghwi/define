@@ -65,7 +65,7 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
       statusBarTranslucent
     >
       <Pressable
-        style={[styles.scrim, { backgroundColor: 'rgba(20,18,15,0.42)' }]}
+        style={[styles.scrim, { backgroundColor: theme.colors.scrim }]}
         onPress={onClose}
       >
         <KeyboardAvoidingView

@@ -20,3 +20,9 @@ export type { ActionSheetItem, ActionSheetProps } from './action-sheet';
 
 export { ConfirmDialog } from './confirm-dialog';
 export type { ConfirmDialogProps } from './confirm-dialog';
+
+export { PressableScale } from './pressable-scale';
+export type { PressableScaleProps } from './pressable-scale';
+
+export { FadeIn } from './fade-in';
+export type { FadeInProps } from './fade-in';
