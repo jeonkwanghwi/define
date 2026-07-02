@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AuthGate } from '@/components/domain/auth-gate';
-import { PressableScale } from '@/components/primitives';
+import { FadeIn, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getPlazaWords, type PlazaWord } from '@/services/plaza-api';
@@ -65,27 +65,28 @@ function PlazaWordList() {
         </ThemedText>
 
         <View style={[styles.list, { marginTop: theme.spacing.s6 }]}>
-          {words.map((w) => (
-            <PressableScale
-              key={w.word}
-              onPress={() => router.push({ pathname: '/plaza/[word]', params: { word: w.word } })}
-              style={[
-                styles.row,
-                {
-                  backgroundColor: theme.colors.surface.base,
-                  borderColor: theme.colors.line.base,
-                  borderRadius: theme.radii.lg,
-                },
-                theme.shadows.sm,
-              ]}
-            >
-              <ThemedText variant="h3" style={{ flex: 1 }}>
-                {w.word}
-              </ThemedText>
-              <ThemedText variant="caption" tone="placeholder">
-                {w.count}개의 정의
-              </ThemedText>
-            </PressableScale>
+          {words.map((w, i) => (
+            <FadeIn key={w.word} delay={Math.min(i, 8) * 40}>
+              <PressableScale
+                onPress={() => router.push({ pathname: '/plaza/[word]', params: { word: w.word } })}
+                style={[
+                  styles.row,
+                  {
+                    backgroundColor: theme.colors.surface.base,
+                    borderColor: theme.colors.line.base,
+                    borderRadius: theme.radii.lg,
+                  },
+                  theme.shadows.sm,
+                ]}
+              >
+                <ThemedText variant="h3" style={{ flex: 1 }}>
+                  {w.word}
+                </ThemedText>
+                <ThemedText variant="caption" tone="placeholder">
+                  {w.count}개의 정의
+                </ThemedText>
+              </PressableScale>
+            </FadeIn>
           ))}
         </View>
       </ScrollView>

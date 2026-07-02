@@ -14,6 +14,7 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { WordRow } from '@/components/domain/word-row';
+import { FadeIn } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
@@ -92,8 +93,10 @@ export default function JournalListScreen() {
 
         {/* ─── 3. 단어 리스트 ─── */}
         <View style={[styles.list, { marginTop: theme.spacing.s6 }]}>
-          {sorted.map((w) => (
-            <WordRow key={w.word} item={w} onPress={() => openWord(w.word)} />
+          {sorted.map((w, i) => (
+            <FadeIn key={w.word} delay={Math.min(i, 8) * 40}>
+              <WordRow item={w} onPress={() => openWord(w.word)} />
+            </FadeIn>
           ))}
         </View>
       </ScrollView>
