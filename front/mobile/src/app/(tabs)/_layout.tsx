@@ -37,6 +37,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        animation: 'fade',
         tabBarActiveTintColor: theme.colors.point.p600,
         tabBarInactiveTintColor: theme.colors.ink.placeholder,
         // 라벨은 항상 아이콘 아래로. (넓은 뷰포트/웹에선 기본이 beside-icon이 되어
