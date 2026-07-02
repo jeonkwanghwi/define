@@ -5,9 +5,9 @@
  */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { Button, TextField } from '@/components/primitives';
+import { Button, PressableScale, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { INTERESTS } from '@/constants/interests';
@@ -89,7 +89,7 @@ export default function ProfileSetupScreen() {
           {(['male', 'female'] as const).map((g) => {
             const on = gender === g;
             return (
-              <Pressable
+              <PressableScale
                 key={g}
                 onPress={() => setGender(g)}
                 style={[
@@ -107,7 +107,7 @@ export default function ProfileSetupScreen() {
                 >
                   {g === 'male' ? '남성' : '여성'}
                 </ThemedText>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -120,7 +120,7 @@ export default function ProfileSetupScreen() {
           {INTERESTS.map((item) => {
             const on = selected.includes(item);
             return (
-              <Pressable
+              <PressableScale
                 key={item}
                 onPress={() => toggleInterest(item)}
                 style={[
@@ -138,7 +138,7 @@ export default function ProfileSetupScreen() {
                 >
                   {item}
                 </ThemedText>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
