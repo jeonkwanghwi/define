@@ -36,12 +36,15 @@ export function InkBalanceChip({ balance }: { balance: number }) {
     const counter = new Animated.Value(prev);
     const sub = counter.addListener(({ value }) => setDisplay(Math.round(value)));
     Animated.timing(counter, { toValue: balance, duration: 500, useNativeDriver: false }).start(
-      () => {
+      ({ finished }) => {
         counter.removeListener(sub);
-        setDisplay(balance);
+        if (finished) setDisplay(balance);
       },
     );
-    return () => counter.removeAllListeners();
+    return () => {
+      counter.stopAnimation();
+      counter.removeAllListeners();
+    };
   }, [balance, scale]);
 
   return (
