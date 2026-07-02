@@ -3,7 +3,7 @@
  * mode='free'면 사용자 먼저, mode='question'면 과거의 내가 먼저 질문(마운트 시 자동).
  * 질문모드는 focusWord를 "다시 정의" 버튼으로 즉시 재정의(새 엔트리).
  */
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,7 +16,9 @@ import {
   View,
 } from 'react-native';
 
+import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { RedefineSheet } from '@/components/domain/redefine-sheet';
+import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
@@ -38,7 +40,6 @@ function mapError(e: unknown): string {
 
 export default function RecallChatScreen() {
   const theme = useTheme();
-  const router = useRouter();
   const params = useLocalSearchParams<{
     label?: string;
     age?: string;
@@ -119,23 +120,12 @@ export default function RecallChatScreen() {
 
   return (
     <ThemedView bg="paper" style={{ flex: 1 }}>
-      <View style={[styles.header, { borderBottomColor: theme.colors.line.base }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Icon name="back" size={24} color={theme.colors.ink.strong} />
-        </Pressable>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <ThemedText variant="bodyMd" style={{ fontWeight: '700' }}>
-            {params.label ?? '과거의 나'}
-          </ThemedText>
-          <ThemedText variant="caption" tone="placeholder">생성형 AI 활용</ThemedText>
-        </View>
-        <View style={styles.inkChip}>
-          <Icon name="ruby" size={14} color={theme.colors.ruby.base} />
-          <ThemedText variant="sm" style={{ color: theme.colors.ink.secondary, fontWeight: '700' }}>
-            {balance}
-          </ThemedText>
-        </View>
-      </View>
+      <ScreenHeader
+        title={params.label ?? '과거의 나'}
+        subtitle="생성형 AI 활용"
+        bordered
+        right={<InkBalanceChip balance={balance} />}
+      />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
@@ -226,8 +216,6 @@ export default function RecallChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12, borderBottomWidth: 1 },
-  inkChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999 },
   list: { padding: 16, gap: 10 },
   bubble: { maxWidth: '82%', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18 },
   sendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingBottom: 8 },

@@ -10,10 +10,10 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button, TextField } from '@/components/primitives';
+import { ScreenHeader } from '@/components/domain/screen-header';
 import { VerifyIdentityMock } from '@/components/domain/verify-identity-mock';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Icon } from '@/icons';
 import type { ApiError } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { useTheme } from '@/theme';
@@ -103,16 +103,10 @@ export default function AuthScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
-        {/* ─── 헤더 ─── */}
-        <View style={styles.head}>
-          <Pressable onPress={handleBack} hitSlop={8} style={styles.iconBtn}>
-            <Icon name="back" size={22} color={theme.colors.ink.strong} />
-          </Pressable>
-          <ThemedText variant="h3" style={{ flex: 1, textAlign: 'center' }}>
-            {isSignup ? '회원가입' : '로그인'}
-          </ThemedText>
-          <View style={styles.iconBtn} />
-        </View>
+        <ScreenHeader
+          title={isSignup ? '회원가입' : '로그인'}
+          onBack={handleBack}
+        />
 
         {step === 'verify' ? (
           <VerifyIdentityMock onComplete={handleVerified} submitting={submitting} />
@@ -184,20 +178,6 @@ function mapAuthError(e: unknown): string {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   body: {
     flex: 1,
     paddingHorizontal: 24,
