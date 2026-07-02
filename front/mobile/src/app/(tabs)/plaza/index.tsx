@@ -105,12 +105,12 @@ function CenterMessage({ text }: { text: string }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
-  list: { gap: 10 },
+  list: { gap: 12 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderWidth: 1,
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },

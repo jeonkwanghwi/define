@@ -143,14 +143,14 @@ export default function RecallChatScreen() {
             >
               <ThemedText
                 variant="body"
-                style={{ color: item.role === 'user' ? theme.colors.paper.base : theme.colors.ink.primary, lineHeight: 22 }}
+                style={{ color: item.role === 'user' ? theme.colors.paper.base : theme.colors.ink.primary }}
               >
                 {item.content}
               </ThemedText>
             </View>
           )}
           ListEmptyComponent={
-            <ThemedText variant="body" tone="placeholder" style={{ textAlign: 'center', marginTop: 40, lineHeight: 24 }}>
+            <ThemedText variant="body" tone="placeholder" style={{ textAlign: 'center', marginTop: 40 }}>
               {mode === 'question' ? '과거의 내가 곧 말을 걸어요…' : '그 시절의 나에게 말을 걸어보세요.'}
             </ThemedText>
           }

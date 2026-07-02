@@ -163,7 +163,7 @@ export default function ProfileSetupScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32 },
   label: { marginBottom: 12 },
   genderRow: { flexDirection: 'row', gap: 12 },
   genderBtn: {
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   chip: {
     paddingVertical: 10,
     paddingHorizontal: 16,

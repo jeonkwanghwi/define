@@ -42,7 +42,7 @@ import { topicSuffix } from '@/lib/korean';
 import { useAuthStore } from '@/store/auth-store';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
-import { useTheme } from '@/theme';
+import { controlPresets, useTheme } from '@/theme';
 
 export default function RecordScreen() {
   const theme = useTheme();
@@ -426,9 +426,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   avatarBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -436,21 +436,19 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   dateChipWrap: { alignItems: 'center' },
   dateChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
     borderWidth: 1,
     borderRadius: 999,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
+    ...controlPresets.chip,
   },
   todayBadge: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+    ...controlPresets.badge,
     borderRadius: 999,
   },
 
@@ -489,7 +487,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   fillerButton: { flex: 1 }, // 기록 완료 버튼이 행의 남은 공간을 채우게
 });

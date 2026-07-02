@@ -196,6 +196,7 @@ function NavButton({
     <Pressable
       disabled={disabled}
       onPress={onPress}
+      hitSlop={8}
       style={[
         styles.navBtn,
         {
@@ -217,7 +218,7 @@ function NavButton({
 const styles = StyleSheet.create({
   scrim: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 28,
   },

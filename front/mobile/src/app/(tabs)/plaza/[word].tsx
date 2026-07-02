@@ -15,7 +15,7 @@ import { Icon } from '@/icons';
 import { formatRelativeLabel } from '@/lib/format-date';
 import { getPlazaWord, toggleEntryLike, type PlazaWordDetail } from '@/services/plaza-api';
 import { useAuthStore } from '@/store/auth-store';
-import { useTheme } from '@/theme';
+import { controlPresets, useTheme } from '@/theme';
 
 export default function PlazaWordDetailScreen() {
   const theme = useTheme();
@@ -135,7 +135,7 @@ export default function PlazaWordDetailScreen() {
                   {formatRelativeLabel(new Date(d.savedAt), new Date())}
                 </ThemedText>
               </View>
-              <ThemedText variant="body" style={{ marginTop: theme.spacing.s2, lineHeight: 24 }}>
+              <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
                 {d.text}
               </ThemedText>
               {!d.isMine ? (
@@ -179,17 +179,16 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32, gap: 12 },
   centerText: { textAlign: 'center', marginTop: 80 },
-  card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 18 },
+  card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  badge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 999 },
+  badge: { ...controlPresets.badge, borderRadius: 999 },
   likeBtn: {
     marginTop: 12,
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    gap: 6,
+    ...controlPresets.pill,
     borderWidth: 1,
     borderRadius: 999,
   },

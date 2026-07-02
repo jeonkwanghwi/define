@@ -11,7 +11,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Card } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
-import { useTheme } from '@/theme';
+import { controlPresets, useTheme } from '@/theme';
 import type { JournalWord } from '@/types/word';
 
 export type WordRowProps = {
@@ -107,8 +107,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    ...controlPresets.badge,
     borderRadius: 999,
     borderWidth: 1,
   },
