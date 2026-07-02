@@ -5,11 +5,13 @@
  */
 
 /**
- * 개발 기본값 = localhost. 웹/시뮬레이터에선 동작.
- * ★ 실기기(Expo Go/EAS) 빌드 시 이 한 줄을 개발 머신 LAN IP로 교체:
- *   예) 'http://192.168.0.10:3000/api'
+ * API 주소. 배포/실기기에선 빌드 시 환경변수 `EXPO_PUBLIC_API_URL`로 주입.
+ *   예) EXPO_PUBLIC_API_URL='https://define-api.up.railway.app/api'
+ * 미설정(로컬 개발 웹/시뮬레이터)이면 localhost 폴백.
+ * ★ 실기기(Expo Go)를 로컬 백엔드에 붙일 땐 개발 머신 LAN IP로:
+ *   예) EXPO_PUBLIC_API_URL='http://192.168.0.10:3000/api'
  */
-export const API_BASE = 'http://localhost:3000/api';
+export const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 
 /** 서버 에러를 화면이 다루기 쉬운 형태로. */
 export type ApiError = { status: number; message: string };
