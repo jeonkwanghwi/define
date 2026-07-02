@@ -8,11 +8,11 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { LikeButton } from '@/components/domain/like-button';
 import { ScreenHeader } from '@/components/domain/screen-header';
-import { FadeIn, PressableScale } from '@/components/primitives';
+import { FadeIn } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Icon } from '@/icons';
 import { formatRelativeLabel } from '@/lib/format-date';
 import { getPlazaWord, toggleEntryLike, type PlazaWordDetail } from '@/services/plaza-api';
 import { useAuthStore } from '@/store/auth-store';
@@ -140,33 +140,11 @@ export default function PlazaWordDetailScreen() {
                   {d.text}
                 </ThemedText>
                 {!d.isMine ? (
-                  <PressableScale
-                    onPress={() => handleToggleLike(d.id)}
-                    hitSlop={8}
-                    style={[
-                      styles.likeBtn,
-                      {
-                        borderColor: d.isLiked ? theme.colors.point.p300 : theme.colors.line.base,
-                        backgroundColor: d.isLiked ? theme.colors.point.p100 : 'transparent',
-                      },
-                    ]}
-                  >
-                    <Icon
-                      name="heart"
-                      size={16}
-                      color={d.isLiked ? theme.colors.point.p600 : theme.colors.ink.placeholder}
-                    />
-                    {d.likeCount > 0 ? (
-                      <ThemedText
-                        variant="caption"
-                        style={{
-                          color: d.isLiked ? theme.colors.point.p700 : theme.colors.ink.secondary,
-                        }}
-                      >
-                        {d.likeCount}
-                      </ThemedText>
-                    ) : null}
-                  </PressableScale>
+                  <LikeButton
+                    liked={d.isLiked}
+                    count={d.likeCount}
+                    onToggle={() => handleToggleLike(d.id)}
+                  />
                 ) : null}
               </View>
             </FadeIn>
@@ -184,14 +162,4 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: { ...controlPresets.badge, borderRadius: 999 },
-  likeBtn: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    ...controlPresets.pill,
-    borderWidth: 1,
-    borderRadius: 999,
-  },
 });
