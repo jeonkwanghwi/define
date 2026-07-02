@@ -64,7 +64,7 @@ export function ActionSheet({
       statusBarTranslucent
     >
       <Pressable
-        style={[styles.scrim, { backgroundColor: 'rgba(20,18,15,0.42)' }]}
+        style={[styles.scrim, { backgroundColor: theme.colors.scrim }]}
         onPress={onClose}
       >
         {/* 내용 영역 — 시트와 취소 버튼이 같이 들어감. 내부 탭은 차단. */}

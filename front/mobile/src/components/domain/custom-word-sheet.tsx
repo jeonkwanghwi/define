@@ -69,7 +69,7 @@ export function CustomWordSheet({ visible, onAdd, onClose }: CustomWordSheetProp
     >
       {/* 외부 탭 → 닫기. 내부 탭은 stopPropagation 효과를 위해 별도 Pressable. */}
       <Pressable
-        style={[styles.scrim, { backgroundColor: 'rgba(20,18,15,0.42)' }]}
+        style={[styles.scrim, { backgroundColor: theme.colors.scrim }]}
         onPress={onClose}
       >
         <KeyboardAvoidingView

@@ -83,7 +83,7 @@ export function ConfirmDialog({
       statusBarTranslucent
     >
       <Pressable
-        style={[styles.scrim, { backgroundColor: 'rgba(20,18,15,0.52)' }]}
+        style={[styles.scrim, { backgroundColor: theme.colors.scrim }]}
         onPress={onClose}
       >
         <Pressable onPress={() => {}}>

@@ -46,7 +46,7 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose}>
+      <Pressable style={[styles.scrim, { backgroundColor: theme.colors.scrim }]} onPress={onClose}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.scrimInner}
@@ -80,7 +80,7 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
+  scrim: { flex: 1, justifyContent: 'flex-end' },
   scrimInner: { width: '100%' },
   sheet: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 36, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1 },
   input: { marginTop: 16, minHeight: 96, maxHeight: 160, borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 16, textAlignVertical: 'top' },
