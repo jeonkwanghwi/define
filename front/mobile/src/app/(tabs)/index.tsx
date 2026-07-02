@@ -37,6 +37,7 @@ import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
 import { formatKoreanDate, isSameDay } from '@/lib/format-date';
+import { topicSuffix } from '@/lib/korean';
 import { useAuthStore } from '@/store/auth-store';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
@@ -274,7 +275,7 @@ export default function RecordScreen() {
                   fontWeight: '600',
                 }}
               >
-                이란
+                {topicSuffix(word)}
               </ThemedText>
             </Animated.View>
             <Button
@@ -300,7 +301,7 @@ export default function RecordScreen() {
                 multiline
                 value={definition}
                 onChangeText={setDefinition}
-                placeholder={`나에게 ${word}이란…`}
+                placeholder={`나에게 ${word}${topicSuffix(word)}…`}
                 placeholderTextColor={theme.colors.ink.placeholder}
                 style={[
                   styles.definitionInput,

@@ -14,6 +14,7 @@ import {
 
 import { Button } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
+import { topicSuffix } from '@/lib/korean';
 import { useTheme } from '@/theme';
 
 export type RedefineSheetProps = {
@@ -62,7 +63,7 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
               ref={inputRef}
               value={text}
               onChangeText={setText}
-              placeholder={`${word}이란…`}
+              placeholder={`${word}${topicSuffix(word)}…`}
               placeholderTextColor={theme.colors.ink.placeholder}
               multiline
               style={[
