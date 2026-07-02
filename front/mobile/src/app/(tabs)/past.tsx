@@ -8,7 +8,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AuthGate } from '@/components/domain/auth-gate';
 import { RecallConsentSheet } from '@/components/domain/recall-consent-sheet';
-import { Button } from '@/components/primitives';
+import { Button, Card } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
@@ -69,7 +69,7 @@ function RecallHome() {
         <ThemedText
           variant="body"
           tone="secondary"
-          style={{ marginTop: theme.spacing.s2, textAlign: 'center', lineHeight: 24 }}
+          style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
         >
           서로 다른 단어 {UNLOCK_WORDS}개를 모으면 그 시절의 나와 대화할 수 있어요.
         </ThemedText>
@@ -146,7 +146,8 @@ function RecallHome() {
         </ThemedText>
 
         {/* 대화 방식 */}
-        <View style={[styles.segment, { marginTop: theme.spacing.s4 }]}>
+        <SectionLabel text="대화 방식" />
+        <View style={styles.segment}>
           {(['free', 'question'] as const).map((cm) => {
             const active = convoMode === cm;
             return (
@@ -173,86 +174,101 @@ function RecallHome() {
         </View>
 
         {convoMode === 'question' && (
-          <ThemedText
-            variant="body"
-            tone="secondary"
-            style={{ marginTop: theme.spacing.s5, lineHeight: 24 }}
-          >
+          <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s4 }}>
             랜덤한 시기의 내가 그때 적은 단어 하나로 먼저 물어봐요. 시기는 고르지 않아요.
           </ThemedText>
         )}
 
         {convoMode === 'free' && (
-        <>
-        {/* 시절 선택 세그먼트 */}
-        <View style={[styles.segment, { marginTop: theme.spacing.s5 }]}>
-          {(['age', 'year'] as const).map((m) => {
-            const active = mode === m;
-            return (
-              <Pressable
-                key={m}
-                onPress={() => setMode(m)}
-                style={[
-                  styles.segItem,
-                  {
-                    backgroundColor: active ? theme.colors.point.p600 : theme.colors.surface.base,
-                    borderColor: theme.colors.line.base,
-                  },
-                ]}
-              >
-                <ThemedText
-                  variant="bodyMd"
-                  style={{ color: active ? theme.colors.paper.base : theme.colors.ink.secondary }}
-                >
-                  {m === 'age' ? '나이로' : '연도로'}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* 칩 목록 */}
-        <View style={[styles.chips, { marginTop: theme.spacing.s4 }]}>
-          {mode === 'age'
-            ? ages.length === 0
-              ? <ThemedText variant="body" tone="placeholder">출생연도가 없거나 기록이 없어요.</ThemedText>
-              : ages.map((a) => {
-                  const active = selAge === a;
-                  return (
-                    <Pressable
-                      key={a}
-                      onPress={() => setSelAge(a)}
-                      style={[styles.chip, { borderColor: active ? theme.colors.point.p600 : theme.colors.line.base, backgroundColor: active ? theme.colors.point.p050 : theme.colors.surface.base }]}
-                    >
-                      <ThemedText variant="bodyMd" style={{ color: active ? theme.colors.point.p700 : theme.colors.ink.primary }}>
-                        {a}살
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })
-            : years.map((y) => {
-                const active = selYear === y;
+          <>
+            {/* 시절 선택 */}
+            <SectionLabel text="어느 시절의 나" />
+            <View style={styles.segment}>
+              {(['age', 'year'] as const).map((m) => {
+                const active = mode === m;
                 return (
                   <Pressable
-                    key={y}
-                    onPress={() => setSelYear(y)}
-                    style={[styles.chip, { borderColor: active ? theme.colors.point.p600 : theme.colors.line.base, backgroundColor: active ? theme.colors.point.p050 : theme.colors.surface.base }]}
+                    key={m}
+                    onPress={() => setMode(m)}
+                    style={[
+                      styles.segItem,
+                      {
+                        backgroundColor: active
+                          ? theme.colors.point.p600
+                          : theme.colors.surface.base,
+                        borderColor: theme.colors.line.base,
+                      },
+                    ]}
                   >
-                    <ThemedText variant="bodyMd" style={{ color: active ? theme.colors.point.p700 : theme.colors.ink.primary }}>
-                      {y}년
+                    <ThemedText
+                      variant="bodyMd"
+                      style={{
+                        color: active ? theme.colors.paper.base : theme.colors.ink.secondary,
+                      }}
+                    >
+                      {m === 'age' ? '나이로' : '연도로'}
                     </ThemedText>
                   </Pressable>
                 );
               })}
-        </View>
+            </View>
 
-        {sliceCount > 0 && (
-          <ThemedText variant="caption" tone="placeholder" style={{ marginTop: theme.spacing.s3 }}>
-            그 시절 기록 {sliceCount}개
+            {/* 칩 목록 */}
+            <View style={[styles.chips, { marginTop: theme.spacing.s4 }]}>
+              {mode === 'age'
+                ? ages.length === 0
+                  ? <ThemedText variant="body" tone="placeholder">출생연도가 없거나 기록이 없어요.</ThemedText>
+                  : ages.map((a) => {
+                      const active = selAge === a;
+                      return (
+                        <Pressable
+                          key={a}
+                          onPress={() => setSelAge(a)}
+                          style={[styles.chip, { borderColor: active ? theme.colors.point.p600 : theme.colors.line.base, backgroundColor: active ? theme.colors.point.p050 : theme.colors.surface.base }]}
+                        >
+                          <ThemedText variant="bodyMd" style={{ color: active ? theme.colors.point.p700 : theme.colors.ink.primary }}>
+                            {a}살
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })
+                : years.map((y) => {
+                    const active = selYear === y;
+                    return (
+                      <Pressable
+                        key={y}
+                        onPress={() => setSelYear(y)}
+                        style={[styles.chip, { borderColor: active ? theme.colors.point.p600 : theme.colors.line.base, backgroundColor: active ? theme.colors.point.p050 : theme.colors.surface.base }]}
+                      >
+                        <ThemedText variant="bodyMd" style={{ color: active ? theme.colors.point.p700 : theme.colors.ink.primary }}>
+                          {y}년
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+            </View>
+
+            {sliceCount > 0 && (
+              <ThemedText variant="caption" tone="placeholder" style={{ marginTop: theme.spacing.s3 }}>
+                그 시절 기록 {sliceCount}개
+              </ThemedText>
+            )}
+          </>
+        )}
+
+        {/* 안내 카드 — 빈 중앙 공간을 조용한 설명으로. */}
+        <Card style={{ marginTop: theme.spacing.s8 }} radius="lg" elevation="sm">
+          <View style={styles.infoHead}>
+            <Icon name="sparkle" size={16} color={theme.colors.point.p600} />
+            <ThemedText variant="bodyMd" style={{ color: theme.colors.point.p600 }}>
+              과거의 나는 이렇게 만들어져요
+            </ThemedText>
+          </View>
+          <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
+            그 시절에 남긴 단어와 정의로 그때의 나를 되살려요. 시절을 고르고 말을
+            걸어보세요. 대화 한 번에 {RECALL_COST}잉크가 쓰여요.
           </ThemedText>
-        )}
-        </>
-        )}
+        </Card>
       </ScrollView>
 
       {/* CTA — 비용 명시 */}
@@ -285,12 +301,32 @@ function RecallHome() {
   );
 }
 
+/** 섹션 라벨 — 마이페이지와 동일한 소문자 캡션 스타일. 선택지 그룹의 역할 구분용. */
+function SectionLabel({ text }: { text: string }) {
+  const theme = useTheme();
+  return (
+    <ThemedText
+      variant="caption"
+      style={{
+        color: theme.colors.point.p600,
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+        marginTop: theme.spacing.s6,
+        marginBottom: theme.spacing.s3,
+      }}
+    >
+      {text}
+    </ThemedText>
+  );
+}
+
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  scroll: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 24 },
+  scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
   segment: { flexDirection: 'row', gap: 8 },
   segItem: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 999, borderWidth: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
+  infoHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cta: { padding: 16, borderTopWidth: 1 },
 });
