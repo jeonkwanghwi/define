@@ -264,6 +264,13 @@
 - **검증**: `npx tsc --noEmit` 0(Task별). 가격계산 단위 검증(`priceFor` 3케이스: 0.0012 / 0.00105 / 0+경고) + prisma 스키마·집계 스모크(create→aggregate→cleanup) 실행 확인. OPENAI_API_KEY 미설정이라 실제 GPT 호출 검증은 불가.
 - **비범위(후속)**: 어드민 조회 API/화면(관리자 모드 때, 당분간 조회는 SQL/스크립트).
 
+### 2026-07-02 — UI/UX 폴리시: 체감 문제 6건 + 규격 표준 정렬 ★
+- **무엇**: 전 화면 감사(코드 정적 감사 + 실화면 스크린샷 15장) 후 체감 문제와 규격 불일치를 일괄 수정. 브랜치 `feat/ui-polish`, 서브에이전트 구동 5태스크(+컨트롤러 최종 검증). 스펙 `docs/superpowers/specs/2026-07-02-ui-ux-polish-design.md`(로컬 전용).
+- **체감 수정**: ⒜ 한국어 조사 자동 처리 `lib/korean.ts` `topicSuffix`("용기이란"→"용기란", 히어로·placeholder·재정의 시트 3곳) ⒝ 잉크 적립 토스트(날짜 칩 가림) 제거 → 헤더 `InkBalanceChip` 펄스+카운트업(증가만 연출, 차감 즉시 — §9 조용한 톤). **의도적 후퇴: "N일 연속 기록" streak 토스트도 함께 제거**(reward-store·ink-reward-toast 삭제, streak는 mypage statLine에 잔존) ⒞ 잉크방울 아이콘 `Icon name="ink"` 신설, 보석(ruby) 표시 대체(만년필 본 에셋은 기획 후속) ⒟ 공용 `ScreenHeader`(back 40pt+hitSlop·중앙 타이틀·safe-area)로 5화면 통일 — journal/[word] 좌측 대형→중앙, recall-chat paddingTop:56 하드코딩 해소 ⒠ '과거의 나' 섹션 라벨("대화 방식"/"어느 시절의 나") + 안내 카드로 위계·빈 공간 해결 ⒡ 터치 타겟(아바타 38→40, 캘린더 내비 hitSlop).
+- **규격 표준**: `theme/spacing.ts`에 `controlPresets`(badge 2/8 · pill 6/12 · chip 8/14) 신설(theme.presets로도 노출). 화면 좌우 24·스크롤 하단 32·본문 lineHeight 26(토큰 위임)·카드 패딩 16으로 어긋난 곳만 정렬(전면 토큰 마이그레이션은 비범위 — 후속).
+- **검증**: tsc 0 · `expo export` 21라우트 · playwright 실화면 15장 전후 비교(전 항목 반영 확인, 회귀 없음) · 조사 유틸 node 단위 검증 7케이스 · 최종 whole-branch 리뷰 "Ready to merge"(Critical/Important 0).
+- **후속 백로그**: 카운트업 시작값을 현재 표시값으로(연속 적립 시 시각 점프) · ScreenHeader 타이틀 대칭 센터링(right 슬롯이 40pt 초과 시 미세 좌편향) · 전면 토큰 마이그레이션(감사에서 나온 나머지 ~70곳).
+
 ### 2026-07-01 — 광장 2단계: 좋아요(추천) + 추천순 정렬 ★
 - **무엇**: 광장 정의에 좋아요(추천)와 추천순 정렬을 추가. 브랜치 `feat/plaza-likes`, 서브에이전트 구동 6태스크(각 태스크 스펙+품질 리뷰). 설계·계획 `docs/superpowers/plans/2026-07-01-plaza-stage2-likes.md`.
 - **DB**(신규 테이블 1개): `Like`{userId, entryId, createdAt} + `@@unique([userId,entryId])`(멱등)·`onDelete: Cascade`. `Entry.likes`/`User.likes` 관계. 마이그레이션 `add_entry_like`.

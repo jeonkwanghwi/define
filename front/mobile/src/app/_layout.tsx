@@ -3,21 +3,20 @@
  *
  * 책임:
  *  1) Pretendard 폰트 로드 (expo-font) — 로드 완료 전까지 스플래시 유지
- *  2) Stack 네비게이션 (Task #6에서 (tabs) 그룹 추가 예정)
+ *  2) Stack 네비게이션
+ *  3) 앱 세션당 1회 출석 적립 + 단어장 자동 동기화 시작
  *
- * 다음 단계 예정:
- *  - Task #6: (tabs)/_layout.tsx로 5탭 추가
+ * 적립 연출은 토스트가 아니라 메인 헤더의 InkBalanceChip이 담당
+ * (잔액 변화를 구독해 펄스+카운트업 — 날짜 칩을 가리던 토스트 대체).
  */
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import { InkRewardToast } from '@/components/domain/ink-reward-toast';
 import { runAttendanceClaim } from '@/lib/attendance';
 import { startAutoSync } from '@/lib/auto-sync';
 import { useAuthStore } from '@/store/auth-store';
-import { useRewardStore } from '@/store/reward-store';
 
 // 폰트 로드 완료까지 스플래시 화면 자동 해제 막기 (깜빡임 방지)
 SplashScreen.preventAutoHideAsync();
@@ -29,18 +28,14 @@ export default function RootLayout() {
   });
 
   const token = useAuthStore((s) => s.token);
-  const [reward, setReward] = useState<number | null>(null);
   const claimedRef = useRef(false);
-  const recordReward = useRewardStore((s) => s.pending);
-  const clearRecordReward = useRewardStore((s) => s.clear);
 
   // 토큰이 (하이드레이션 후) 준비되면 앱 세션당 1회 출석 적립 시도.
+  // 잔액 갱신은 runAttendanceClaim 내부의 setBalance가 담당 → 칩이 반응.
   useEffect(() => {
     if (token && !claimedRef.current) {
       claimedRef.current = true;
-      runAttendanceClaim().then((r) => {
-        if (r?.claimed) setReward(r.amount);
-      });
+      runAttendanceClaim();
     }
   }, [token]);
 
@@ -63,19 +58,9 @@ export default function RootLayout() {
   }
 
   // 모든 화면이 자체 헤더(또는 탭바)를 렌더하므로 네이티브 Stack 헤더는 끔.
-  // (tabs) 그룹과 /mypage 모두 headerShown:false로 일관 처리.
   return (
     <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }} />
-      {reward != null && <InkRewardToast amount={reward} onDone={() => setReward(null)} />}
-      {recordReward && (
-        <InkRewardToast
-          amount={recordReward.amount}
-          label={`${recordReward.streak}일 연속 기록`}
-          topOffset={124}
-          onDone={clearRecordReward}
-        />
-      )}
     </View>
   );
 }

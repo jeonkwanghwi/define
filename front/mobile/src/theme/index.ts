@@ -28,7 +28,7 @@ import { useSettingsStore } from '@/store/settings-store';
 import { darkColors, lightColors, type Colors } from './colors';
 import { radii } from './radii';
 import { darkShadows, lightShadows, type Shadows } from './shadows';
-import { spacing } from './spacing';
+import { controlPresets, spacing } from './spacing';
 import { typography } from './typography';
 
 export type Theme = {
@@ -38,6 +38,7 @@ export type Theme = {
   typography: typeof typography;
   spacing: typeof spacing;
   radii: typeof radii;
+  presets: typeof controlPresets;
 };
 
 const lightTheme: Theme = {
@@ -47,6 +48,7 @@ const lightTheme: Theme = {
   typography,
   spacing,
   radii,
+  presets: controlPresets,
 };
 
 const darkTheme: Theme = {
@@ -56,6 +58,7 @@ const darkTheme: Theme = {
   typography,
   spacing,
   radii,
+  presets: controlPresets,
 };
 
 /**
@@ -75,6 +78,15 @@ export function useTheme(): Theme {
 }
 
 // 개별 토큰 모듈을 직접 import 하고 싶을 때 (드물지만 유틸성 코드에서)
-export { lightColors, darkColors, lightShadows, darkShadows, typography, spacing, radii };
+export {
+  lightColors,
+  darkColors,
+  lightShadows,
+  darkShadows,
+  typography,
+  spacing,
+  controlPresets,
+  radii,
+};
 export type { Colors, Shadows };
 export type { TypographyVariant } from './typography';

@@ -4,21 +4,21 @@
  * 동적 라우트: /plaza/{word}. useLocalSearchParams로 word 받음(journal [word] 패턴).
  * 서버에서 정의 목록을 받아 표시. 내 정의(isMine)는 맨 위 + 포인트 강조 + "내 정의" 배지.
  */
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
 import { formatRelativeLabel } from '@/lib/format-date';
 import { getPlazaWord, toggleEntryLike, type PlazaWordDetail } from '@/services/plaza-api';
 import { useAuthStore } from '@/store/auth-store';
-import { useTheme } from '@/theme';
+import { controlPresets, useTheme } from '@/theme';
 
 export default function PlazaWordDetailScreen() {
   const theme = useTheme();
-  const router = useRouter();
   const { word: rawWord } = useLocalSearchParams<{ word: string }>();
   const word = typeof rawWord === 'string' ? rawWord : '';
   const token = useAuthStore((s) => s.token);
@@ -90,16 +90,7 @@ export default function PlazaWordDetailScreen() {
 
   return (
     <ThemedView bg="paper" style={styles.root}>
-      {/* 헤더 */}
-      <View style={styles.head}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.iconBtn}>
-          <Icon name="back" size={22} color={theme.colors.ink.strong} />
-        </Pressable>
-        <ThemedText variant="h3" style={{ flex: 1, textAlign: 'center' }}>
-          {word}
-        </ThemedText>
-        <View style={styles.iconBtn} />
-      </View>
+      <ScreenHeader title={word} />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {failed ? (
@@ -144,7 +135,7 @@ export default function PlazaWordDetailScreen() {
                   {formatRelativeLabel(new Date(d.savedAt), new Date())}
                 </ThemedText>
               </View>
-              <ThemedText variant="body" style={{ marginTop: theme.spacing.s2, lineHeight: 24 }}>
+              <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
                 {d.text}
               </ThemedText>
               {!d.isMine ? (
@@ -186,27 +177,18 @@ export default function PlazaWordDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32, gap: 12 },
   centerText: { textAlign: 'center', marginTop: 80 },
-  card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 18 },
+  card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  badge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 999 },
+  badge: { ...controlPresets.badge, borderRadius: 999 },
   likeBtn: {
     marginTop: 12,
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    gap: 6,
+    ...controlPresets.pill,
     borderWidth: 1,
     borderRadius: 999,
   },

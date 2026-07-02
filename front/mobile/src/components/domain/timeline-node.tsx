@@ -245,7 +245,7 @@ export function TimelineNode({
                 <Icon name="arrowUp" size={14} color={theme.colors.point.p600} />
                 <ThemedText
                   variant="sm"
-                  style={{ flex: 1, color: theme.colors.point.p600, lineHeight: 22 }}
+                  style={{ flex: 1, color: theme.colors.point.p600 }}
                 >
                   {entry.changeNote}
                 </ThemedText>

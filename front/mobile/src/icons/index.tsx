@@ -43,6 +43,7 @@ export type IconName =
   | 'settings'
   | 'bell'
   | 'ruby' // 재화
+  | 'ink' // 재화 "잉크" (잉크방울) — ruby를 대체하는 표시용
   | 'sun' // 라이트 모드
   | 'moon' // 다크 모드
   | 'user'
@@ -192,6 +193,13 @@ function renderIcon(name: IconName, p: StrokeProps) {
         <>
           <Path d="M7 4h10l3.5 5L12 20.5 3.5 9z" {...p} />
           <Path d="M3.5 9h17M9 4l-2 5 5 11.5M15 4l2 5-5 11.5" {...p} />
+        </>
+      );
+    case 'ink':
+      return (
+        <>
+          <Path d="M12 3.5c3 3.9 5.5 7 5.5 10a5.5 5.5 0 11-11 0c0-3 2.5-6.1 5.5-10z" {...p} />
+          <Path d="M9.5 14a2.5 2.5 0 002.5 2.5" {...p} />
         </>
       );
     case 'sun':

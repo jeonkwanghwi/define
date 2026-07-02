@@ -19,3 +19,17 @@ export const spacing = {
 } as const;
 
 export type SpacingKey = keyof typeof spacing;
+
+/**
+ * 뱃지/칩류 공통 패딩 프리셋.
+ * 화면마다 2/8, 3/8, 5/10, 6/12… 제각각이던 것을 역할별 3단계로 표준화.
+ * (기존 파일 소급 적용은 하지 않음 — 손대는 파일에서만 사용.)
+ */
+export const controlPresets = {
+  /** 상태 뱃지 — '오늘' · '내 정의' · '변화' */
+  badge: { paddingVertical: 2, paddingHorizontal: 8 },
+  /** 카운트 pill — 통계 칩 · 좋아요 */
+  pill: { paddingVertical: 6, paddingHorizontal: 12 },
+  /** 선택형 chip — 필터 · 날짜 */
+  chip: { paddingVertical: 8, paddingHorizontal: 14 },
+} as const;

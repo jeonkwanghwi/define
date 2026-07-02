@@ -12,13 +12,13 @@
  */
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { ScreenHeader } from '@/components/domain/screen-header';
 import { TimelineNode } from '@/components/domain/timeline-node';
 import { ActionSheet, ConfirmDialog } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Icon } from '@/icons';
 import { useJournalStore, useJournalWord } from '@/store/journal-store';
 import { useTheme } from '@/theme';
 
@@ -100,45 +100,16 @@ export default function WordDetailScreen() {
 
   return (
     <ThemedView bg="paper" style={styles.root}>
+      <ScreenHeader title={item.word} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* ─── 헤더 ─── */}
-        <View style={styles.head}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              {
-                backgroundColor: pressed
-                  ? theme.colors.surface.nested
-                  : 'transparent',
-              },
-            ]}
-          >
-            <Icon name="back" size={22} color={theme.colors.ink.strong} />
-          </Pressable>
-          <ThemedText
-            variant="h2"
-            style={{
-              flex: 1,
-              fontSize: 26,
-              letterSpacing: -0.7,
-              fontWeight: '800',
-            }}
-          >
-            {item.word}
-          </ThemedText>
-          <View style={styles.iconBtn} />
-        </View>
-
         {/* ─── 카운트 ─── */}
         <ThemedText
           variant="caption"
           tone="placeholder"
-          style={{ marginTop: theme.spacing.s2, marginBottom: theme.spacing.s4 }}
+          style={{ marginBottom: theme.spacing.s4 }}
         >
           {item.entries.length}번의 정의 · 시간순 · 길게 눌러 수정/삭제
         </ThemedText>
@@ -208,19 +179,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: {
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 32,
-  },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 12,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

@@ -39,6 +39,9 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.colors.point.p600,
         tabBarInactiveTintColor: theme.colors.ink.placeholder,
+        // 라벨은 항상 아이콘 아래로. (넓은 뷰포트/웹에선 기본이 beside-icon이 되어
+        //  중앙 기록 chip과 "기록" 라벨이 옆으로 겹친다 → below-icon으로 고정.)
+        tabBarLabelPosition: 'below-icon',
         tabBarStyle: {
           backgroundColor: theme.colors.surface.base,
           borderTopColor: theme.colors.line.base,

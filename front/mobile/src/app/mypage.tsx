@@ -21,6 +21,7 @@ import { type ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
+import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
 import { ConfirmDialog } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -64,28 +65,11 @@ export default function MyPageScreen() {
 
   return (
     <ThemedView bg="paper" style={styles.root}>
+      <ScreenHeader title="마이페이지" />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* ─── 헤더 ─── */}
-        <View style={styles.head}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              { backgroundColor: pressed ? theme.colors.surface.nested : 'transparent' },
-            ]}
-          >
-            <Icon name="back" size={22} color={theme.colors.ink.strong} />
-          </Pressable>
-          <ThemedText variant="h3" style={{ flex: 1, textAlign: 'center' }}>
-            마이페이지
-          </ThemedText>
-          <View style={styles.iconBtn} />
-        </View>
-
         {/* ─── 프로필 ─── */}
         <Pressable
           onPress={() => setNicknameSheetOpen(true)}
@@ -194,7 +178,7 @@ export default function MyPageScreen() {
           <>
             <SectionLabel theme={theme} text="잉크" />
             <Group theme={theme}>
-              <Row theme={theme} icon="ruby" label="내 잉크" value={`${balance}개`} />
+              <Row theme={theme} icon="ink" label="내 잉크" value={`${balance}개`} />
             </Group>
           </>
         )}
@@ -343,20 +327,8 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: {
     paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 8,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: 12,
+    paddingBottom: 32,
   },
 
   profile: {

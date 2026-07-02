@@ -30,6 +30,7 @@ import {
 
 import { CustomWordSheet } from '@/components/domain/custom-word-sheet';
 import { DateSheet } from '@/components/domain/date-sheet';
+import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { SaveConfirmation } from '@/components/domain/save-confirmation';
 import { Button, Card } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -37,10 +38,11 @@ import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
 import { formatKoreanDate, isSameDay } from '@/lib/format-date';
+import { topicSuffix } from '@/lib/korean';
 import { useAuthStore } from '@/store/auth-store';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
-import { useTheme } from '@/theme';
+import { controlPresets, useTheme } from '@/theme';
 
 export default function RecordScreen() {
   const theme = useTheme();
@@ -161,17 +163,7 @@ export default function RecordScreen() {
           <View style={styles.appHeader}>
             <ThemedText style={styles.wordmark}>define</ThemedText>
             <View style={styles.headerRight}>
-              {inkBalance != null && (
-                <View style={styles.inkChip}>
-                  <Icon name="ruby" size={14} color={theme.colors.ruby.base} />
-                  <ThemedText
-                    variant="sm"
-                    style={{ color: theme.colors.ink.secondary, fontWeight: '700' }}
-                  >
-                    {inkBalance}
-                  </ThemedText>
-                </View>
-              )}
+              {inkBalance != null && <InkBalanceChip balance={inkBalance} />}
               {/* 기존 avatar Pressable 을 여기로 이동(그대로) */}
               <Pressable
                 onPress={() => router.push('/mypage')}
@@ -274,7 +266,7 @@ export default function RecordScreen() {
                   fontWeight: '600',
                 }}
               >
-                이란
+                {topicSuffix(word)}
               </ThemedText>
             </Animated.View>
             <Button
@@ -300,7 +292,7 @@ export default function RecordScreen() {
                 multiline
                 value={definition}
                 onChangeText={setDefinition}
-                placeholder={`나에게 ${word}이란…`}
+                placeholder={`나에게 ${word}${topicSuffix(word)}…`}
                 placeholderTextColor={theme.colors.ink.placeholder}
                 style={[
                   styles.definitionInput,
@@ -434,9 +426,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   avatarBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -444,30 +436,19 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
-  inkChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-  },
-
   dateChipWrap: { alignItems: 'center' },
   dateChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
     borderWidth: 1,
     borderRadius: 999,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
+    ...controlPresets.chip,
   },
   todayBadge: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+    ...controlPresets.badge,
     borderRadius: 999,
   },
 
@@ -506,7 +487,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   fillerButton: { flex: 1 }, // 기록 완료 버튼이 행의 남은 공간을 채우게
 });

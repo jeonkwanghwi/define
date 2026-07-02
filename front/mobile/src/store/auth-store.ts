@@ -17,7 +17,6 @@ import {
   updateProfile as updateProfileApi,
   type AuthUser,
 } from '@/services/auth-api';
-import { useRewardStore } from '@/store/reward-store';
 
 type AuthState = {
   token: string | null;
@@ -96,10 +95,6 @@ async function runSync(
     const res = await syncJournal(token);
     if (res.recordBonus) {
       useAuthStore.getState().setBalance(res.recordBonus.balance);
-      useRewardStore.getState().push({
-        streak: res.recordBonus.milestone,
-        amount: res.recordBonus.amount,
-      });
     }
     await downloadJournal(token);
     set({ lastSyncedAt: new Date().toISOString() });
