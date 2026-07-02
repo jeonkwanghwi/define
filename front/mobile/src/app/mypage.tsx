@@ -304,7 +304,7 @@ function Row({
       style={[styles.row, { backgroundColor: 'transparent' }, disabled && { opacity: 0.5 }]}
     >
       <Icon name={icon} size={19} color={theme.colors.ink.secondary} />
-      <ThemedText variant="body" tone="strong" style={{ flex: 1, marginLeft: 12 }}>
+      <ThemedText variant="body" tone="strong" style={{ flex: 1, marginLeft: 12 }} numberOfLines={1}>
         {label}
       </ThemedText>
       {value ? (

@@ -79,7 +79,7 @@ function PlazaWordList() {
                   theme.shadows.sm,
                 ]}
               >
-                <ThemedText variant="h3" style={{ flex: 1 }}>
+                <ThemedText variant="h3" style={{ flex: 1 }} numberOfLines={1}>
                   {w.word}
                 </ThemedText>
                 <ThemedText variant="caption" tone="placeholder">
