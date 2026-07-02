@@ -205,6 +205,16 @@
 - 단어 swap, chip 활성 전환 등 모든 상태 변화는 Animated 보간 (180-220ms)
 - 시스템 Alert·ActionSheet 일절 X — 우리 톤의 커스텀 컴포넌트만
 
+### 🌊 모션 시스템 (상시 적용 — PLANNING §2 "부드러움" 원칙의 구현 규칙)
+> **새/수정 UI는 아래를 기본값으로.** 목표 = 전 상호작용이 "스르륵". (진행: 재사용 프리미티브를 세워 전역 적용 — 작업 로그 참조.)
+- **표준 타이밍/이징**: 지속 180–250ms, 감속형(ease-out). 값은 theme의 모션 토큰(신설 예정)에서 단일 출처로.
+- **성능**: transform·opacity 위주로 `useNativeDriver: true`(60fps). 레이아웃 삽입/삭제는 `LayoutAnimation`. 색/높이 보간 등 네이티브 드라이버 불가한 것만 `false`.
+- **누름 피드백**: 모든 탭 대상(버튼·카드·행·아이콘)은 눌릴 때 scale(≈0.97) + 색 전환. 재사용 `PressableScale`로 통일(개별 opacity-only 지양).
+- **콘텐츠 등장**: 카드·리스트 항목·대화 답변은 fade-in(+살짝 up). 리스트는 stagger. 재사용 `FadeIn` 래퍼. **회상 답변 = 통째 fade-in 우선**(토큰 스트리밍은 후속·별건, 백엔드 SSE 필요).
+- **화면 전환**: Stack `screenOptions`에서 애니메이션·지속시간 한 곳 통일(뚝 끊김 금지).
+- **시트/드롭다운**: slide + 부드러운 감속, scrim 색은 웜톤으로 통일.
+- **톤 가드**: 절제된 스르륵. 과한 bounce·spring 오버슛·요란함 금지(§ "시끄러운 UI 지양").
+
 ### 테마 시스템
 - `useTheme()` = settings-store의 `themeMode` + (system이면) `useColorScheme()`로 라이트/다크 분기. 기본 'light'.
 - 다크 토큰은 `darkColors`, `darkShadows`로 1급 시민 유지 → 마이페이지 `ThemeModeToggle`로 즉시 전환.
@@ -254,6 +264,11 @@
 
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
+
+### 2026-07-02 — 모션 시스템 상시 원칙 문서화(구현 착수 전)
+- **무엇**: §5에 "🌊 모션 시스템" 규칙 신설(표준 타이밍 180–250ms·ease-out, useNativeDriver 성능, PressableScale 누름 피드백, FadeIn 콘텐츠 등장, Stack 전환 통일, 시트/드롭다운, 톤 가드). PLANNING §2 "부드러움" 상시 원칙의 구현 지침.
+- **왜**: 사용자가 "전 상호작용에 항상 부드러움"을 요구 → 재사용 프리미티브를 세워 전역 적용하는 폴리시 패스로 진행 예정.
+- **범위/다음**: 회상 답변 = 통째 fade-in 우선(토큰 스트리밍 후속). 착수 순서 = 모션 토큰·프리미티브(PressableScale/FadeIn) → 사용 빈도 높은 상호작용부터 적용 → 실기기 감 튜닝. 기능 구현은 브랜치+PR로 차근차근.
 
 ### 2026-07-02 — LLM 사용량·비용 원장
 - **무엇**: 회상(GPT) 호출마다 토큰 사용량·추정 비용($)을 중앙 `llm_usage` 테이블에 1행씩 기록. 유저별 cost 컬럼이 아니라 **호출 1건=1행 원장**(모델별·유저별·기간별 집계는 SUM으로 도출). 브랜치 `feat/llm-usage-tracking`. 설계 `docs/superpowers/plans/2026-07-02-llm-usage-tracking.md`.
