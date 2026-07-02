@@ -6,9 +6,10 @@
  */
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AuthGate } from '@/components/domain/auth-gate';
+import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getPlazaWords, type PlazaWord } from '@/services/plaza-api';
@@ -65,13 +66,13 @@ function PlazaWordList() {
 
         <View style={[styles.list, { marginTop: theme.spacing.s6 }]}>
           {words.map((w) => (
-            <Pressable
+            <PressableScale
               key={w.word}
               onPress={() => router.push({ pathname: '/plaza/[word]', params: { word: w.word } })}
-              style={({ pressed }) => [
+              style={[
                 styles.row,
                 {
-                  backgroundColor: pressed ? theme.colors.surface.nested : theme.colors.surface.base,
+                  backgroundColor: theme.colors.surface.base,
                   borderColor: theme.colors.line.base,
                   borderRadius: theme.radii.lg,
                 },
@@ -84,7 +85,7 @@ function PlazaWordList() {
               <ThemedText variant="caption" tone="placeholder">
                 {w.count}개의 정의
               </ThemedText>
-            </Pressable>
+            </PressableScale>
           ))}
         </View>
       </ScrollView>

@@ -6,9 +6,10 @@
  */
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ScreenHeader } from '@/components/domain/screen-header';
+import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
@@ -139,7 +140,7 @@ export default function PlazaWordDetailScreen() {
                 {d.text}
               </ThemedText>
               {!d.isMine ? (
-                <Pressable
+                <PressableScale
                   onPress={() => handleToggleLike(d.id)}
                   hitSlop={8}
                   style={[
@@ -165,7 +166,7 @@ export default function PlazaWordDetailScreen() {
                       {d.likeCount}
                     </ThemedText>
                   ) : null}
-                </Pressable>
+                </PressableScale>
               ) : null}
             </View>
           ))
