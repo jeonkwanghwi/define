@@ -10,7 +10,7 @@ import { Animated, StyleSheet } from 'react-native';
 import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
-import { motion, useTheme } from '@/theme';
+import { controlPresets, motion, useTheme } from '@/theme';
 
 export type LikeButtonProps = { liked: boolean; count: number; onToggle: () => void };
 
@@ -61,8 +61,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    ...controlPresets.pill,
     borderWidth: 1,
     borderRadius: 999,
   },
