@@ -62,6 +62,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    // 헤더 밀도상 controlPresets.pill(6/12)보다 한 단계 작게 유지 (기존 헤더 칩 룩 보존)
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 999,
