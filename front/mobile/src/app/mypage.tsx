@@ -18,12 +18,12 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
-import { ConfirmDialog } from '@/components/primitives';
+import { ConfirmDialog, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
@@ -71,9 +71,9 @@ export default function MyPageScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ─── 프로필 ─── */}
-        <Pressable
+        <PressableScale
           onPress={() => setNicknameSheetOpen(true)}
-          style={({ pressed }) => [styles.profile, { opacity: pressed ? 0.7 : 1 }]}
+          style={styles.profile}
         >
           <View
             style={[
@@ -109,7 +109,7 @@ export default function MyPageScreen() {
               {statLine}
             </ThemedText>
           </View>
-        </Pressable>
+        </PressableScale>
 
         {/* ─── 계정 ─── */}
         <SectionLabel theme={theme} text="계정" />
@@ -298,14 +298,10 @@ function Row({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={disabled || !onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { backgroundColor: pressed && onPress ? theme.colors.surface.nested : 'transparent' },
-        disabled && { opacity: 0.5 },
-      ]}
+      style={[styles.row, { backgroundColor: 'transparent' }, disabled && { opacity: 0.5 }]}
     >
       <Icon name={icon} size={19} color={theme.colors.ink.secondary} />
       <ThemedText variant="body" tone="strong" style={{ flex: 1, marginLeft: 12 }}>
@@ -319,7 +315,7 @@ function Row({
       {onPress ? (
         <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} />
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 

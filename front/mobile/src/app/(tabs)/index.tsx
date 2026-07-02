@@ -21,7 +21,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -32,7 +31,7 @@ import { CustomWordSheet } from '@/components/domain/custom-word-sheet';
 import { DateSheet } from '@/components/domain/date-sheet';
 import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { SaveConfirmation } from '@/components/domain/save-confirmation';
-import { Button, Card } from '@/components/primitives';
+import { Button, Card, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
@@ -165,15 +164,13 @@ export default function RecordScreen() {
             <View style={styles.headerRight}>
               {inkBalance != null && <InkBalanceChip balance={inkBalance} />}
               {/* 기존 avatar Pressable 을 여기로 이동(그대로) */}
-              <Pressable
+              <PressableScale
                 onPress={() => router.push('/mypage')}
                 hitSlop={8}
-                style={({ pressed }) => [
+                style={[
                   styles.avatarBtn,
                   {
-                    backgroundColor: pressed
-                      ? theme.colors.surface.nested
-                      : theme.colors.surface.base,
+                    backgroundColor: theme.colors.surface.base,
                     borderColor: theme.colors.line.base,
                   },
                 ]}
@@ -188,12 +185,12 @@ export default function RecordScreen() {
                 ) : (
                   <Icon name="user" size={19} color={theme.colors.ink.secondary} />
                 )}
-              </Pressable>
+              </PressableScale>
             </View>
           </View>
 
           {/* ─── 1. 날짜 칩 ─── */}
-          <Pressable onPress={openDatePicker} style={styles.dateChipWrap}>
+          <PressableScale onPress={openDatePicker} style={styles.dateChipWrap}>
             <View
               style={[
                 styles.dateChip,
@@ -225,7 +222,7 @@ export default function RecordScreen() {
               ) : null}
               <Icon name="chevronD" size={14} color={theme.colors.ink.placeholder} />
             </View>
-          </Pressable>
+          </PressableScale>
 
           {/* ─── 2. Hero 단어 ─── */}
           <View style={[styles.hero, { marginTop: theme.spacing.s6 }]}>
