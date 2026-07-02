@@ -7,7 +7,7 @@
 import { Easing, type EasingFunction } from 'react-native';
 
 export const motion = {
-  /** 지속시간(ms). 브랜드 표준 180–250ms 대역. */
+  /** 지속시간(ms). 일반 전환은 200–250(브랜드 표준 대역), 눌림 등 빠른 반응은 150. */
   duration: { fast: 150, base: 200, slow: 250 },
   /** 이징. 감속형(ease-out) — 자연스럽게 멈춤. 오버슛 없음(톤 가드). */
   easing: { standard: Easing.out(Easing.cubic) as EasingFunction },
