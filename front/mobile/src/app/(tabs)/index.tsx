@@ -30,6 +30,7 @@ import {
 
 import { CustomWordSheet } from '@/components/domain/custom-word-sheet';
 import { DateSheet } from '@/components/domain/date-sheet';
+import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { SaveConfirmation } from '@/components/domain/save-confirmation';
 import { Button, Card } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -162,17 +163,7 @@ export default function RecordScreen() {
           <View style={styles.appHeader}>
             <ThemedText style={styles.wordmark}>define</ThemedText>
             <View style={styles.headerRight}>
-              {inkBalance != null && (
-                <View style={styles.inkChip}>
-                  <Icon name="ruby" size={14} color={theme.colors.ruby.base} />
-                  <ThemedText
-                    variant="sm"
-                    style={{ color: theme.colors.ink.secondary, fontWeight: '700' }}
-                  >
-                    {inkBalance}
-                  </ThemedText>
-                </View>
-              )}
+              {inkBalance != null && <InkBalanceChip balance={inkBalance} />}
               {/* 기존 avatar Pressable 을 여기로 이동(그대로) */}
               <Pressable
                 onPress={() => router.push('/mypage')}
@@ -447,15 +438,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  inkChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-  },
-
   dateChipWrap: { alignItems: 'center' },
   dateChip: {
     flexDirection: 'row',

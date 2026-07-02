@@ -194,7 +194,7 @@ export default function MyPageScreen() {
           <>
             <SectionLabel theme={theme} text="잉크" />
             <Group theme={theme}>
-              <Row theme={theme} icon="ruby" label="내 잉크" value={`${balance}개`} />
+              <Row theme={theme} icon="ink" label="내 잉크" value={`${balance}개`} />
             </Group>
           </>
         )}
