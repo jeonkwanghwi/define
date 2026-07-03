@@ -14,6 +14,15 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, type TextInput, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Button, Card, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -29,6 +38,8 @@ export type TimelineNodeProps = {
   editing?: boolean;
   /** 변화 노트 편집 모드 — 부모가 editingNoteId 상태로 제어 (editing과 상호배타) */
   editingNote?: boolean;
+  /** 진입 리빌 지연(ms) — 세로선 그리기·변화지점 dot 펄스를 노드 등장과 맞춤. 없으면 연출 생략. */
+  revealDelay?: number;
   /** 길게 누름 — 부모가 ActionSheet 띄움 */
   onLongPress?: () => void;
   /** 편집 저장 — 부모가 store.updateEntry */
@@ -47,6 +58,7 @@ export function TimelineNode({
   isLast,
   editing,
   editingNote,
+  revealDelay,
   onLongPress,
   onSaveEdit,
   onCancelEdit,
@@ -55,6 +67,35 @@ export function TimelineNode({
 }: TimelineNodeProps) {
   const theme = useTheme();
   const dotBorderColor = isNow ? theme.colors.point.p600 : theme.colors.point.p300;
+
+  // ─── 진입 연출: 세로선이 시간 타고 위→아래로 그려지고, 변화 지점 dot이 살짝 펄스 ───
+  // 기본값은 "완성 상태"(선 scaleY=1, dot scale=1)라 reduced-motion이거나 연출이 실패해도 정상 표시.
+  const reduceMotion = useReducedMotion();
+  const animateReveal = !reduceMotion && revealDelay != null;
+  const lineGrow = useSharedValue(animateReveal && !isLast ? 0 : 1);
+  const dotScale = useSharedValue(1);
+
+  useEffect(() => {
+    if (!animateReveal) return;
+    const d = revealDelay ?? 0;
+    if (!isLast) {
+      lineGrow.value = withDelay(d + 120, withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }));
+    }
+    if (entry.changeNote) {
+      dotScale.value = withDelay(
+        d + 220,
+        withSequence(
+          withTiming(1.35, { duration: 160, easing: Easing.out(Easing.cubic) }),
+          withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) }),
+        ),
+      );
+    }
+    // 마운트 시 1회만.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const lineAnimStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: lineGrow.value }] }));
+  const dotAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: dotScale.value }] }));
 
   // ─── 텍스트 편집 상태 ───
   const [draft, setDraft] = useState(entry.text);
@@ -123,7 +164,7 @@ export function TimelineNode({
     <View style={styles.row}>
       {/* ── 왼쪽: 노드 + 세로선 ── */}
       <View style={styles.left}>
-        <View
+        <Animated.View
           style={[
             styles.dot,
             {
@@ -137,11 +178,12 @@ export function TimelineNode({
               shadowOffset: { width: 0, height: 0 },
               elevation: 2,
             },
+            dotAnimStyle,
           ]}
         />
         {!isLast ? (
-          <View
-            style={[styles.line, { backgroundColor: theme.colors.line.strong }]}
+          <Animated.View
+            style={[styles.line, { backgroundColor: theme.colors.line.strong }, lineAnimStyle]}
           />
         ) : null}
       </View>
@@ -263,7 +305,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
   left: { alignItems: 'center', marginRight: 14, paddingTop: 4 },
   dot: { width: 13, height: 13, borderRadius: 6.5, borderWidth: 2.5 },
-  line: { width: 2, flex: 1, marginTop: 4, marginBottom: 4 },
+  line: { width: 2, flex: 1, marginTop: 4, marginBottom: 4, transformOrigin: 'top' },
   content: { flex: 1, paddingBottom: 24 },
   meta: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   changeNote: {

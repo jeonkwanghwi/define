@@ -141,34 +141,35 @@ export default function WordDetailScreen() {
 
         {/* ─── 타임라인 — 과거→현재(아래→위)로 차오르며 등장. 최신(맨 위)이 마지막에 안착 ─── */}
         <View>
-          {item.entries.map((entry, i) => (
-            // entering: 아래→위 stagger(오래된 것부터). layout/exiting: 편집·삭제 시 부드러운 재배치·소멸.
-            <Animated.View
-              key={entry.id}
-              entering={
-                reduceMotion
-                  ? undefined
-                  : FadeInUp.delay(Math.min(item.entries.length - 1 - i, 6) * 55).duration(
-                      motion.duration.slow,
-                    )
-              }
-              layout={LinearTransition.duration(motion.duration.base)}
-              exiting={FadeOut.duration(motion.duration.fast)}
-            >
-              <TimelineNode
-                entry={entry}
-                isNow={i === 0}
-                isLast={i === item.entries.length - 1}
-                editing={editingId === entry.id}
-                editingNote={editingNoteId === entry.id}
-                onLongPress={() => setActionEntryId(entry.id)}
-                onSaveEdit={(t) => saveEdit(entry.id, t)}
-                onCancelEdit={cancelEdit}
-                onSaveNote={(n) => saveNote(entry.id, n)}
-                onCancelNote={cancelEditNote}
-              />
-            </Animated.View>
-          ))}
+          {item.entries.map((entry, i) => {
+            // 아래→위 stagger(오래된 것부터). 같은 지연을 노드에 넘겨 선/점 연출을 동기화.
+            const revealDelay = Math.min(item.entries.length - 1 - i, 6) * 55;
+            return (
+              // layout/exiting: 편집·삭제 시 부드러운 재배치·소멸.
+              <Animated.View
+                key={entry.id}
+                entering={
+                  reduceMotion ? undefined : FadeInUp.delay(revealDelay).duration(motion.duration.slow)
+                }
+                layout={LinearTransition.duration(motion.duration.base)}
+                exiting={FadeOut.duration(motion.duration.fast)}
+              >
+                <TimelineNode
+                  entry={entry}
+                  isNow={i === 0}
+                  isLast={i === item.entries.length - 1}
+                  revealDelay={revealDelay}
+                  editing={editingId === entry.id}
+                  editingNote={editingNoteId === entry.id}
+                  onLongPress={() => setActionEntryId(entry.id)}
+                  onSaveEdit={(t) => saveEdit(entry.id, t)}
+                  onCancelEdit={cancelEdit}
+                  onSaveNote={(n) => saveNote(entry.id, n)}
+                  onCancelNote={cancelEditNote}
+                />
+              </Animated.View>
+            );
+          })}
         </View>
       </ScrollView>
 
