@@ -4,7 +4,7 @@
  * 화면 구성:
  *   1. 헤더    — "나만의 단어장" + "{N}개 단어" 카운트 칩
  *   2. stat 3 — 총 기록 / 연속 기록 / 생각 변화
- *   3. 리스트  — 가나다순. 누르면 /journal/{word} 동적 라우트로 push.
+ *   3. 리스트  — 최신순(마지막 정의 날짜). 누르면 /journal/{word} 동적 라우트로 push.
  *
  * 데이터는 src/store/journal-store.ts (Zustand + AsyncStorage persist).
  * mock 없이 사용자가 기록한 것만 표시. 비어있으면 빈 상태 안내.
@@ -29,9 +29,15 @@ export default function JournalListScreen() {
   const stats = useJournalStats();
   const streak = useJournalStreak();
 
-  // 가나다 정렬 — 그룹은 store insert 순이라 디스플레이 시점에 정렬
+  // 최신순 — 각 단어의 가장 최근 정의 날짜(entries[0].date) 내림차순.
+  // date는 'YYYY.MM.DD' 0-패딩이라 문자열 비교=시간순. 같은 날짜면 가나다로 안정 정렬.
   const sorted = useMemo(
-    () => [...grouped].sort((a, b) => a.word.localeCompare(b.word, 'ko')),
+    () =>
+      [...grouped].sort((a, b) => {
+        const da = a.entries[0]?.date ?? '';
+        const db = b.entries[0]?.date ?? '';
+        return db !== da ? db.localeCompare(da) : a.word.localeCompare(b.word, 'ko');
+      }),
     [grouped],
   );
 

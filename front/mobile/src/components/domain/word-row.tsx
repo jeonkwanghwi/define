@@ -51,38 +51,45 @@ export function WordRow({ item, onPress }: WordRowProps) {
           ) : null}
         </View>
 
-        {/* 우측 메타 */}
+        {/* 우측 메타 — 위: 변화/개수/화살표, 아래: 마지막 날짜(우하단) */}
         <View style={styles.side}>
-          {item.changed ? (
+          <View style={styles.metaRow}>
+            {item.changed ? (
+              <View
+                style={[
+                  styles.changeBadge,
+                  {
+                    backgroundColor: theme.colors.point.p050,
+                    borderColor: theme.colors.point.p100,
+                  },
+                ]}
+              >
+                <Icon name="arrowUp" size={11} color={theme.colors.point.p600} />
+                <ThemedText
+                  variant="caption"
+                  style={{ color: theme.colors.point.p600 }}
+                >
+                  변화
+                </ThemedText>
+              </View>
+            ) : null}
             <View
               style={[
-                styles.changeBadge,
-                {
-                  backgroundColor: theme.colors.point.p050,
-                  borderColor: theme.colors.point.p100,
-                },
+                styles.countCircle,
+                { backgroundColor: theme.colors.surface.nested },
               ]}
             >
-              <Icon name="arrowUp" size={11} color={theme.colors.point.p600} />
-              <ThemedText
-                variant="caption"
-                style={{ color: theme.colors.point.p600 }}
-              >
-                변화
+              <ThemedText variant="caption" tone="placeholder">
+                {item.entries.length}
               </ThemedText>
             </View>
-          ) : null}
-          <View
-            style={[
-              styles.countCircle,
-              { backgroundColor: theme.colors.surface.nested },
-            ]}
-          >
-            <ThemedText variant="caption" tone="placeholder">
-              {item.entries.length}
-            </ThemedText>
+            <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} />
           </View>
-          <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} />
+          {item.entries[0]?.date ? (
+            <ThemedText variant="caption" tone="placeholder">
+              {item.entries[0].date}
+            </ThemedText>
+          ) : null}
         </View>
       </Card>
     </PressableScale>
@@ -92,7 +99,7 @@ export function WordRow({ item, onPress }: WordRowProps) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 12,
   },
   main: { flex: 1, minWidth: 0 },
@@ -102,7 +109,8 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 5,
   },
-  side: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  side: { alignItems: 'flex-end', justifyContent: 'space-between', gap: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   changeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
