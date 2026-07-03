@@ -10,14 +10,38 @@
 import { getJournal, importJournal, type ImportEntry, type ImportResult } from '@/services/journal-api';
 import { type SavedEntry, useJournalStore } from '@/store/journal-store';
 
-/** 업로드: 로컬 → 서버 (멱등 import). entries 0개면 호출 생략. */
+/**
+ * 서버 import 검증(EntryDto)을 통과할 항목인지. 하나라도 위반이 섞이면 배치 전체가
+ * 400으로 거부되므로, 업로드 전에 미리 걸러 "나쁜 항목 1개가 전부를 막는" 사고를 방지한다.
+ * 규칙: clientId·word 비어있지 않음, text는 문자열, savedAt은 파싱 가능한 날짜 문자열.
+ */
+function isUploadable(e: SavedEntry): boolean {
+  return (
+    typeof e.id === 'string' &&
+    e.id.length > 0 &&
+    typeof e.word === 'string' &&
+    e.word.trim().length > 0 &&
+    typeof e.text === 'string' &&
+    typeof e.savedAt === 'string' &&
+    !Number.isNaN(Date.parse(e.savedAt))
+  );
+}
+
+/** 업로드: 로컬 → 서버 (멱등 import). 검증 통과 항목만, 0개면 호출 생략. */
 export async function syncJournal(token: string): Promise<ImportResult> {
   const { entries } = useJournalStore.getState();
-  if (entries.length === 0) {
+
+  const uploadable = entries.filter(isUploadable);
+  const dropped = entries.length - uploadable.length;
+  if (dropped > 0) {
+    // 잘못된 항목은 로컬엔 그대로 두고 업로드에서만 제외(무증상 배치 실패 방지).
+    console.warn(`[sync] 업로드에서 잘못된 항목 ${dropped}개 제외(빈 단어/날짜 오류 등)`);
+  }
+  if (uploadable.length === 0) {
     return { imported: 0, updated: 0 };
   }
 
-  const payload: ImportEntry[] = entries.map((e) => ({
+  const payload: ImportEntry[] = uploadable.map((e) => ({
     clientId: e.id,
     word: e.word,
     text: e.text,
