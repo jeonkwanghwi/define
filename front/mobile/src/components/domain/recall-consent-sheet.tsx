@@ -39,7 +39,7 @@ export function RecallConsentSheet({ visible, onConsent, onClose }: RecallConsen
           >
             <Icon name="past" size={40} color={theme.colors.point.p600} />
             <ThemedText variant="h3" style={{ marginTop: theme.spacing.s3 }}>
-              과거의 나와 대화하기
+              회상 시작하기
             </ThemedText>
             <ThemedText
               variant="body"

@@ -33,7 +33,7 @@ type ApiError = { status: number; message: string };
 function mapError(e: unknown): string {
   const err = e as ApiError;
   if (err.status === 402) return `잉크 ${RECALL_COST}개가 필요해요 · 출석으로 모아보세요`;
-  if (err.status === 503) return '지금 과거의 나를 부를 수 없어요. 잠시 후 다시 시도해 주세요.';
+  if (err.status === 503) return '지금은 회상을 시작할 수 없어요. 잠시 후 다시 시도해 주세요.';
   if (err.status === 403) return '회상을 시작하려면 동의가 필요해요. 이전 화면에서 다시 시작해 주세요.';
   return '전송하지 못했어요. 다시 시도해 주세요.';
 }
@@ -122,7 +122,7 @@ export default function RecallChatScreen() {
   return (
     <ThemedView bg="paper" style={{ flex: 1 }}>
       <ScreenHeader
-        title={params.label ?? '과거의 나'}
+        title={params.label ?? '회상'}
         subtitle="생성형 AI 활용"
         bordered
         right={<InkBalanceChip balance={balance} />}
@@ -171,7 +171,7 @@ export default function RecallChatScreen() {
           <View style={styles.sendingRow}>
             <ActivityIndicator color={theme.colors.point.p600} />
             <ThemedText variant="caption" tone="placeholder" style={{ marginLeft: 8 }}>
-              과거의 나가 생각하는 중…
+              과거의 내가 생각하는 중…
             </ThemedText>
           </View>
         )}

@@ -91,14 +91,20 @@ async function runSync(
   token: string,
   set: (partial: Partial<AuthState>) => void,
 ): Promise<void> {
+  // 업로드 실패가 다운로드를 막지 않도록 분리한다. 로컬에 잘못된 항목이 하나 있어도
+  // 서버 단어장(다른 기기/과거) 복원은 되어야 한다. 둘 다 비치명적(멱등 재동기화가 복구).
   try {
     const res = await syncJournal(token);
     if (res.recordBonus) {
       useAuthStore.getState().setBalance(res.recordBonus.balance);
     }
+  } catch (e) {
+    console.warn('[auth] 업로드 실패 (다운로드는 계속 진행):', e);
+  }
+  try {
     await downloadJournal(token);
     set({ lastSyncedAt: new Date().toISOString() });
   } catch (e) {
-    console.warn('[auth] 동기화 실패 (다음 로그인에 재시도):', e);
+    console.warn('[auth] 다운로드 실패 (다음 로그인에 재시도):', e);
   }
 }

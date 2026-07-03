@@ -26,7 +26,7 @@ const TAB_ORDER: { name: string; label: string; icon: IconName; center?: boolean
   { name: 'plaza', label: '광장', icon: 'plaza' },
   { name: 'village', label: '마을', icon: 'village' },
   { name: 'index', label: '기록', icon: 'feather', center: true },
-  { name: 'past', label: '과거의 나', icon: 'past' },
+  { name: 'past', label: '회상', icon: 'past' },
   { name: 'journal', label: '단어장', icon: 'book' },
 ];
 

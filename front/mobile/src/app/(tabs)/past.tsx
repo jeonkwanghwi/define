@@ -38,7 +38,7 @@ export default function PastScreen() {
   return (
     <AuthGate
       icon="past"
-      title="과거의 나"
+      title="회상"
       description="과거의 정의로 '그때의 나'와 대화해요. 가입하면 만날 수 있어요."
     >
       <RecallHome />
@@ -71,7 +71,7 @@ function RecallHome() {
       <ThemedView bg="paper" style={styles.center}>
         <Icon name="lock" size={48} color={theme.colors.ink.placeholder} />
         <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
-          과거의 나를 만나려면
+          회상을 시작하려면
         </ThemedText>
         <ThemedText
           variant="body"
@@ -147,7 +147,7 @@ function RecallHome() {
   return (
     <ThemedView bg="paper" style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <ThemedText variant="h2">과거의 나</ThemedText>
+        <ThemedText variant="h2">회상</ThemedText>
         <ThemedText variant="caption" tone="placeholder" style={{ marginTop: 4 }}>
           이 기능은 생성형 AI를 활용해요
         </ThemedText>
@@ -262,7 +262,7 @@ function RecallHome() {
           <View style={styles.infoHead}>
             <Icon name="sparkle" size={16} color={theme.colors.point.p600} />
             <ThemedText variant="bodyMd" style={{ color: theme.colors.point.p600 }}>
-              과거의 나는 이렇게 만들어져요
+              회상은 이렇게 만들어져요
             </ThemedText>
           </View>
           <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
@@ -278,7 +278,7 @@ function RecallHome() {
           label={
             convoMode === 'question'
               ? `질문 받기 · ${RECALL_COST}잉크`
-              : `과거의 나 만나기 · ${RECALL_COST}잉크`
+              : `회상 시작하기 · ${RECALL_COST}잉크`
           }
           disabled={convoMode === 'free' && !canStart}
           onPress={() => {

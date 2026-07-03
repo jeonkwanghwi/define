@@ -49,6 +49,7 @@ export default function RecordScreen() {
   const addEntry = useJournalStore((s) => s.addEntry);
   const nickname = useSettingsStore((s) => s.nickname);
   const inkBalance = useAuthStore((s) => (s.token ? (s.user?.balance ?? 0) : null));
+  const isLoggedIn = useAuthStore((s) => s.token !== null);
 
   // 단어 풀과 현재 인덱스. 진입 시 랜덤 1개 선택.
   // 사용자가 커스텀 단어를 추가할 수 있으므로 mutable.
@@ -160,7 +161,34 @@ export default function RecordScreen() {
         >
           {/* ─── 0. 앱 헤더 — 워드마크 + 마이페이지 진입 (IA: 헤더 우상단) ─── */}
           <View style={styles.appHeader}>
-            <ThemedText style={styles.wordmark}>define</ThemedText>
+            <View style={styles.headerLeft}>
+              <ThemedText style={styles.wordmark}>define</ThemedText>
+              {/* 로그인 상태 신호등 — 로그아웃이면 빨간불(탭하면 로그인), 로그인이면 초록불. 강요 아님. */}
+              {isLoggedIn ? (
+                <View style={styles.authPill}>
+                  <View
+                    style={[
+                      styles.authDot,
+                      { backgroundColor: theme.mode === 'dark' ? '#4ABF8A' : '#2E9E6B' },
+                    ]}
+                  />
+                  <ThemedText variant="caption" tone="secondary">
+                    로그인됨
+                  </ThemedText>
+                </View>
+              ) : (
+                <PressableScale
+                  onPress={() => router.push('/auth')}
+                  hitSlop={6}
+                  style={styles.authPill}
+                >
+                  <View style={[styles.authDot, { backgroundColor: theme.colors.ruby.base }]} />
+                  <ThemedText variant="caption" tone="secondary">
+                    로그인 안됨
+                  </ThemedText>
+                </PressableScale>
+              )}
+            </View>
             <View style={styles.headerRight}>
               {inkBalance != null && <InkBalanceChip balance={inkBalance} />}
               {/* 기존 avatar Pressable 을 여기로 이동(그대로) */}
@@ -421,6 +449,21 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.5,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  authPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  authDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   avatarBtn: {
     width: 40,

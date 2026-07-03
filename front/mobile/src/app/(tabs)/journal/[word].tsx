@@ -13,8 +13,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInUp,
+  FadeOut,
+  LinearTransition,
+  useReducedMotion,
+} from 'react-native-reanimated';
 
+import { ChangeBanner } from '@/components/domain/change-banner';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { TimelineNode } from '@/components/domain/timeline-node';
 import { ActionSheet, ConfirmDialog } from '@/components/primitives';
@@ -33,6 +40,7 @@ export default function WordDetailScreen() {
   const updateEntry = useJournalStore((s) => s.updateEntry);
   const updateChangeNote = useJournalStore((s) => s.updateChangeNote);
   const removeEntry = useJournalStore((s) => s.removeEntry);
+  const reduceMotion = useReducedMotion();
 
   // 진행 중인 액션 — 한 entry에만 동시에 가능
   const [actionEntryId, setActionEntryId] = useState<string | null>(null);
@@ -106,6 +114,22 @@ export default function WordDetailScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
+        {/* ─── "생각이 변했어요" 배너 — 변화가 있을 때만. 리빌의 마지막 결론처럼 등장 ─── */}
+        {item.changed && item.changeNote ? (
+          <Animated.View
+            entering={
+              reduceMotion
+                ? undefined
+                : FadeIn.delay(Math.min(item.entries.length - 1, 6) * 55 + 100).duration(
+                    motion.duration.base,
+                  )
+            }
+            style={{ marginBottom: theme.spacing.s4 }}
+          >
+            <ChangeBanner note={item.changeNote} />
+          </Animated.View>
+        ) : null}
+
         {/* ─── 카운트 ─── */}
         <ThemedText
           variant="caption"
@@ -115,13 +139,19 @@ export default function WordDetailScreen() {
           {item.entries.length}번의 정의 · 시간순 · 길게 눌러 수정/삭제
         </ThemedText>
 
-        {/* ─── 타임라인 ─── */}
+        {/* ─── 타임라인 — 과거→현재(아래→위)로 차오르며 등장. 최신(맨 위)이 마지막에 안착 ─── */}
         <View>
           {item.entries.map((entry, i) => (
-            // 편집 진입/취소로 카드 높이가 바뀌거나 삭제될 때, 주변 노드가 툭 튀지 않고
-            // 부드럽게 재배치(layout)되고 삭제 노드는 페이드아웃(exiting)된다.
+            // entering: 아래→위 stagger(오래된 것부터). layout/exiting: 편집·삭제 시 부드러운 재배치·소멸.
             <Animated.View
               key={entry.id}
+              entering={
+                reduceMotion
+                  ? undefined
+                  : FadeInUp.delay(Math.min(item.entries.length - 1 - i, 6) * 55).duration(
+                      motion.duration.slow,
+                    )
+              }
               layout={LinearTransition.duration(motion.duration.base)}
               exiting={FadeOut.duration(motion.duration.fast)}
             >
