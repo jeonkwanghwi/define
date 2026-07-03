@@ -265,6 +265,12 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-07-03 — 스테이징 Railway 배포 (임시 · 종착은 AWS)
+- **무엇**: 친구 반응 보기용 스테이징을 **Railway**에 올림(전 체인 웹→API→DB→시드 동작 확인). 프론트 https://define-front-production.up.railway.app · API https://define-production.up.railway.app/api. 같은 프로젝트에 서비스 2개(back Root `back`+SQLite 볼륨 `/data`, front Root `front/mobile`). `API_BASE`→`EXPO_PUBLIC_API_URL` 환경변수화, 배포 설정은 각 `railway.json`(대시보드 덮어씀).
+- **밟은 함정**: lockfile↔package.json 동기화 / Railpack 기본 Node18→`.node-version=22`(Expo56은 20+) / 빌드 `CI` 빈값→`CI=1` / `PORT` 미주입→serve를 8081 고정. 콜드스타트 첫 요청 502 가능(곧 정상).
+- **⚠️ 다음(AWS 전환 시 재작업)**: 종착 인프라는 **AWS**. Railway는 임시라, AWS로 옮길 때 **환경설정 전면 재작업 필요** — `railway.json`/`.node-version` 등 Railway 전용 설정 폐기, AWS 배포 방식(App Runner/EC2 등)·DB(SQLite볼륨→RDS Postgres 유력)·CORS 도메인·시크릿 관리 다시 구성. `EXPO_PUBLIC_API_URL`만 새 주소로 바꾸면 프론트는 재사용 가능.
+- **함께 머지됨(참고)**: 모션 시스템(PR#17)·LLM 사용량 원장(PR#16)·UI/UX 폴리시(PR#15) 전부 main 반영.
+
 ### 2026-07-02 — 모션 시스템 상시 원칙 문서화(구현 착수 전)
 - **무엇**: §5에 "🌊 모션 시스템" 규칙 신설(표준 타이밍 180–250ms·ease-out, useNativeDriver 성능, PressableScale 누름 피드백, FadeIn 콘텐츠 등장, Stack 전환 통일, 시트/드롭다운, 톤 가드). PLANNING §2 "부드러움" 상시 원칙의 구현 지침.
 - **왜**: 사용자가 "전 상호작용에 항상 부드러움"을 요구 → 재사용 프리미티브를 세워 전역 적용하는 폴리시 패스로 진행 예정.
