@@ -265,6 +265,11 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-07-04 — 저장 순간 "잉크로 새기는" 시그니처 (SaveConfirmation 개편) ★
+- **무엇**: 저장 완료 오버레이를 체크 원 → **잉크 새김 연출**로 개편. warm paper 위에 깃펜(feather) → **단어가 잉크처럼 번져 안착**(opacity + scale 1.08→1) → **펜 획 밑줄 왼→오**(`scaleX`, `transformOrigin:left`) → "마음에 새겼어요". 겹친 시퀀스 ~0.9초, 자동 dismiss 1.8초. core `Animated` 유지, `useReducedMotion`(reanimated)으로 연출 스킵.
+- **왜**: 정의를 "새기는" 행위가 앱의 심장(종이+잉크 브랜드·재화도 "잉크"). **타임라인 리빌(보기) ↔ 잉크 새김(쓰기)** 로 정체성 양 축 완성. 매 저장마다 닿는 핵심 감촉.
+- **다음**: 실기기에서 밑줄 방향·타이밍 확인 후 필요 시 조정. (별개 후보: 품질 배치 — Button loading·TextField error·다크 대비·44px / 광장 highlights 브랜치 `feat/plaza-highlights` 팀 결정 대기)
+
 ### 2026-07-03 — 타임라인 리빌 2단계: 세로선 그리기 + 변화지점 dot 펄스
 - **무엇**: `TimelineNode`에 `revealDelay` prop 추가(부모 `[word]`가 노드별 등장 지연을 넘겨 동기화). 세로선을 `Animated.View`로 `scaleY 0→1`(`transformOrigin:'top'` · 노드 등장 +120ms 뒤 260ms) → 위(점)→아래로 "그려짐". 변화 노트가 있는 노드의 dot은 +220ms 뒤 `scale 1→1.35→1` 1회 펄스. Reanimated shared value + `withDelay`/`withSequence`.
 - **안전**: 기본값=완성 상태(선 scaleY 1·dot 1)라 reduced-motion이거나 애니 실패해도 정상 표시. `useReducedMotion`으로 연출 스킵.
