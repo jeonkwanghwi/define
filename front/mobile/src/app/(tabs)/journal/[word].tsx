@@ -13,6 +13,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
 
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { TimelineNode } from '@/components/domain/timeline-node';
@@ -20,7 +21,7 @@ import { ActionSheet, ConfirmDialog } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useJournalStore, useJournalWord } from '@/store/journal-store';
-import { useTheme } from '@/theme';
+import { motion, useTheme } from '@/theme';
 
 export default function WordDetailScreen() {
   const theme = useTheme();
@@ -117,19 +118,26 @@ export default function WordDetailScreen() {
         {/* ─── 타임라인 ─── */}
         <View>
           {item.entries.map((entry, i) => (
-            <TimelineNode
+            // 편집 진입/취소로 카드 높이가 바뀌거나 삭제될 때, 주변 노드가 툭 튀지 않고
+            // 부드럽게 재배치(layout)되고 삭제 노드는 페이드아웃(exiting)된다.
+            <Animated.View
               key={entry.id}
-              entry={entry}
-              isNow={i === 0}
-              isLast={i === item.entries.length - 1}
-              editing={editingId === entry.id}
-              editingNote={editingNoteId === entry.id}
-              onLongPress={() => setActionEntryId(entry.id)}
-              onSaveEdit={(t) => saveEdit(entry.id, t)}
-              onCancelEdit={cancelEdit}
-              onSaveNote={(n) => saveNote(entry.id, n)}
-              onCancelNote={cancelEditNote}
-            />
+              layout={LinearTransition.duration(motion.duration.base)}
+              exiting={FadeOut.duration(motion.duration.fast)}
+            >
+              <TimelineNode
+                entry={entry}
+                isNow={i === 0}
+                isLast={i === item.entries.length - 1}
+                editing={editingId === entry.id}
+                editingNote={editingNoteId === entry.id}
+                onLongPress={() => setActionEntryId(entry.id)}
+                onSaveEdit={(t) => saveEdit(entry.id, t)}
+                onCancelEdit={cancelEdit}
+                onSaveNote={(n) => saveNote(entry.id, n)}
+                onCancelNote={cancelEditNote}
+              />
+            </Animated.View>
           ))}
         </View>
       </ScrollView>

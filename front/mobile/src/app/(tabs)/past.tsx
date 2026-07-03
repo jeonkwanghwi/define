@@ -3,8 +3,15 @@
  * 가입 필요 탭(AuthGate). 채팅은 별도 풀스크린 라우트 /recall-chat.
  */
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  ScrollView,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { AuthGate } from '@/components/domain/auth-gate';
 import { RecallConsentSheet } from '@/components/domain/recall-consent-sheet';
@@ -23,7 +30,7 @@ import {
 import { recallConsent } from '@/services/recall-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStore } from '@/store/journal-store';
-import { useTheme } from '@/theme';
+import { motion, typography, useTheme, type Theme } from '@/theme';
 
 const UNLOCK_WORDS = 20;
 
@@ -151,24 +158,23 @@ function RecallHome() {
           {(['free', 'question'] as const).map((cm) => {
             const active = convoMode === cm;
             return (
-              <PressableScale
+              <AnimatedPill
                 key={cm}
+                grow
+                active={active}
                 onPress={() => setConvoMode(cm)}
-                style={[
-                  styles.segItem,
-                  {
-                    backgroundColor: active ? theme.colors.point.p600 : theme.colors.surface.base,
-                    borderColor: theme.colors.line.base,
-                  },
-                ]}
+                style={styles.segItem}
+                colors={{
+                  bgOff: theme.colors.surface.base,
+                  bgOn: theme.colors.point.p600,
+                  borderOff: theme.colors.line.base,
+                  borderOn: theme.colors.line.base,
+                  textOff: theme.colors.ink.secondary,
+                  textOn: theme.colors.paper.base,
+                }}
               >
-                <ThemedText
-                  variant="bodyMd"
-                  style={{ color: active ? theme.colors.paper.base : theme.colors.ink.secondary }}
-                >
-                  {cm === 'free' ? '자유롭게 대화' : '질문 받기'}
-                </ThemedText>
-              </PressableScale>
+                {cm === 'free' ? '자유롭게 대화' : '질문 받기'}
+              </AnimatedPill>
             );
           })}
         </View>
@@ -187,28 +193,23 @@ function RecallHome() {
               {(['age', 'year'] as const).map((m) => {
                 const active = mode === m;
                 return (
-                  <PressableScale
+                  <AnimatedPill
                     key={m}
+                    grow
+                    active={active}
                     onPress={() => setMode(m)}
-                    style={[
-                      styles.segItem,
-                      {
-                        backgroundColor: active
-                          ? theme.colors.point.p600
-                          : theme.colors.surface.base,
-                        borderColor: theme.colors.line.base,
-                      },
-                    ]}
+                    style={styles.segItem}
+                    colors={{
+                      bgOff: theme.colors.surface.base,
+                      bgOn: theme.colors.point.p600,
+                      borderOff: theme.colors.line.base,
+                      borderOn: theme.colors.line.base,
+                      textOff: theme.colors.ink.secondary,
+                      textOn: theme.colors.paper.base,
+                    }}
                   >
-                    <ThemedText
-                      variant="bodyMd"
-                      style={{
-                        color: active ? theme.colors.paper.base : theme.colors.ink.secondary,
-                      }}
-                    >
-                      {m === 'age' ? '나이로' : '연도로'}
-                    </ThemedText>
-                  </PressableScale>
+                    {m === 'age' ? '나이로' : '연도로'}
+                  </AnimatedPill>
                 );
               })}
             </View>
@@ -221,29 +222,29 @@ function RecallHome() {
                   : ages.map((a) => {
                       const active = selAge === a;
                       return (
-                        <PressableScale
+                        <AnimatedPill
                           key={a}
+                          active={active}
                           onPress={() => setSelAge(a)}
-                          style={[styles.chip, { borderColor: active ? theme.colors.point.p600 : theme.colors.line.base, backgroundColor: active ? theme.colors.point.p050 : theme.colors.surface.base }]}
+                          style={styles.chip}
+                          colors={chipColors(theme)}
                         >
-                          <ThemedText variant="bodyMd" style={{ color: active ? theme.colors.point.p700 : theme.colors.ink.primary }}>
-                            {a}살
-                          </ThemedText>
-                        </PressableScale>
+                          {`${a}살`}
+                        </AnimatedPill>
                       );
                     })
                 : years.map((y) => {
                     const active = selYear === y;
                     return (
-                      <PressableScale
+                      <AnimatedPill
                         key={y}
+                        active={active}
                         onPress={() => setSelYear(y)}
-                        style={[styles.chip, { borderColor: active ? theme.colors.point.p600 : theme.colors.line.base, backgroundColor: active ? theme.colors.point.p050 : theme.colors.surface.base }]}
+                        style={styles.chip}
+                        colors={chipColors(theme)}
                       >
-                        <ThemedText variant="bodyMd" style={{ color: active ? theme.colors.point.p700 : theme.colors.ink.primary }}>
-                          {y}년
-                        </ThemedText>
-                      </PressableScale>
+                        {`${y}년`}
+                      </AnimatedPill>
                     );
                   })}
             </View>
@@ -320,11 +321,78 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
+/**
+ * 선택 상태(active)가 바뀔 때 배경·테두리·글자색이 툭 바뀌지 않고 부드럽게 전환되는 알약.
+ * PressableScale로 눌림 피드백은 유지하고, 색 전환만 Animated로 보간(fast, ease-out).
+ * grow=true면 세그먼트처럼 가로를 꽉 채우고, 기본은 칩처럼 내용 크기.
+ */
+type PillColors = {
+  bgOff: string;
+  bgOn: string;
+  borderOff: string;
+  borderOn: string;
+  textOff: string;
+  textOn: string;
+};
+
+/** 나이/연도 칩 색 세트 — 선택 시 옅은 point 배경 + point 테두리. */
+function chipColors(theme: Theme): PillColors {
+  return {
+    bgOff: theme.colors.surface.base,
+    bgOn: theme.colors.point.p050,
+    borderOff: theme.colors.line.base,
+    borderOn: theme.colors.point.p600,
+    textOff: theme.colors.ink.primary,
+    textOn: theme.colors.point.p700,
+  };
+}
+
+function AnimatedPill({
+  active,
+  onPress,
+  style,
+  colors,
+  grow,
+  children,
+}: {
+  active: boolean;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+  colors: PillColors;
+  grow?: boolean;
+  children: string;
+}) {
+  const p = useRef(new Animated.Value(active ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(p, {
+      toValue: active ? 1 : 0,
+      duration: motion.duration.fast,
+      easing: motion.easing.standard,
+      useNativeDriver: false, // 색 보간은 네이티브 드라이버 미지원
+    }).start();
+  }, [active, p]);
+
+  const backgroundColor = p.interpolate({ inputRange: [0, 1], outputRange: [colors.bgOff, colors.bgOn] });
+  const borderColor = p.interpolate({ inputRange: [0, 1], outputRange: [colors.borderOff, colors.borderOn] });
+  const color = p.interpolate({ inputRange: [0, 1], outputRange: [colors.textOff, colors.textOn] });
+
+  return (
+    <PressableScale onPress={onPress} style={grow ? styles.grow : undefined}>
+      <Animated.View style={[style, { backgroundColor, borderColor }]}>
+        <Animated.Text style={[typography.bodyMd, { color, textAlign: 'center' }]}>
+          {children}
+        </Animated.Text>
+      </Animated.View>
+    </PressableScale>
+  );
+}
+
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
   segment: { flexDirection: 'row', gap: 8 },
-  segItem: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 999, borderWidth: 1 },
+  grow: { flex: 1 },
+  segItem: { alignItems: 'center', paddingVertical: 10, borderRadius: 999, borderWidth: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
   infoHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },

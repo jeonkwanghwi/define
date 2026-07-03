@@ -265,6 +265,13 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-07-03 — "항상 부드러움" 누락분 보강 + auth 전환 UX + 회상 스크롤/로그인 버그 수정 ★
+- **무엇**: (1) **회상 채팅 자동 스크롤** — `FlatList` ref+`onContentSizeChange`로 새 메시지마다 `scrollToEnd({animated})`. 실제 원인은 리스트에 `flex:1`이 없어 스크롤 뷰포트가 아니었던 것(페이지가 스크롤됨) → `flex:1` 추가로 해결. (2) **Past 세그먼트/칩** — 선택 전환이 툭 바뀌던 것을 `AnimatedPill`(배경·테두리·글자색 보간, fast/ease-out)로 부드럽게. 세그먼트는 배경·글자색 동시 크로스페이드로 대비 깜빡임 제거. (3) **저널 편집/삭제** — 각 타임라인 노드를 Reanimated `Animated.View`(`layout=LinearTransition`+`exiting=FadeOut`)로 감싸 편집 진입/삭제 시 재배치·소멸이 부드럽게. (4) **auth 로그인↔회원가입** — 상단 `[로그인|회원가입]` 슬라이딩 세그먼트 신설(현재 모드 항상 명시)+폼 방향 슬라이드·페이드 전환, 애매하던 하단 텍스트 링크 제거.
+- **버그 수정**: 로그인 성공 후 `router.back()`이 스택 없을 때(웹 새로고침·딥링크) `GO_BACK not handled` 경고+멈춤 → `canGoBack()` 분기(없으면 홈 replace). `handleBack`과 동일 패턴.
+- **왜**: 2026-07-02 UI/UX 폴리시 후속 — "전 상호작용 스르륵" 원칙에서 빠져 있던 지점들 + 로그인 진입 실패 체감 이슈.
+- **다음**: 시그니처 효과 **"생각의 변화 타임라인 리빌"**(단어 상세 진입 시 과거→현재로 선이 그려지며 변화 지점 강조 + 방치된 `ChangeBanner` 연결) 착수 예정. 이때 reduced-motion 전역 훅도 함께. 이후 시스템 결함 배치(Button loading·TextField error·다크 대비·sm 44px). 실기기 모션 확인은 진행 중.
+- **참고**: 로컬 웹 실행 헬퍼 `dev-web.sh`(:3000+:8081 정리→기동, Ctrl+C 동반 종료)는 `dev.sh`처럼 **untracked 로컬 파일**로 둠(커밋 안 함). tsc 클린.
+
 ### 2026-07-03 — 스테이징 Railway 배포 (임시 · 종착은 AWS)
 - **무엇**: 친구 반응 보기용 스테이징을 **Railway**에 올림(전 체인 웹→API→DB→시드 동작 확인). 프론트 https://define-front-production.up.railway.app · API https://define-production.up.railway.app/api. 같은 프로젝트에 서비스 2개(back Root `back`+SQLite 볼륨 `/data`, front Root `front/mobile`). `API_BASE`→`EXPO_PUBLIC_API_URL` 환경변수화, 배포 설정은 각 `railway.json`(대시보드 덮어씀).
 - **밟은 함정**: lockfile↔package.json 동기화 / Railpack 기본 Node18→`.node-version=22`(Expo56은 20+) / 빌드 `CI` 빈값→`CI=1` / `PORT` 미주입→serve를 8081 고정. 콜드스타트 첫 요청 502 가능(곧 정상).

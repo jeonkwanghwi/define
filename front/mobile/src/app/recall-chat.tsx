@@ -62,6 +62,7 @@ export default function RecallChatScreen() {
   const [error, setError] = useState<string | null>(null);
   const [redefineOpen, setRedefineOpen] = useState(false);
   const startedRef = useRef(false); // 첫 요청 = 새 대화(차감)
+  const listRef = useRef<FlatList<RecallMessage>>(null);
 
   const filter: RecallFilter = params.age
     ? { age: Number(params.age) }
@@ -129,9 +130,15 @@ export default function RecallChatScreen() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
+          ref={listRef}
+          // flex:1로 리스트 자체가 스크롤 뷰포트가 돼야 scrollToEnd가 먹는다.
+          // (없으면 리스트가 내용만큼 늘어나 페이지가 스크롤되고, scrollToEnd는 무효)
+          style={styles.fill}
           data={messages}
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={styles.list}
+          // 새 메시지로 콘텐츠가 길어질 때마다 최신 말풍선까지 스르륵 스크롤(항상 부드럽게).
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           renderItem={({ item }) => {
             const bubble = (
               <View
@@ -220,6 +227,7 @@ export default function RecallChatScreen() {
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
   list: { padding: 16, gap: 10 },
   bubble: { maxWidth: '82%', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18 },
   sendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingBottom: 8 },
