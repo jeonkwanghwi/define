@@ -26,6 +26,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { CustomWordSheet } from '@/components/domain/custom-word-sheet';
 import { DateSheet } from '@/components/domain/date-sheet';
@@ -68,9 +69,11 @@ export default function RecordScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmedWord, setConfirmedWord] = useState('');
 
-  // ─── Hero 단어 swap 트랜지션 (UX: 즉시 변경 X — 짧은 fade + translateY) ───
+  // ─── Hero 단어 swap 트랜지션 — "차분히 떠오름": 이전 단어는 가라앉고, 새 단어가 아래에서 무게감 있게 안착 ───
   const heroOpacity = useRef(new Animated.Value(1)).current;
   const heroTranslateY = useRef(new Animated.Value(0)).current;
+  const heroScale = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReducedMotion();
 
   /**
    * 단어를 부드럽게 바꾸는 공통 함수.
@@ -80,21 +83,38 @@ export default function RecordScreen() {
    */
   const swapTo = useCallback(
     (nextIdx: number, poolUpdate?: (prev: string[]) => string[]) => {
-      Animated.parallel([
-        Animated.timing(heroOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
-        Animated.timing(heroTranslateY, { toValue: 8, duration: 180, useNativeDriver: true }),
-      ]).start(() => {
+      const applyChange = () => {
         if (poolUpdate) setPool(poolUpdate);
         setWordIdx(nextIdx);
         // 단어가 바뀌면 이전 단어용 변화 메모는 의미 없으므로 초기화
         setChangeNote('');
+      };
+
+      if (reduceMotion) {
+        applyChange();
+        heroOpacity.setValue(1);
+        heroTranslateY.setValue(0);
+        heroScale.setValue(1);
+        return;
+      }
+
+      // 이전 단어: 아래로 가라앉으며 사라짐.
+      Animated.parallel([
+        Animated.timing(heroOpacity, { toValue: 0, duration: 160, useNativeDriver: true }),
+        Animated.timing(heroTranslateY, { toValue: 12, duration: 160, useNativeDriver: true }),
+      ]).start(() => {
+        applyChange();
+        // 새 단어: 아래에서 무게감 있게 떠올라 spring으로 안착(차분한 착지, 오버슛 최소).
+        heroTranslateY.setValue(22);
+        heroScale.setValue(0.96);
         Animated.parallel([
-          Animated.timing(heroOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-          Animated.timing(heroTranslateY, { toValue: 0, duration: 200, useNativeDriver: true }),
+          Animated.timing(heroOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+          Animated.spring(heroTranslateY, { toValue: 0, friction: 8, tension: 55, useNativeDriver: true }),
+          Animated.spring(heroScale, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }),
         ]).start();
       });
     },
-    [heroOpacity, heroTranslateY],
+    [heroOpacity, heroTranslateY, heroScale, reduceMotion],
   );
 
   const word = pool[wordIdx];
@@ -269,7 +289,10 @@ export default function RecordScreen() {
               style={[
                 styles.heroWordRow,
                 { marginTop: theme.spacing.s3 },
-                { opacity: heroOpacity, transform: [{ translateY: heroTranslateY }] },
+                {
+                  opacity: heroOpacity,
+                  transform: [{ translateY: heroTranslateY }, { scale: heroScale }],
+                },
               ]}
             >
               {/* 단어 자체 — 가장 큰 폰트로 강조. display 토큰을 약간 키워 사용 */}
