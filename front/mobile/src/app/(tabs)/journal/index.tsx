@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { AppHeader } from '@/components/domain/app-header';
 import { WordRow } from '@/components/domain/word-row';
 import { FadeIn } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -72,6 +73,7 @@ export default function JournalListScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
+        <AppHeader />
         {/* ─── 1. 헤더 ─── */}
         <View style={styles.headerRow}>
           <ThemedText variant="h1">나만의 단어장</ThemedText>

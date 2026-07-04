@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
 import { FadeIn, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -59,6 +60,7 @@ function PlazaWordList() {
   return (
     <ThemedView bg="paper" style={styles.root}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <AppHeader />
         <ThemedText variant="h1">광장</ThemedText>
         <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
           남들은 이 단어를 어떻게 정의했을까요

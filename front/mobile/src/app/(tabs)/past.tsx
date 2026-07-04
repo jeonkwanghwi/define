@@ -13,6 +13,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
 import { RecallConsentSheet } from '@/components/domain/recall-consent-sheet';
 import { Button, Card, PressableScale } from '@/components/primitives';
@@ -147,6 +148,7 @@ function RecallHome() {
   return (
     <ThemedView bg="paper" style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <AppHeader />
         <ThemedText variant="h2">회상</ThemedText>
         <ThemedText variant="caption" tone="placeholder" style={{ marginTop: 4 }}>
           이 기능은 생성형 AI를 활용해요

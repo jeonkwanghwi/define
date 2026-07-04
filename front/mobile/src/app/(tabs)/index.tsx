@@ -14,7 +14,6 @@
  *   - 저장 완료 마이크로 인터랙션 + 루비 적립 (현재는 단순 alert)
  *   - 실제 단어장 저장 (현재는 mock — 상태 초기화만)
  */
-import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -28,9 +27,9 @@ import {
 } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
+import { AppHeader } from '@/components/domain/app-header';
 import { CustomWordSheet } from '@/components/domain/custom-word-sheet';
 import { DateSheet } from '@/components/domain/date-sheet';
-import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { SaveConfirmation } from '@/components/domain/save-confirmation';
 import { Button, Card, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -39,18 +38,12 @@ import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
 import { formatKoreanDate, isSameDay } from '@/lib/format-date';
 import { topicSuffix } from '@/lib/korean';
-import { useAuthStore } from '@/store/auth-store';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
-import { useSettingsStore } from '@/store/settings-store';
 import { controlPresets, useTheme } from '@/theme';
 
 export default function RecordScreen() {
   const theme = useTheme();
-  const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
-  const nickname = useSettingsStore((s) => s.nickname);
-  const inkBalance = useAuthStore((s) => (s.token ? (s.user?.balance ?? 0) : null));
-  const isLoggedIn = useAuthStore((s) => s.token !== null);
 
   // 단어 풀과 현재 인덱스. 진입 시 랜덤 1개 선택.
   // 사용자가 커스텀 단어를 추가할 수 있으므로 mutable.
@@ -179,63 +172,8 @@ export default function RecordScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ─── 0. 앱 헤더 — 워드마크 + 마이페이지 진입 (IA: 헤더 우상단) ─── */}
-          <View style={styles.appHeader}>
-            <View style={styles.headerLeft}>
-              <ThemedText style={styles.wordmark}>define</ThemedText>
-              {/* 로그인 상태 신호등 — 로그아웃이면 빨간불(탭하면 로그인), 로그인이면 초록불. 강요 아님. */}
-              {isLoggedIn ? (
-                <View style={styles.authPill}>
-                  <View
-                    style={[
-                      styles.authDot,
-                      { backgroundColor: theme.mode === 'dark' ? '#4ABF8A' : '#2E9E6B' },
-                    ]}
-                  />
-                  <ThemedText variant="caption" tone="secondary">
-                    로그인됨
-                  </ThemedText>
-                </View>
-              ) : (
-                <PressableScale
-                  onPress={() => router.push('/auth')}
-                  hitSlop={6}
-                  style={styles.authPill}
-                >
-                  <View style={[styles.authDot, { backgroundColor: theme.colors.ruby.base }]} />
-                  <ThemedText variant="caption" tone="secondary">
-                    로그인 안됨
-                  </ThemedText>
-                </PressableScale>
-              )}
-            </View>
-            <View style={styles.headerRight}>
-              {inkBalance != null && <InkBalanceChip balance={inkBalance} />}
-              {/* 기존 avatar Pressable 을 여기로 이동(그대로) */}
-              <PressableScale
-                onPress={() => router.push('/mypage')}
-                hitSlop={8}
-                style={[
-                  styles.avatarBtn,
-                  {
-                    backgroundColor: theme.colors.surface.base,
-                    borderColor: theme.colors.line.base,
-                  },
-                ]}
-              >
-                {nickname.length > 0 ? (
-                  <ThemedText
-                    variant="bodyMd"
-                    style={{ color: theme.colors.point.p600, fontWeight: '700' }}
-                  >
-                    {nickname[0]}
-                  </ThemedText>
-                ) : (
-                  <Icon name="user" size={19} color={theme.colors.ink.secondary} />
-                )}
-              </PressableScale>
-            </View>
-          </View>
+          {/* ─── 0. 앱 헤더 (탭 공통) ─── */}
+          <AppHeader />
 
           {/* ─── 1. 날짜 칩 ─── */}
           <PressableScale onPress={openDatePicker} style={styles.dateChipWrap}>
@@ -462,45 +400,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
 
-  appHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  wordmark: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  authPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  authDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  avatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   dateChipWrap: { alignItems: 'center' },
   dateChip: {
     flexDirection: 'row',

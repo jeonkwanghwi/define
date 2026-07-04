@@ -37,6 +37,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // 좌우 슬라이드(책장 넘김 느낌). 헤더가 화면 안에 있어 같이 넘어가지만,
+        // 모든 탭에서 동일해 "러닝 헤더"처럼 자연스럽다. (완전 고정하려면 상세에 바 2줄)
         animation: 'shift',
         tabBarActiveTintColor: theme.colors.point.p600,
         tabBarInactiveTintColor: theme.colors.ink.placeholder,
