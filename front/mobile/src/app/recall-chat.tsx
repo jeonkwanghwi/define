@@ -98,6 +98,8 @@ export default function RecallChatScreen() {
     setInput('');
     setSending(true);
     setError(null);
+    // 내가 보낸 메시지도 즉시 맨 아래로 — "생각하는 중"이 동시에 뜨며 어긋나지 않게 보정.
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
     try {
       const res = await recallChat(token, {
         filter,
