@@ -83,7 +83,10 @@ export default function RecallChatScreen() {
         startedRef.current = false; // 실패 → 재시도 여지
         setError(mapError(e));
       })
-      .finally(() => setSending(false));
+      .finally(() => {
+        setSending(false);
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 120);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -112,12 +115,19 @@ export default function RecallChatScreen() {
       setError(mapError(e));
     } finally {
       setSending(false);
+      // "생각하는 중" 표시가 사라지며 레이아웃이 바뀌어 onContentSizeChange 스크롤이
+      // 중간에 어긋날 수 있음 → 정착 후 한 번 더 맨 아래로(긴 답장도 끝까지 보이게).
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 120);
     }
   };
 
   const handleRedefine = (text: string) => {
     if (focusWord) addEntry(focusWord, text);
   };
+
+  // 과거의 나 말풍선 = 빛바랜 종이(sepia) 톤.
+  const sepiaBg = theme.mode === 'dark' ? '#332C22' : '#EFE4CF';
+  const sepiaBorder = theme.mode === 'dark' ? '#463C2C' : '#E4D5BB';
 
   return (
     <ThemedView bg="paper" style={{ flex: 1 }}>
@@ -140,25 +150,31 @@ export default function RecallChatScreen() {
           // 새 메시지로 콘텐츠가 길어질 때마다 최신 말풍선까지 스르륵 스크롤(항상 부드럽게).
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           renderItem={({ item }) => {
+            const isUser = item.role === 'user';
             const bubble = (
               <View
                 style={[
                   styles.bubble,
-                  item.role === 'user'
+                  isUser
                     ? { alignSelf: 'flex-end', backgroundColor: theme.colors.point.p600 }
-                    : { alignSelf: 'flex-start', backgroundColor: theme.colors.surface.nested },
+                    : {
+                        alignSelf: 'flex-start',
+                        backgroundColor: sepiaBg,
+                        borderColor: sepiaBorder,
+                        borderWidth: 1,
+                      },
                 ]}
               >
                 <ThemedText
                   variant="body"
-                  style={{ color: item.role === 'user' ? theme.colors.paper.base : theme.colors.ink.primary }}
+                  style={{ color: isUser ? theme.colors.paper.base : theme.colors.ink.primary }}
                 >
                   {item.content}
                 </ThemedText>
               </View>
             );
             // 과거의 나(assistant) 답변은 통째로 스르륵 등장. 내가 친 말(user)은 즉시.
-            return item.role === 'assistant' ? <FadeIn>{bubble}</FadeIn> : bubble;
+            return isUser ? bubble : <FadeIn>{bubble}</FadeIn>;
           }}
           ListEmptyComponent={
             <ThemedText variant="body" tone="placeholder" style={{ textAlign: 'center', marginTop: 40 }}>
