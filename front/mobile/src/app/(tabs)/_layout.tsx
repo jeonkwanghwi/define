@@ -15,17 +15,17 @@
  * 중앙 강조(칩 형태)는 Task #6 이후 별도 단계에서 추가 예정. 지금은 표준 탭바.
  */
 import { Tabs } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet } from 'react-native';
 
-import { RecordTabChip } from '@/components/domain/record-tab-chip';
 import { Icon, type IconName } from '@/icons';
 import { useTheme } from '@/theme';
 
-// 한 곳에서 탭 설정 관리.
-// center=true인 탭은 평이한 아이콘 대신 chip 강조 (현재는 record 한 개).
-const TAB_ORDER: { name: string; label: string; icon: IconName; center?: boolean }[] = [
+// 한 곳에서 탭 설정 관리. 5개 탭 모두 동일 규칙 — 선택 시 진한 알약, 비선택 시 아이콘만.
+const TAB_ORDER: { name: string; label: string; icon: IconName }[] = [
   { name: 'plaza', label: '광장', icon: 'plaza' },
   { name: 'village', label: '마을', icon: 'village' },
-  { name: 'index', label: '기록', icon: 'feather', center: true },
+  { name: 'index', label: '기록', icon: 'feather' },
   { name: 'past', label: '회상', icon: 'past' },
   { name: 'journal', label: '단어장', icon: 'book' },
 ];
@@ -68,14 +68,76 @@ export default function TabsLayout() {
             // 중앙 탭은 chip 컨테이너로 강조. 나머지는 평범한 아이콘.
             // color/size는 React Navigation이 자동 주입(active/inactive 색 분기).
             // color는 ColorValue(string | OpaqueColorValue)지만 실제로는 항상 string이라 캐스트.
-            tabBarIcon: tab.center
-              ? ({ focused }) => <RecordTabChip focused={focused} />
-              : ({ color, size }) => (
-                  <Icon name={tab.icon} size={size} color={color as string} />
-                ),
+            tabBarIcon: ({ focused }) => <TabIcon name={tab.icon} focused={focused} />,
           }}
         />
       ))}
     </Tabs>
   );
 }
+
+/**
+ * TabIcon — 비중앙 탭 아이콘 + 활성 시 옅은 알약(p100) 배경.
+ * 색만 바뀌던 활성 표시를 중앙 칩과 같은 "칩" 언어로 또렷하게.
+ * 배경만 페이드(아이콘은 불투명 유지), footprint는 활성/비활성 동일해 탭이 안 흔들림.
+ */
+/** #RRGGBB → rgba 문자열. 알약 배경을 투명→불투명으로 부드럽게 보간할 때 사용. */
+function withAlpha(hex: string, a: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+/**
+ * TabIcon — 5개 탭 공통. 선택 시 진한 p600 알약 + 흰 아이콘, 비선택 시 배경 없이 회색 아이콘만.
+ * 배경(투명→p600)과 아이콘 크로스페이드(회색↔흰색)를 t 하나로 동기화해 깜빡임이 없다.
+ * 알약 배경은 컨테이너에 직접 칠해 항상 아이콘 뒤(웹의 absolute 오버셋 문제 회피).
+ */
+function TabIcon({ name, focused }: { name: IconName; focused: boolean }) {
+  const theme = useTheme();
+  const t = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(t, { toValue: focused ? 1 : 0, duration: 180, useNativeDriver: false }).start();
+  }, [focused, t]);
+
+  const backgroundColor = t.interpolate({
+    inputRange: [0, 1],
+    outputRange: [withAlpha(theme.colors.point.p600, 0), withAlpha(theme.colors.point.p600, 1)],
+  });
+  const grayOpacity = t.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+
+  return (
+    <Animated.View style={[styles.tabPill, { backgroundColor }]}>
+      {/* 비선택 회색 아이콘 — 아래 레이어 */}
+      <Animated.View style={{ opacity: grayOpacity }}>
+        <Icon name={name} size={22} color={theme.colors.ink.placeholder} />
+      </Animated.View>
+      {/* 선택 흰색 아이콘 — 위에 겹쳐 배경과 함께 페이드인 */}
+      <Animated.View style={[styles.iconLayer, { opacity: t }]}>
+        <Icon name={name} size={22} color="#FFFFFF" />
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  tabPill: {
+    width: 46,
+    height: 30,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  iconLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

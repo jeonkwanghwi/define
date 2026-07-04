@@ -20,10 +20,10 @@ import { useTheme } from '@/theme';
 
 export type IconName =
   // 탭바 — 5개 메인 탭
-  | 'plaza' // 광장 (compass)
+  | 'plaza' // 광장 (사람들)
   | 'mood' // 회고/구상중 (sparkle/seed)
   | 'village' // 마을 (좌2 탭, 집)
-  | 'feather' // 기록 (깃펜) — 중앙 메인 탭
+  | 'feather' // 기록 (만년필) — 중앙 메인 탭
   | 'past' // 과거의 나 (시계 + 화살표)
   | 'book' // 단어장
   // 기록 화면 액션
@@ -100,10 +100,15 @@ type StrokeProps = {
 function renderIcon(name: IconName, p: StrokeProps) {
   switch (name) {
     case 'plaza':
+      // 광장 — 여러 사람(가운데 + 양옆 작은 둘). "각자의 정의가 오가는 곳".
       return (
         <>
-          <Circle cx="12" cy="12" r="9" {...p} />
-          <Path d="M15.5 8.5l-2 5-5 2 2-5z" {...p} />
+          <Circle cx="12" cy="8.2" r="2.7" {...p} />
+          <Path d="M7.8 17.6a4.2 4.2 0 0 1 8.4 0" {...p} />
+          <Circle cx="5.2" cy="10.2" r="1.9" {...p} />
+          <Path d="M2.4 17.6a3 3 0 0 1 4.1-1.8" {...p} />
+          <Circle cx="18.8" cy="10.2" r="1.9" {...p} />
+          <Path d="M21.6 17.6a3 3 0 0 0-4.1-1.8" {...p} />
         </>
       );
     case 'mood':
@@ -114,8 +119,14 @@ function renderIcon(name: IconName, p: StrokeProps) {
         </>
       );
     case 'feather':
+      // 만년필 — 대각선 몸통 + 촉 + 캡밴드 + 촉 슬릿.
       return (
-        <Path d="M20 5c-4 0-8 1.5-11 6-1.2 1.8-2 4-2.5 6.5M20 5c0 4-1.5 8-6 11-1.8 1.2-4 2-6.5 2.5M20 5l-9 9M11 14H7m0 0v4" {...p} />
+        <>
+          <Path d="M16.4 4.2 19.8 7.6 10.6 16.8 7.2 13.4Z" {...p} />
+          <Path d="M7.2 13.4 10.6 16.8 5 19Z" {...p} />
+          <Path d="M14.2 6.4 17.6 9.8" {...p} />
+          <Path d="M8.6 14.6 7.4 15.8" {...p} />
+        </>
       );
     case 'village':
       return (
