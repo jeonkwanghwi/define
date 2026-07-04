@@ -7,6 +7,7 @@ import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   PlazaLikeResponse,
+  PlazaStatsResponse,
   PlazaWordDetailResponse,
   PlazaWordResponse,
 } from './dto/plaza.response';
@@ -17,10 +18,16 @@ import { PlazaService } from './plaza.service';
 export class PlazaController {
   constructor(private readonly plaza: PlazaService) {}
 
-  /** GET /api/plaza/words — 정의 있는 단어 목록. */
+  /** GET /api/plaza/words — 정의 있는 단어 목록(대표 정의 미리보기·활동순). */
   @Get('words')
   listWords(): Promise<PlazaWordResponse[]> {
     return this.plaza.listWords();
+  }
+
+  /** GET /api/plaza/stats — 광장 상단 "이번 주" 통계. */
+  @Get('stats')
+  getStats(@Req() req: { user: { userId: string } }): Promise<PlazaStatsResponse> {
+    return this.plaza.getStats(req.user.userId);
   }
 
   /** GET /api/plaza/words/:word — 한 단어의 정의들(내 정의 강조). */

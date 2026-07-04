@@ -4,7 +4,26 @@
  */
 import { apiRequest } from './api-client';
 
-export type PlazaWord = { word: string; count: number };
+export type PlazaPreview = {
+  id: string;
+  nickname: string; // 없으면 '익명'
+  text: string;
+  likeCount: number;
+};
+
+export type PlazaWord = {
+  word: string;
+  count: number;
+  previews: PlazaPreview[]; // 추천순(동률 최신순) 상위 2개
+};
+
+export type PlazaStats = {
+  weekDefinitions: number;
+  weekContributors: number;
+  myWeekLikesReceived: number;
+  topLikedWord: { word: string; likeCount: number } | null;
+  mostDefinedWord: { word: string; count: number } | null;
+};
 
 export type PlazaDefinition = {
   id: string;
@@ -24,6 +43,11 @@ export type PlazaWordDetail = {
 /** GET /api/plaza/words */
 export function getPlazaWords(token: string): Promise<PlazaWord[]> {
   return apiRequest<PlazaWord[]>('/plaza/words', { method: 'GET', token });
+}
+
+/** GET /api/plaza/stats — 광장 상단 "이번 주" 통계. */
+export function getPlazaStats(token: string): Promise<PlazaStats> {
+  return apiRequest<PlazaStats>('/plaza/stats', { method: 'GET', token });
 }
 
 /** GET /api/plaza/words/:word */

@@ -9,17 +9,36 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 
 import {
   PlazaLikeResponse,
+  PlazaStatsResponse,
   PlazaWordDetailResponse,
   PlazaWordResponse,
 } from './dto/plaza.response';
 import { PlazaRepository } from './plaza.repository';
+
+/** 통계 "이번 주" = 최근 7일(롤링). */
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class PlazaService {
   constructor(private readonly repo: PlazaRepository) {}
 
   async listWords(): Promise<PlazaWordResponse[]> {
-    return this.repo.listWordsWithCounts();
+    const rows = await this.repo.listWordsWithCounts();
+    return rows.map((r) => ({
+      word: r.word,
+      count: r.count,
+      previews: r.previews.map((p) => ({
+        id: p.id,
+        nickname: p.nickname ?? '익명',
+        text: p.text,
+        likeCount: p.likeCount,
+      })),
+    }));
+  }
+
+  async getStats(userId: string): Promise<PlazaStatsResponse> {
+    const since = new Date(Date.now() - WEEK_MS);
+    return this.repo.getStats(userId, since);
   }
 
   async getWord(word: string, userId: string): Promise<PlazaWordDetailResponse> {
