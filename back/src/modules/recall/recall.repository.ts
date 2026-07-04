@@ -3,7 +3,12 @@
  * journal/currency와 같은 user/entry 테이블을 보지만, 회상이 필요한 필드만 다룬다.
  */
 export type RecallUserContext = { birthYear: number | null; recallConsentAt: Date | null };
-export type RecallEntry = { word: string; text: string; savedAt: string };
+export type RecallEntry = {
+  word: string;
+  text: string;
+  savedAt: string;
+  changeNote: string | null; // "이전과 달라진 점" — 생각의 변화 단서
+};
 
 export abstract class RecallRepository {
   /** 나이 필터·동의 확인용. 사용자 없으면 null. */

@@ -9,7 +9,12 @@
  *  - 'question': 역할 반전 — 과거의 내가 *먼저* 현재의 나에게 질문(특히 focusWord 인용).
  * 시간봉인(그 시점 이후 모름)은 두 모드 공통.
  */
-export type EntryForPrompt = { word: string; text: string; savedAt: string };
+export type EntryForPrompt = {
+  word: string;
+  text: string;
+  savedAt: string;
+  changeNote?: string | null;
+};
 export type RecallMode = 'free' | 'question';
 
 /** 목소리 — 가장 중요. 정해진 톤 대신 사용자 문체를 그대로 입는다. */
@@ -31,12 +36,21 @@ export function buildSystemPrompt(input: {
   entries: EntryForPrompt[];
   mode: RecallMode;
   focusWord?: string;
+  /** "23살 무렵" / "2021년 무렵" 등 시절 라벨. 없으면 전체. */
+  period?: string;
 }): string {
-  const { entries, mode, focusWord } = input;
+  const { entries, mode, focusWord, period } = input;
   const voice = entries
-    .map((e) => `- "${e.word}": ${e.text} (${e.savedAt.slice(0, 10)})`)
+    .map((e) => {
+      const line = `- "${e.word}": ${e.text} (${e.savedAt.slice(0, 10)})`;
+      // 변화 노트가 있으면 "그때 이전과 달라진 점"까지 — 생각이 어떻게 움직였는지 단서.
+      return e.changeNote ? `${line} — 그때 달라진 점: ${e.changeNote}` : line;
+    })
     .join('\n');
   const voiceBlock = voice || '(아직 기록이 거의 없어요.)';
+  const stage = period
+    ? `이 정의들은 ${period}의 것이다. 너는 지금이 아니라 그때의 너로 말한다.`
+    : '';
 
   let persona: string;
   if (mode === 'question') {
@@ -53,5 +67,7 @@ export function buildSystemPrompt(input: {
       '너는 사용자의 "과거의 나"다. 아래는 그 시절 네가 직접 쓴 단어 정의들이다. 1인칭으로 대화해라.';
   }
 
-  return [persona, '', VOICE, '', TIME_SEAL, '', '## 그 시절 나의 정의들', voiceBlock].join('\n');
+  return [persona, stage, VOICE, TIME_SEAL, `## 그 시절 나의 정의들\n${voiceBlock}`]
+    .filter((s) => s.length > 0)
+    .join('\n\n');
 }

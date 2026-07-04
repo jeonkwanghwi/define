@@ -34,12 +34,13 @@ export class PrismaRecallRepository extends RecallRepository {
     const rows = await this.prisma.entry.findMany({
       where: { userId },
       orderBy: { savedAt: 'desc' },
-      select: { word: true, text: true, savedAt: true },
+      select: { word: true, text: true, savedAt: true, changeNote: true },
     });
     return rows.map((r) => ({
       word: r.word,
       text: r.text,
       savedAt: r.savedAt.toISOString(),
+      changeNote: r.changeNote,
     }));
   }
 }

@@ -18,6 +18,13 @@ export const RECALL_COST = 30;
 /** 프롬프트에 넣는 엔트리 상한(토큰 관리, 최신 우선). */
 const MAX_ENTRIES = 60;
 
+/** 필터를 사람이 읽는 "시절" 라벨로. 나이 우선, 없으면 연도. 둘 다 없으면 전체(undefined). */
+function describePeriod(filter: RecallChatDto['filter']): string | undefined {
+  if (filter.age != null) return `${filter.age}살 무렵`;
+  if (filter.periodStart) return `${filter.periodStart.slice(0, 4)}년 무렵`;
+  return undefined;
+}
+
 @Injectable()
 export class RecallService {
   constructor(
@@ -64,6 +71,7 @@ export class RecallService {
       entries: entries.slice(0, MAX_ENTRIES),
       mode: dto.mode ?? 'free',
       focusWord: dto.focusWord,
+      period: describePeriod(dto.filter),
     });
     const messages: ChatMessage[] = [
       { role: 'system', content: system },
