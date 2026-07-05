@@ -1,7 +1,7 @@
 /**
  * /profile-setup — 가입/로그인 후 프로필(출생연도·성별·관심사) 완성 화면.
  * 인증 방식과 무관하게 미완성이면 여기를 통과(설계: 단일 프로필 게이트).
- * token은 auth-store에서 읽음 → 시크릿 파라미터 없음. 완료 시 router.back().
+ * token은 auth-store에서 읽음 → 시크릿 파라미터 없음. 완료 시 기록 탭(홈)으로 replace.
  */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -52,7 +52,8 @@ export default function ProfileSetupScreen() {
     setSubmitting(true);
     try {
       await updateProfile({ birthYear: Number(year), gender: gender!, interests: selected });
-      router.back();
+      // 가입 → 프로필 완성 후에도 로그인과 동일하게 기록 탭(홈)으로.
+      router.replace('/');
     } catch (e) {
       const err = e as Partial<ApiError>;
       setError(err?.message ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.');

@@ -72,14 +72,10 @@ export default function AuthScreen() {
     try {
       await login(email.trim(), password);
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
-      if (completed) {
-        // /auth가 스택 맨 위가 아닐 때(웹 새로고침·딥링크 진입 등)는 돌아갈 화면이 없어
-        // router.back()이 실패한다("GO_BACK not handled") → 없으면 홈으로 대체.
-        if (router.canGoBack()) router.back();
-        else router.replace('/');
-      } else {
-        router.replace('/profile-setup');
-      }
+      // 로그인 성공 후에는 어디서 들어왔든(마이페이지 등) 기록 탭(홈)으로 —
+      // back()으로 이전 화면 복귀시키면 진입점마다 도착지가 달라져 혼란.
+      if (completed) router.replace('/');
+      else router.replace('/profile-setup');
     } catch (e) {
       setError(mapAuthError(e));
     } finally {
