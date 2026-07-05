@@ -301,7 +301,7 @@ export default function RecordScreen() {
                 ]}
               >
                 <ThemedText variant="caption" tone="placeholder">
-                  마음 가는 대로 적어보세요 · {MIN_DEFINITION_LENGTH}자 이상
+                  나만의 정의를 찬찬히 적어보세요 · {MIN_DEFINITION_LENGTH}자 이상
                 </ThemedText>
                 <ThemedText variant="caption" tone="placeholder">
                   {canSubmit
