@@ -36,6 +36,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
+import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { formatKoreanDate, isSameDay } from '@/lib/format-date';
 import { topicSuffix } from '@/lib/korean';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
@@ -115,7 +116,8 @@ export default function RecordScreen() {
   const isRedefinition = useEntryCountForWord(word) > 0;
   const today = useMemo(() => new Date(), []);
   const isTodaySelected = isSameDay(selectedDate, today);
-  const canSubmit = definition.trim().length > 0;
+  // 최소 20자 — 미달 시 "기록 완료" disabled + 카운터가 n/20자로 목표를 보여줌.
+  const canSubmit = definition.trim().length >= MIN_DEFINITION_LENGTH;
 
   // 현재 단어와 다른 인덱스를 랜덤 선택 (풀에 단어 1개뿐일 경우 무동작).
   // swapTo로 부드러운 트랜지션과 함께 전환.
@@ -299,10 +301,12 @@ export default function RecordScreen() {
                 ]}
               >
                 <ThemedText variant="caption" tone="placeholder">
-                  마음 가는 대로 적어보세요
+                  마음 가는 대로 적어보세요 · {MIN_DEFINITION_LENGTH}자 이상
                 </ThemedText>
                 <ThemedText variant="caption" tone="placeholder">
-                  {definition.length}자
+                  {canSubmit
+                    ? `${definition.length}자`
+                    : `${definition.trim().length}/${MIN_DEFINITION_LENGTH}자`}
                 </ThemedText>
               </View>
             </View>

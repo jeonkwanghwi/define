@@ -27,6 +27,7 @@ import Animated, {
 import { Button, Card, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
+import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { useTheme } from '@/theme';
 import type { WordEntry } from '@/types/word';
 
@@ -124,7 +125,7 @@ export function TimelineNode({
 
   function handleSave() {
     const trimmed = draft.trim();
-    if (!trimmed) return;
+    if (trimmed.length < MIN_DEFINITION_LENGTH) return;
     Keyboard.dismiss();
     onSaveEdit?.(trimmed);
   }
@@ -223,6 +224,16 @@ export function TimelineNode({
               />
             </Card>
             <View style={[styles.editActions, { marginTop: theme.spacing.s3 }]}>
+              {/* 20자 미만이면 저장이 왜 안 되는지 카운터로 목표를 보여줌 (marginRight:auto = 왼쪽 정렬) */}
+              <ThemedText
+                variant="caption"
+                tone="placeholder"
+                style={{ marginRight: 'auto', alignSelf: 'center' }}
+              >
+                {draft.trim().length >= MIN_DEFINITION_LENGTH
+                  ? `${draft.length}자`
+                  : `${draft.trim().length}/${MIN_DEFINITION_LENGTH}자`}
+              </ThemedText>
               <Button
                 label="취소"
                 variant="ghost"
@@ -233,7 +244,7 @@ export function TimelineNode({
                 label="저장"
                 size="sm"
                 onPress={handleSave}
-                disabled={!draft.trim() || draft.trim() === entry.text}
+                disabled={draft.trim().length < MIN_DEFINITION_LENGTH || draft.trim() === entry.text}
               />
             </View>
           </View>

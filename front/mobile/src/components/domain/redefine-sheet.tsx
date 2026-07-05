@@ -14,6 +14,7 @@ import {
 
 import { Button } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
+import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { topicSuffix } from '@/lib/korean';
 import { useTheme } from '@/theme';
 
@@ -37,9 +38,11 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
     }
   }, [visible]);
 
+  const canSave = text.trim().length >= MIN_DEFINITION_LENGTH;
+
   const save = () => {
     const v = text.trim();
-    if (!v) return;
+    if (v.length < MIN_DEFINITION_LENGTH) return;
     onSave(v);
     onClose();
   };
@@ -71,7 +74,11 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
                 { backgroundColor: theme.colors.surface.base, borderColor: theme.colors.line.base, color: theme.colors.ink.primary },
               ]}
             />
-            <Button label="기록하기" onPress={save} style={{ alignSelf: 'stretch' }} />
+            {/* 20자 미만이면 버튼이 왜 안 눌리는지 카운터로 목표를 보여줌 */}
+            <ThemedText variant="caption" tone="placeholder" style={styles.counter}>
+              {canSave ? `${text.length}자` : `${text.trim().length}/${MIN_DEFINITION_LENGTH}자`}
+            </ThemedText>
+            <Button label="기록하기" onPress={save} disabled={!canSave} style={{ alignSelf: 'stretch' }} />
           </Pressable>
         </KeyboardAvoidingView>
       </Pressable>
@@ -83,5 +90,6 @@ const styles = StyleSheet.create({
   scrim: { flex: 1, justifyContent: 'flex-end' },
   scrimInner: { width: '100%' },
   sheet: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 36, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1 },
-  input: { marginTop: 16, minHeight: 96, maxHeight: 160, borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 16, textAlignVertical: 'top' },
+  input: { marginTop: 16, minHeight: 96, maxHeight: 160, borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 8, textAlignVertical: 'top' },
+  counter: { alignSelf: 'flex-end', marginBottom: 12 },
 });
