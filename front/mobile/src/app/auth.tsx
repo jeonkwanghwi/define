@@ -162,7 +162,9 @@ export default function AuthScreen() {
               />
               <TextField
                 value={password}
-                onChangeText={setPassword}
+                // 공백은 입력 즉시 제거 — 모바일 키보드 자동완성이 몰래 붙이는 공백 때문에
+                // "가입은 됐는데 로그인이 안 되는" 사고를 원천 차단. (\s = 모든 공백 문자)
+                onChangeText={(t) => setPassword(t.replace(/\s/g, ''))}
                 placeholder="비밀번호 (8자 이상)"
                 autoCapitalize="none"
                 secureTextEntry
