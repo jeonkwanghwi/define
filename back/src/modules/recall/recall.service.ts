@@ -72,6 +72,7 @@ export class RecallService {
       mode: dto.mode ?? 'free',
       focusWord: dto.focusWord,
       period: describePeriod(dto.filter),
+      speechProfile: ctx.speechProfile,
     });
     const messages: ChatMessage[] = [
       { role: 'system', content: system },
@@ -96,7 +97,46 @@ export class RecallService {
       balance = await this.currency.getBalance(userId);
     }
 
+    // 말투 프로필 갱신 — 응답을 막지 않게 백그라운드로(void = 기다리지 않음). 실패해도 비치명적.
+    void this.maybeUpdateSpeechProfile(userId, dto.messages).catch((e) =>
+      console.warn('[recall] 말투 프로필 갱신 실패(다음 대화에 재시도):', e),
+    );
+
     return { message: result.content, balance };
+  }
+
+  /**
+   * 사용자 발화가 3의 배수로 쌓일 때마다 말투 특징을 추출해 프로필 갱신.
+   * 대화 원문은 저장하지 않는다 — 말투 요약(몇 줄)만 users.speechProfile에.
+   * (매 턴 돌리면 LLM 호출이 2배가 되므로 3턴 간격으로 비용 제한)
+   */
+  private async maybeUpdateSpeechProfile(
+    userId: string,
+    messages: RecallChatDto['messages'],
+  ): Promise<void> {
+    const userLines = messages.filter((m) => m.role === 'user').map((m) => m.content);
+    if (userLines.length < 3 || userLines.length % 3 !== 0) return;
+
+    const result = await this.openai.chat([
+      {
+        role: 'system',
+        content: [
+          '아래는 한 사용자가 채팅에서 실제로 친 메시지들이다. 이 사람의 "말투 특징"만 2~4줄로 요약해라.',
+          '- 볼 것: 반말/존댓말, 문장 길이, 자주 쓰는 어미·표현, ㅋㅋ/ㅎㅎ/이모티콘/문장부호 습관.',
+          '- 대화 내용·주제·감정은 쓰지 마라. 말투만. 요약문만 출력해라.',
+        ].join('\n'),
+      },
+      // 최근 발화만(토큰 관리) — 말투는 최근 표본으로 충분.
+      { role: 'user', content: userLines.slice(-20).join('\n') },
+    ]);
+    await this.usage.recordLlm({
+      userId,
+      feature: 'recall-speech-profile',
+      model: result.model,
+      usage: result.usage,
+    });
+    const profile = result.content.trim().slice(0, 500);
+    if (profile) await this.recall.updateSpeechProfile(userId, profile);
   }
 
   /** 나이(savedAt.year - birthYear === age) 또는 기간으로 필터. 둘 다 없으면 전체. */

@@ -24,6 +24,8 @@ const VOICE = [
   '- 사용자가 쓴 것보다 더 상냥하거나 더 정돈되거나 더 따뜻하게 굴지 마라. 그 사람 그대로여라.',
   '- 어시스턴트처럼 굴지 마라: "도와줄게", 과한 공손, 목록 정리, "~하는 게 좋아" 같은 애매한 조언·격려·훈수 금지. 상담사가 아니라 그냥 그때의 너다.',
   '- 필요하면 네가 그때 쓴 정의를 그대로 인용해라. 이모지는 원래 안 썼으면 쓰지 마라.',
+  // 정의는 글말(문어체)이라 대화 말투와 다를 수 있다 — 채팅에서 치는 실제 입말도 네 말투다.
+  '- 지금 대화에서 상대(현재의 나)가 치는 메시지의 말투도 곧 네 말투다 — 같은 사람이니까. 반말/존댓말, 문장 길이, ㅋㅋ·이모티콘 습관을 자연스럽게 따라가라.',
 ].join('\n');
 
 /** 시간 봉인 — 기록 시점 이후는 모른다. */
@@ -38,8 +40,10 @@ export function buildSystemPrompt(input: {
   focusWord?: string;
   /** "23살 무렵" / "2021년 무렵" 등 시절 라벨. 없으면 전체. */
   period?: string;
+  /** 지난 대화들에서 추출해 둔 채팅 말투 프로필. 있으면 첫 마디부터 그 말투로. */
+  speechProfile?: string | null;
 }): string {
-  const { entries, mode, focusWord, period } = input;
+  const { entries, mode, focusWord, period, speechProfile } = input;
   const voice = entries
     .map((e) => {
       const line = `- "${e.word}": ${e.text} (${e.savedAt.slice(0, 10)})`;
@@ -67,7 +71,16 @@ export function buildSystemPrompt(input: {
       '너는 사용자의 "과거의 나"다. 아래는 그 시절 네가 직접 쓴 단어 정의들이다. 1인칭으로 대화해라.';
   }
 
-  return [persona, stage, VOICE, TIME_SEAL, `## 그 시절 나의 정의들\n${voiceBlock}`]
+  // 지난 대화에서 배운 말투 — 대화가 시작되기 전(첫 마디)부터 입힐 수 있는 유일한 재료.
+  const chatVoice = speechProfile
+    ? [
+        '[이 사람이 채팅에서 실제로 말하는 방식]',
+        `- ${speechProfile}`,
+        '- 첫 마디부터 이 말투로 말해라.',
+      ].join('\n')
+    : '';
+
+  return [persona, stage, VOICE, chatVoice, TIME_SEAL, `## 그 시절 나의 정의들\n${voiceBlock}`]
     .filter((s) => s.length > 0)
     .join('\n\n');
 }

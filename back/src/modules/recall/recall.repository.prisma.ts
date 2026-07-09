@@ -16,11 +16,22 @@ export class PrismaRecallRepository extends RecallRepository {
   async findUserContext(userId: string): Promise<RecallUserContext | null> {
     const row = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { birthYear: true, recallConsentAt: true },
+      select: { birthYear: true, recallConsentAt: true, speechProfile: true },
     });
     return row
-      ? { birthYear: row.birthYear, recallConsentAt: row.recallConsentAt }
+      ? {
+          birthYear: row.birthYear,
+          recallConsentAt: row.recallConsentAt,
+          speechProfile: row.speechProfile,
+        }
       : null;
+  }
+
+  async updateSpeechProfile(userId: string, profile: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { speechProfile: profile },
+    });
   }
 
   async setConsent(userId: string, at: Date): Promise<void> {

@@ -43,6 +43,9 @@ model User {
   lastAttendanceDate String?
   recallConsentAt    DateTime?   // tab3 회상 AI 데이터 동의 시각. null=미동의.
   lastRewardedStreakDay Int      @default(0)   // 기록 연속 보너스: 지급한 최고 연속일(멱등 마커).
+  // 회상 채팅 말투 프로필 — 사용자 발화에서 추출한 말투 특징 요약(대화 원문은 저장 안 함).
+  // 대화가 쌓일수록 갱신 → "과거의 나"가 첫 마디부터 이 사람 말투로 말하게 하는 재료.
+  speechProfile      String?
 
   @@map("users")
 }
