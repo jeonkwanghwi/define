@@ -2,7 +2,8 @@
  * 메인 — 오늘의 단어 기록하기 (서비스의 핵심 화면).
  *
  * 화면 구성 (PLANNING.md 5-1 / design-source/app/screens-main.jsx 참조):
- *   1. 날짜 칩      — calendar 아이콘 + 한글 날짜 + (오늘이면 '오늘' 뱃지) + chevronD
+ *   1. 날짜 표시    — calendar 아이콘 + 오늘 날짜 + '오늘' 뱃지 (항상 오늘 고정 —
+ *                     과거 날짜 기록은 "현재를 기록한다" 의미가 퇴색되어 제거, 2026-07-09 팀 결정)
  *   2. Hero 단어    — "오늘의 단어" 캡션 + 큰 디스플레이 단어 + "이란" suffix + 다시 뽑기 버튼
  *   3. 입력 스테이지 — 카드 안의 multiline 입력창 + 안내 문구 + 글자 수
  *   4. 액션         — "단어 추가" (soft) + "기록 완료" (primary, 입력 비면 disabled)
@@ -29,15 +30,14 @@ import { useReducedMotion } from 'react-native-reanimated';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { CustomWordSheet } from '@/components/domain/custom-word-sheet';
-import { DateSheet } from '@/components/domain/date-sheet';
 import { SaveConfirmation } from '@/components/domain/save-confirmation';
-import { Button, Card, PressableScale } from '@/components/primitives';
+import { Button, Card } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
 import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
-import { formatKoreanDate, isSameDay } from '@/lib/format-date';
+import { formatKoreanDate } from '@/lib/format-date';
 import { topicSuffix } from '@/lib/korean';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
 import { controlPresets, useTheme } from '@/theme';
@@ -54,9 +54,6 @@ export default function RecordScreen() {
   const [definition, setDefinition] = useState('');
   // 재정의(과거 기록 있는 단어)일 때만 쓰는 "이전과 달라진 점" 선택 메모.
   const [changeNote, setChangeNote] = useState('');
-  // 기본은 오늘. 사용자가 칩 탭하면 DateSheet에서 변경 가능 (미래는 불가).
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [dateSheetVisible, setDateSheetVisible] = useState(false);
   const [customSheetVisible, setCustomSheetVisible] = useState(false);
 
   // 저장 완료 마이크로 인터랙션 상태
@@ -115,7 +112,6 @@ export default function RecordScreen() {
   // 이 단어를 전에도 정의했는가 → 그렇다면 "생각의 변화" 메모를 받는다.
   const isRedefinition = useEntryCountForWord(word) > 0;
   const today = useMemo(() => new Date(), []);
-  const isTodaySelected = isSameDay(selectedDate, today);
   // 최소 20자 — 미달 시 "기록 완료" disabled + 카운터가 n/20자로 목표를 보여줌.
   const canSubmit = definition.trim().length >= MIN_DEFINITION_LENGTH;
 
@@ -138,9 +134,8 @@ export default function RecordScreen() {
   function handleSave() {
     if (!canSubmit) return;
     Keyboard.dismiss();
-    // 오늘이면 정확한 현재 시각으로 저장 (정렬에 의미 있음).
-    // 과거 날짜를 골랐다면 그 Date(시각 0:00)를 그대로 → 표시상은 그 날.
-    const savedAt = isTodaySelected ? new Date() : selectedDate;
+    // 항상 현재 시각으로 저장 (과거 날짜 기록 제거 — 현재를 기록한다).
+    const savedAt = new Date();
     // 재정의일 때만 메모 전달. 빈 값은 store에서 undefined로 정규화됨.
     addEntry(word, definition.trim(), savedAt, isRedefinition ? changeNote : undefined);
     setConfirmedWord(word);
@@ -153,10 +148,6 @@ export default function RecordScreen() {
     setConfirmVisible(false);
     // 다음 단어 자연스럽게 이어가기 — design-source의 complete 흐름과 동일
     drawNewWord();
-  }
-
-  function openDatePicker() {
-    setDateSheetVisible(true);
   }
 
   function openCustomWord() {
@@ -177,8 +168,8 @@ export default function RecordScreen() {
           {/* ─── 0. 앱 헤더 (탭 공통) ─── */}
           <AppHeader />
 
-          {/* ─── 1. 날짜 칩 ─── */}
-          <PressableScale onPress={openDatePicker} style={styles.dateChipWrap}>
+          {/* ─── 1. 날짜 표시 (항상 오늘 — 선택 불가) ─── */}
+          <View style={styles.dateChipWrap}>
             <View
               style={[
                 styles.dateChip,
@@ -191,26 +182,23 @@ export default function RecordScreen() {
             >
               <Icon name="calendar" size={16} color={theme.colors.ink.secondary} />
               <ThemedText variant="sm" tone="strong">
-                {formatKoreanDate(selectedDate)}
+                {formatKoreanDate(today)}
               </ThemedText>
-              {isTodaySelected ? (
-                <View
-                  style={[
-                    styles.todayBadge,
-                    { backgroundColor: theme.colors.point.p050 },
-                  ]}
+              <View
+                style={[
+                  styles.todayBadge,
+                  { backgroundColor: theme.colors.point.p050 },
+                ]}
+              >
+                <ThemedText
+                  variant="caption"
+                  style={{ color: theme.colors.point.p600 }}
                 >
-                  <ThemedText
-                    variant="caption"
-                    style={{ color: theme.colors.point.p600 }}
-                  >
-                    오늘
-                  </ThemedText>
-                </View>
-              ) : null}
-              <Icon name="chevronD" size={14} color={theme.colors.ink.placeholder} />
+                  오늘
+                </ThemedText>
+              </View>
             </View>
-          </PressableScale>
+          </View>
 
           {/* ─── 2. Hero 단어 ─── */}
           <View style={[styles.hero, { marginTop: theme.spacing.s6 }]}>
@@ -376,14 +364,6 @@ export default function RecordScreen() {
         visible={confirmVisible}
         word={confirmedWord}
         onDismiss={handleConfirmDismiss}
-      />
-
-      {/* 날짜 선택 시트 — 칩 탭으로 열림. 선택 시 자동 닫힘. */}
-      <DateSheet
-        visible={dateSheetVisible}
-        selected={selectedDate}
-        onPick={setSelectedDate}
-        onClose={() => setDateSheetVisible(false)}
       />
 
       {/* 커스텀 단어 추가 시트 — "단어 추가" 액션으로 열림. 완료 시 풀 추가 + 그 단어로 swap. */}
