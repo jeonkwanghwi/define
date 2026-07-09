@@ -23,6 +23,11 @@ type AuthState = {
   user: AuthUser | null;
   /** 마지막 동기화 시각(ISO). 마이페이지 표시용. */
   lastSyncedAt: string | null;
+  /**
+   * 이 기기에서 로그인해 본 적이 있는가 — 로그아웃해도 유지(영구).
+   * 비로그인 상태일 때 "재방문 사용자에게만" 로그인 리마인드 말풍선을 띄우는 판별용.
+   */
+  hasLoggedInBefore: boolean;
   /** 실패 시 throw(화면이 인라인 에러로 표시). 성공 시에만 상태 갱신. */
   signup: (email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -46,14 +51,15 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       lastSyncedAt: null,
+      hasLoggedInBefore: false,
       signup: async (email, password) => {
         const { token, user } = await signupApi(email, password);
-        set({ token, user });
+        set({ token, user, hasLoggedInBefore: true });
         await runSync(token, set);
       },
       login: async (email, password) => {
         const { token, user } = await loginApi(email, password);
-        set({ token, user });
+        set({ token, user, hasLoggedInBefore: true });
         await runSync(token, set);
       },
       updateProfile: async (input) => {
