@@ -6,7 +6,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import {
 import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { RedefineSheet } from '@/components/domain/redefine-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
+import { ThinkingPages } from '@/components/domain/thinking-pages';
 import { FadeIn, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -187,7 +187,8 @@ export default function RecallChatScreen() {
 
         {sending && (
           <View style={styles.sendingRow}>
-            <ActivityIndicator color={theme.colors.point.p600} />
+            {/* 3D 페이지 플립 — 과거의 기록을 뒤적이는 은유 (ThinkingPages) */}
+            <ThinkingPages />
             <ThemedText variant="caption" tone="placeholder" style={{ marginLeft: 8 }}>
               과거의 내가 생각하는 중…
             </ThemedText>
