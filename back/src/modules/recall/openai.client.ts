@@ -20,8 +20,8 @@ export class OpenAiClient {
     this.client = apiKey ? new OpenAI({ apiKey }) : null;
   }
 
-  /** 메시지 배열로 1회 완성. 키 미설정이면 503. */
-  async chat(messages: ChatMessage[]): Promise<ChatResult> {
+  /** 메시지 배열로 1회 완성. 키 미설정이면 503. maxTokens = 폭주 방지 안전 상한(길이 제어는 프롬프트로). */
+  async chat(messages: ChatMessage[], opts?: { maxTokens?: number }): Promise<ChatResult> {
     if (!this.client) {
       throw new ServiceUnavailableException(
         '지금 과거의 나를 부를 수 없어요. 잠시 후 다시 시도해 주세요.',
@@ -31,6 +31,7 @@ export class OpenAiClient {
       model: 'gpt-4.1-mini',
       messages,
       temperature: 0.9,
+      max_completion_tokens: opts?.maxTokens,
     });
     const u = res.usage;
     return {

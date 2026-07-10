@@ -79,7 +79,7 @@ export class RecallService {
       ...dto.messages.map((m) => ({ role: m.role, content: m.content })),
     ];
 
-    const result = await this.openai.chat(messages); // 실패 시 throw → 미차감·미기록
+    const result = await this.openai.chat(messages, { maxTokens: 500 }); // 실패 시 throw → 미차감·미기록
     // 사용량·비용 기록(비치명적). 매 턴 기록 — 모든 호출이 토큰을 소비.
     await this.usage.recordLlm({
       userId,
@@ -128,7 +128,8 @@ export class RecallService {
       },
       // 최근 발화만(토큰 관리) — 말투는 최근 표본으로 충분.
       { role: 'user', content: userLines.slice(-20).join('\n') },
-    ]);
+      // 결과물이 2~4줄 고정 + 저장 시 500자 컷이므로 타이트한 상한. 백그라운드 호출이라 잘려도 무해.
+    ], { maxTokens: 300 });
     await this.usage.recordLlm({
       userId,
       feature: 'recall-speech-profile',
