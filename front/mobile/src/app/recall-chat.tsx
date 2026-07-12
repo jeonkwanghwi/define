@@ -3,7 +3,7 @@
  * mode='free'면 사용자 먼저, mode='question'면 과거의 내가 먼저 질문(마운트 시 자동).
  * 질문모드는 focusWord를 "다시 정의" 버튼으로 즉시 재정의(새 엔트리).
  */
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 
 import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
+import { ConfirmDialog } from '@/components/primitives/confirm-dialog';
 import { RedefineSheet } from '@/components/domain/redefine-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { FadeIn, PressableScale } from '@/components/primitives';
@@ -63,6 +64,29 @@ export default function RecallChatScreen() {
   const [redefineOpen, setRedefineOpen] = useState(false);
   const startedRef = useRef(false); // 첫 요청 = 새 대화(차감)
   const listRef = useRef<FlatList<RecallMessage>>(null);
+
+  // 나가기 확인 — 잉크를 쓴 대화(ephemeral)라 실수로 나가면 통째로 사라짐.
+  // beforeRemove로 모든 나가기 경로(헤더 back·스와이프·하드웨어 back)를 가로챈다.
+  const navigation = useNavigation();
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  // 액션 타입은 dispatch 시그니처에서 유도(@react-navigation/native는 직접 의존성이 아님).
+  const pendingExitRef = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
+  const allowExitRef = useRef(false);
+
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', (e) => {
+      // 대화 시작 전(잉크 미차감)이거나 이미 확인했으면 그냥 나감.
+      if (!startedRef.current || allowExitRef.current) return;
+      e.preventDefault();
+      pendingExitRef.current = e.data.action;
+      setExitConfirmOpen(true);
+    });
+  }, [navigation]);
+
+  const confirmExit = () => {
+    allowExitRef.current = true;
+    if (pendingExitRef.current) navigation.dispatch(pendingExitRef.current);
+  };
 
   const filter: RecallFilter = params.age
     ? { age: Number(params.age) }
@@ -240,6 +264,16 @@ export default function RecallChatScreen() {
           onClose={() => setRedefineOpen(false)}
         />
       )}
+
+      <ConfirmDialog
+        visible={exitConfirmOpen}
+        title="회상을 끝낼까요?"
+        message={`나가면 이 대화는 사라져요.\n다시 시작하려면 잉크 ${RECALL_COST}이 필요해요.`}
+        confirmLabel="나가기"
+        cancelLabel="계속 대화"
+        onConfirm={confirmExit}
+        onClose={() => setExitConfirmOpen(false)}
+      />
     </ThemedView>
   );
 }
