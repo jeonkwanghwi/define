@@ -78,4 +78,21 @@ export class PrismaUserRepository extends UserRepository {
     });
     return toEntity(row);
   }
+
+  async findByNickname(nickname: string): Promise<UserEntity | null> {
+    const row = await this.prisma.user.findUnique({
+      where: { nickname },
+      include: { interests: true },
+    });
+    return row ? toEntity(row) : null;
+  }
+
+  async updateNickname(userId: string, nickname: string | null): Promise<UserEntity> {
+    const row = await this.prisma.user.update({
+      where: { id: userId },
+      data: { nickname },
+      include: { interests: true },
+    });
+    return toEntity(row);
+  }
 }

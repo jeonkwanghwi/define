@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { AuthResponse } from './dto/auth.response';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateNicknameDto } from './dto/update-nickname.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('auth')
@@ -38,5 +39,16 @@ export class AuthController {
     @Body() dto: UpdateProfileDto,
   ): Promise<AuthResponse> {
     return this.auth.updateProfile(req.user.userId, dto);
+  }
+
+  /** PATCH /api/auth/nickname — 닉네임 설정/변경(토큰 필수). 빈 문자열 = 미설정으로 되돌리기. */
+  @Patch('nickname')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  updateNickname(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: UpdateNicknameDto,
+  ): Promise<AuthResponse> {
+    return this.auth.updateNickname(req.user.userId, dto);
   }
 }

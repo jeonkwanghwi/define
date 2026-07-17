@@ -15,6 +15,7 @@ import * as bcrypt from 'bcryptjs';
 import { AuthResponse } from './dto/auth.response';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateNicknameDto } from './dto/update-nickname.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserEntity } from './entities/user.entity';
 import { UserRepository } from './user.repository';
@@ -55,6 +56,18 @@ export class AuthService {
       gender: dto.gender,
       interests: dto.interests,
     });
+    return this.buildAuthResponse(user);
+  }
+
+  async updateNickname(userId: string, dto: UpdateNicknameDto): Promise<AuthResponse> {
+    const nickname = dto.nickname.trim() || null; // 빈 값 = 미설정으로 되돌리기
+    if (nickname) {
+      const existing = await this.users.findByNickname(nickname);
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('이미 사용 중인 닉네임입니다.');
+      }
+    }
+    const user = await this.users.updateNickname(userId, nickname);
     return this.buildAuthResponse(user);
   }
 

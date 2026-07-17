@@ -16,4 +16,10 @@ export abstract class UserRepository {
     userId: string,
     input: { birthYear: number; gender: string; interests: string[] },
   ): Promise<UserEntity>;
+
+  /** 닉네임으로 1명 조회. 없으면 null. (닉네임 중복 검사에 사용) */
+  abstract findByNickname(nickname: string): Promise<UserEntity | null>;
+
+  /** 닉네임 설정/변경. null = 미설정으로 되돌리기. 갱신된 사용자 반환. */
+  abstract updateNickname(userId: string, nickname: string | null): Promise<UserEntity>;
 }
