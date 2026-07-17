@@ -151,9 +151,9 @@ export function SaveConfirmation({
             </ThemedText>
           </Animated.View>
 
-          {/* 재정의 리빌 — 여기서 처음 공개. 탭하면 지난 생각과 비교하러. */}
+          {/* 재정의 리빌 — 여기서 처음 공개. 비교하러 가거나("칩"), 명시적으로 닫거나("다음에"). */}
           {isReveal ? (
-            <Animated.View style={{ opacity: reveal }}>
+            <Animated.View style={{ opacity: reveal, alignItems: 'center' }}>
               <PressableScale
                 onPress={onViewTimeline}
                 disabled={!onViewTimeline}
@@ -170,6 +170,11 @@ export function SaveConfirmation({
                     지난 생각과 비교해보기 →
                   </ThemedText>
                 ) : null}
+              </PressableScale>
+              <PressableScale onPress={onDismiss} hitSlop={8} style={styles.laterBtn}>
+                <ThemedText variant="sm" tone="placeholder">
+                  다음에 볼게요
+                </ThemedText>
               </PressableScale>
             </Animated.View>
           ) : null}
@@ -205,5 +210,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 16,
+  },
+  laterBtn: {
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
 });
