@@ -51,9 +51,17 @@ export class PrismaUserRepository extends UserRepository {
     return row ? toEntity(row) : null;
   }
 
-  async create(input: { email: string; passwordHash: string }): Promise<UserEntity> {
+  async create(input: {
+    email: string;
+    passwordHash: string;
+    nickname?: string;
+  }): Promise<UserEntity> {
     const row = await this.prisma.user.create({
-      data: { email: input.email, passwordHash: input.passwordHash },
+      data: {
+        email: input.email,
+        passwordHash: input.passwordHash,
+        nickname: input.nickname ?? null,
+      },
       include: { interests: true },
     });
     return toEntity(row);
