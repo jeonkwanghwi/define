@@ -97,7 +97,8 @@ export function Button({
       {...rest}
     >
       {leftIcon ? <View>{leftIcon}</View> : null}
-      <ThemedText variant={textVariant} style={{ color: palette.textColor }}>
+      {/* pill 버튼 라벨은 항상 한 줄 — 좁은 컨테이너에서 줄바꿈되면 깨져 보임 */}
+      <ThemedText variant={textVariant} numberOfLines={1} style={{ color: palette.textColor }}>
         {label}
       </ThemedText>
       {rightIcon ? <View>{rightIcon}</View> : null}

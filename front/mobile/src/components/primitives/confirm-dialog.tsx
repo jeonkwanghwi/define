@@ -123,6 +123,7 @@ export function ConfirmDialog({
                   variant="ghost"
                   onPress={onClose}
                   fullWidth
+                  style={styles.actionBtn}
                 />
               </View>
               <View style={styles.flex1}>
@@ -150,6 +151,7 @@ export function ConfirmDialog({
                     label={confirmLabel}
                     onPress={handleConfirm}
                     fullWidth
+                    style={styles.actionBtn}
                   />
                 )}
               </View>
@@ -179,6 +181,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   flex1: { flex: 1 },
+  // 반반 나눈 좁은 칸에서 "계속 대화" 같은 라벨이 줄바꿈되지 않게 —
+  // 내용이 가운데 정렬이라 좌우 패딩을 줄여도 시각 변화 없이 텍스트 공간만 넓어진다.
+  actionBtn: { paddingHorizontal: 8 },
   destructive: {
     width: '100%',
     paddingVertical: 14,
