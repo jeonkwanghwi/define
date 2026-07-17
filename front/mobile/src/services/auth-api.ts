@@ -48,3 +48,12 @@ export function updateProfile(
     body: input,
   });
 }
+
+/** PATCH /api/auth/nickname — 닉네임 설정/변경. 빈 문자열 = 미설정. 중복이면 409 ApiError. */
+export function updateNickname(token: string, nickname: string): Promise<AuthResult> {
+  return apiRequest<AuthResult>('/auth/nickname', {
+    method: 'PATCH',
+    token,
+    body: { nickname },
+  });
+}
