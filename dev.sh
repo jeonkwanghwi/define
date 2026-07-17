@@ -12,6 +12,21 @@ set -uo pipefail
 # 이 스크립트가 어디서 실행되든 레포 루트를 기준으로 동작
 cd "$(dirname "$0")"
 
+# npm이 PATH에 없으면(nvm 미활성 셸에서 실행된 경우) nvm에서 직접 로드
+if ! command -v npm >/dev/null 2>&1; then
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+fi
+# 그래도 없으면 설치된 최신 node의 bin을 PATH에 직접 추가 (nvm 셸 함수 실패 대비)
+if ! command -v npm >/dev/null 2>&1; then
+  NODE_BIN=$(ls -d "$HOME/.nvm/versions/node"/*/bin 2>/dev/null | sort -V | tail -1)
+  [ -n "${NODE_BIN:-}" ] && export PATH="$NODE_BIN:$PATH"
+fi
+if ! command -v npm >/dev/null 2>&1; then
+  echo "✗ npm을 찾지 못했습니다. nvm/node 설치를 확인하세요." >&2
+  exit 1
+fi
+
 echo "▶ 백엔드 시작 (NestJS watch, http://localhost:3000) …"
 ( cd back && npm run start:dev ) &
 BACK_PID=$!
