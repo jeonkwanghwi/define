@@ -97,8 +97,14 @@ export function Button({
       {...rest}
     >
       {leftIcon ? <View>{leftIcon}</View> : null}
-      {/* pill 버튼 라벨은 항상 한 줄 — 좁은 컨테이너에서 줄바꿈되면 깨져 보임 */}
-      <ThemedText variant={textVariant} numberOfLines={1} style={{ color: palette.textColor }}>
+      {/* pill 버튼 라벨은 항상 한 줄 — 좁은 컨테이너에서 줄바꿈되면 깨져 보임.
+          OS 큰글씨 설정에서 라벨이 잘리지(…) 않도록 버튼 안에서만 확대 상한 1.2배. */}
+      <ThemedText
+        variant={textVariant}
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.2}
+        style={{ color: palette.textColor }}
+      >
         {label}
       </ThemedText>
       {rightIcon ? <View>{rightIcon}</View> : null}

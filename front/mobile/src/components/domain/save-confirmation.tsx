@@ -161,7 +161,14 @@ export function SaveConfirmation({
               </ThemedText>
               <View style={styles.revealActions}>
                 <View style={styles.revealBtn}>
-                  <Button label="다음에 볼게요" variant="ghost" size="sm" fullWidth onPress={onDismiss} />
+                  <Button
+                    label="다음에 볼게요"
+                    variant="ghost"
+                    size="sm"
+                    fullWidth
+                    onPress={onDismiss}
+                    style={styles.btnTight}
+                  />
                 </View>
                 <View style={styles.revealBtn}>
                   <Button
@@ -170,6 +177,7 @@ export function SaveConfirmation({
                     fullWidth
                     onPress={onViewTimeline}
                     disabled={!onViewTimeline}
+                    style={styles.btnTight}
                   />
                 </View>
               </View>
@@ -210,4 +218,6 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   revealBtn: { flex: 1 }, // 두 버튼 반반 — ConfirmDialog 액션 행과 동일 규약
+  // 반반 칸에서 라벨 공간 확보 — 가운데 정렬이라 좌우 패딩 줄여도 시각 무변화(ConfirmDialog와 동일 처방)
+  btnTight: { paddingHorizontal: 8 },
 });
