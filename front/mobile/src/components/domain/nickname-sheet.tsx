@@ -8,10 +8,10 @@
  *   - Enter(done)로 submit
  *   - 열릴 때 현재 닉네임을 미리 채워 편집 시작점으로
  *
- * 익명 모델이라 빈 값 저장도 허용(= 닉네임 미설정으로 되돌리기). 단, 공백만이면 trim되어 빈 값.
+ * 서버에 저장(중복 검사 포함)하는 비동기 동작. 저장 중엔 버튼 비활성, 실패(중복 등)는 인라인 에러로 안내.
  *
  * 사용:
- *   <NicknameSheet visible={open} current={nickname} onSave={setNickname} onClose={...} />
+ *   <NicknameSheet visible={open} current={nickname} onSave={updateNickname} onClose={...} />
  */
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -26,6 +26,7 @@ import {
 
 import { Button, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
+import type { ApiError } from '@/services/api-client';
 import { useTheme } from '@/theme';
 
 const MAX_LENGTH = 16;
@@ -33,27 +34,39 @@ const MAX_LENGTH = 16;
 export type NicknameSheetProps = {
   visible: boolean;
   current: string;
-  onSave: (name: string) => void;
+  onSave: (name: string) => Promise<void>;
   onClose: () => void;
 };
 
 export function NicknameSheet({ visible, current, onSave, onClose }: NicknameSheetProps) {
   const theme = useTheme();
   const [value, setValue] = useState(current);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (visible) {
       // 열릴 때 현재 값으로 초기화 후 포커스 (슬라이드업 끝난 뒤 자연스럽게 키보드)
       setValue(current);
+      setError(null);
       const t = setTimeout(() => inputRef.current?.focus(), 250);
       return () => clearTimeout(t);
     }
   }, [visible, current]);
 
-  function handleSubmit() {
-    onSave(value.trim());
-    onClose();
+  async function handleSubmit() {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(value.trim());
+      onClose();
+    } catch (e) {
+      setError(mapNicknameError(e));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -100,7 +113,10 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
             <TextField
               ref={inputRef}
               value={value}
-              onChangeText={setValue}
+              onChangeText={(t) => {
+                setValue(t);
+                setError(null);
+              }}
               placeholder="예: 단어를 줍는 사람"
               maxLength={MAX_LENGTH}
               returnKeyType="done"
@@ -113,10 +129,20 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
               </ThemedText>
             </View>
 
+            {error ? (
+              <ThemedText
+                variant="sm"
+                style={{ color: theme.colors.ruby.base, marginTop: theme.spacing.s2 }}
+              >
+                {error}
+              </ThemedText>
+            ) : null}
+
             <Button
-              label="저장"
+              label={saving ? '잠시만요…' : '저장'}
               fullWidth
               onPress={handleSubmit}
+              disabled={saving}
               style={{ marginTop: theme.spacing.s4 }}
             />
           </Pressable>
@@ -124,6 +150,14 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
       </Pressable>
     </Modal>
   );
+}
+
+/** 서버/네트워크 에러 → 우리 톤 인라인 문구. */
+function mapNicknameError(e: unknown): string {
+  const err = e as Partial<ApiError>;
+  if (err?.status === 409) return '이미 사용 중인 닉네임이에요. 다른 이름은 어때요?';
+  if (err?.message) return err.message;
+  return '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 }
 
 const styles = StyleSheet.create({

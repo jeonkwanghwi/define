@@ -1,6 +1,6 @@
 /**
  * AuthService — 인증 로직. controller(HTTP)와 repository(DB) 사이.
- *   - signup: 이메일 중복 검사 → bcrypt 해싱 → 생성 → 토큰 발급
+ *   - signup: 이메일 중복 검사 → bcrypt 해싱 → 디폴트 닉네임 배정 → 생성 → 토큰 발급
  *   - login:  이메일 조회 → bcrypt 비교 → 토큰 발급
  * 토큰 payload: { sub: userId, email }. (sub = JWT 표준 "subject" 클레임)
  */
@@ -15,8 +15,10 @@ import * as bcrypt from 'bcryptjs';
 import { AuthResponse } from './dto/auth.response';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateNicknameDto } from './dto/update-nickname.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserEntity } from './entities/user.entity';
+import { generateNickname } from './nickname-generator';
 import { UserRepository } from './user.repository';
 
 @Injectable()
@@ -32,7 +34,8 @@ export class AuthService {
       throw new ConflictException('이미 가입된 이메일입니다.');
     }
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = await this.users.create({ email: dto.email, passwordHash });
+    const nickname = await this.pickDefaultNickname();
+    const user = await this.users.create({ email: dto.email, passwordHash, nickname });
     return this.buildAuthResponse(user);
   }
 
@@ -56,6 +59,32 @@ export class AuthService {
       interests: dto.interests,
     });
     return this.buildAuthResponse(user);
+  }
+
+  async updateNickname(userId: string, dto: UpdateNicknameDto): Promise<AuthResponse> {
+    const nickname = dto.nickname.trim() || null; // 빈 값 = 미설정으로 되돌리기
+    if (nickname) {
+      const existing = await this.users.findByNickname(nickname);
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('이미 사용 중인 닉네임입니다.');
+      }
+    }
+    const user = await this.users.updateNickname(userId, nickname);
+    return this.buildAuthResponse(user);
+  }
+
+  /** 가입용 디폴트 닉네임 — 랜덤 생성 후 중복이면 재시도, 계속 충돌하면 숫자 접미사. */
+  private async pickDefaultNickname(): Promise<string> {
+    for (let i = 0; i < 5; i++) {
+      const candidate = generateNickname();
+      if (!(await this.users.findByNickname(candidate))) return candidate;
+    }
+    const base = generateNickname();
+    for (let n = 2; n <= 99; n++) {
+      const candidate = `${base}${n}`;
+      if (!(await this.users.findByNickname(candidate))) return candidate;
+    }
+    return base; // 사실상 도달 불가(500 조합×99) — unique 제약이 최종 방어선
   }
 
   private buildAuthResponse(user: UserEntity): AuthResponse {

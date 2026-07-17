@@ -51,9 +51,17 @@ export class PrismaUserRepository extends UserRepository {
     return row ? toEntity(row) : null;
   }
 
-  async create(input: { email: string; passwordHash: string }): Promise<UserEntity> {
+  async create(input: {
+    email: string;
+    passwordHash: string;
+    nickname?: string;
+  }): Promise<UserEntity> {
     const row = await this.prisma.user.create({
-      data: { email: input.email, passwordHash: input.passwordHash },
+      data: {
+        email: input.email,
+        passwordHash: input.passwordHash,
+        nickname: input.nickname ?? null,
+      },
       include: { interests: true },
     });
     return toEntity(row);
@@ -74,6 +82,23 @@ export class PrismaUserRepository extends UserRepository {
           create: input.interests.map((interest) => ({ interest })),
         },
       },
+      include: { interests: true },
+    });
+    return toEntity(row);
+  }
+
+  async findByNickname(nickname: string): Promise<UserEntity | null> {
+    const row = await this.prisma.user.findUnique({
+      where: { nickname },
+      include: { interests: true },
+    });
+    return row ? toEntity(row) : null;
+  }
+
+  async updateNickname(userId: string, nickname: string | null): Promise<UserEntity> {
+    const row = await this.prisma.user.update({
+      where: { id: userId },
+      data: { nickname },
       include: { interests: true },
     });
     return toEntity(row);

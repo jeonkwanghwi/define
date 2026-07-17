@@ -19,7 +19,6 @@ import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { useAuthStore } from '@/store/auth-store';
-import { useSettingsStore } from '@/store/settings-store';
 import { useTheme } from '@/theme';
 
 // 앱 실행(JS 세션)당 1회만 노출 — 탭마다 AppHeader 인스턴스가 따로라 모듈 스코프로 공유.
@@ -29,7 +28,7 @@ let reminderDismissedThisSession = false;
 export function AppHeader() {
   const theme = useTheme();
   const router = useRouter();
-  const nickname = useSettingsStore((s) => s.nickname);
+  const nickname = useAuthStore((s) => s.user?.nickname ?? '');
   const inkBalance = useAuthStore((s) => (s.token ? (s.user?.balance ?? 0) : null));
   const isLoggedIn = useAuthStore((s) => s.token !== null);
   const hasLoggedInBefore = useAuthStore((s) => s.hasLoggedInBefore);

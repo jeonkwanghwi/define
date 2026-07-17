@@ -30,7 +30,8 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
-  nickname     String?
+  /// 표시 이름. 익명 모델이라 미설정(null) 허용. 설정 시엔 전역 중복 방지(unique).
+  nickname     String?  @unique
   createdAt    DateTime @default(now())
   entries      Entry[]
   likes        Like[]

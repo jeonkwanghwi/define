@@ -14,6 +14,7 @@ import { downloadJournal, syncJournal } from '@/lib/sync-journal';
 import {
   login as loginApi,
   signup as signupApi,
+  updateNickname as updateNicknameApi,
   updateProfile as updateProfileApi,
   type AuthUser,
 } from '@/services/auth-api';
@@ -37,6 +38,8 @@ type AuthState = {
     gender: 'male' | 'female';
     interests: string[];
   }) => Promise<void>;
+  /** 닉네임 설정/변경. 성공 시 user 갱신. 중복(409) 등 실패 시 throw(시트가 인라인 에러). */
+  updateNickname: (nickname: string) => Promise<void>;
   /** 출석 적립 등으로 잔액만 갱신(서버 응답값으로). */
   setBalance: (balance: number) => void;
   /** 동의 완료 표시(서버 기록 후). */
@@ -66,6 +69,12 @@ export const useAuthStore = create<AuthState>()(
         const token = get().token;
         if (!token) throw new Error('로그인이 필요합니다.');
         const { user } = await updateProfileApi(token, input);
+        set({ user });
+      },
+      updateNickname: async (nickname) => {
+        const token = get().token;
+        if (!token) throw new Error('로그인이 필요합니다.');
+        const { user } = await updateNicknameApi(token, nickname);
         set({ user });
       },
       setBalance: (balance) => {
