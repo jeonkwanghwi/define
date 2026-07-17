@@ -20,7 +20,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
-import { PressableScale } from '@/components/primitives';
+import { Button } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { useTheme } from '@/theme';
@@ -151,31 +151,28 @@ export function SaveConfirmation({
             </ThemedText>
           </Animated.View>
 
-          {/* 재정의 리빌 — 여기서 처음 공개. 비교하러 가거나("칩"), 명시적으로 닫거나("다음에"). */}
+          {/* 재정의 리빌 — 여기서 처음 공개. 좌: 닫기(보조) / 우: 비교하러 가기(주 액션). */}
           {isReveal ? (
-            <Animated.View style={{ opacity: reveal, alignItems: 'center' }}>
-              <PressableScale
-                onPress={onViewTimeline}
-                disabled={!onViewTimeline}
-                style={[
-                  styles.revealChip,
-                  { backgroundColor: theme.colors.point.p050, marginTop: theme.spacing.s5 },
-                ]}
-              >
-                <ThemedText variant="sm" style={{ color: theme.colors.point.p600, fontWeight: '700' }}>
-                  이 단어, {count}번째 정의예요
-                </ThemedText>
-                {onViewTimeline ? (
-                  <ThemedText variant="caption" style={{ color: theme.colors.point.p600, marginTop: 2 }}>
-                    지난 생각과 비교해보기 →
-                  </ThemedText>
-                ) : null}
-              </PressableScale>
-              <PressableScale onPress={onDismiss} hitSlop={8} style={styles.laterBtn}>
-                <ThemedText variant="sm" tone="placeholder">
-                  다음에 볼게요
-                </ThemedText>
-              </PressableScale>
+            <Animated.View
+              style={[styles.reveal, { opacity: reveal, marginTop: theme.spacing.s5 }]}
+            >
+              <ThemedText variant="sm" style={{ color: theme.colors.point.p600, fontWeight: '700' }}>
+                이 단어, {count}번째 정의예요
+              </ThemedText>
+              <View style={styles.revealActions}>
+                <View style={styles.revealBtn}>
+                  <Button label="다음에 볼게요" variant="ghost" size="sm" fullWidth onPress={onDismiss} />
+                </View>
+                <View style={styles.revealBtn}>
+                  <Button
+                    label="지난 생각 보기"
+                    size="sm"
+                    fullWidth
+                    onPress={onViewTimeline}
+                    disabled={!onViewTimeline}
+                  />
+                </View>
+              </View>
             </Animated.View>
           ) : null}
         </View>
@@ -205,15 +202,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     transformOrigin: 'left',
   },
-  revealChip: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 16,
+  reveal: { alignSelf: 'stretch', alignItems: 'center' },
+  revealActions: {
+    flexDirection: 'row',
+    gap: 10,
+    alignSelf: 'stretch',
+    marginTop: 14,
   },
-  laterBtn: {
-    marginTop: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
+  revealBtn: { flex: 1 }, // 두 버튼 반반 — ConfirmDialog 액션 행과 동일 규약
 });
