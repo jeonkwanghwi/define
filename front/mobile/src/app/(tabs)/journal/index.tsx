@@ -96,7 +96,8 @@ export default function JournalListScreen() {
         <View style={[styles.statStrip, { marginTop: theme.spacing.s4 }]}>
           <StatCard label="총 기록" value={`${stats.totalEntries}`} />
           <StatCard label="연속 기록" value={`${streak.currentStreak}일`} />
-          <StatCard label="생각 변화" value={`${stats.changedWords}`} />
+          {/* 변화 노트를 남긴 횟수 — 사용자가 선언한 변화만 센다(재정의 횟수 아님). */}
+          <StatCard label="생각 변화" value={`${stats.changeNotes}`} />
         </View>
 
         {/* ─── 3. 단어 리스트 ─── */}
