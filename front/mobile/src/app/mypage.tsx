@@ -5,7 +5,7 @@
  * (tabs) 밖의 루트 Stack 화면이라 탭바 위를 덮는 풀스크린 + 자체 back 헤더.
  *
  * 범위 (P0+P1):
- *   - 프로필: 닉네임(익명 모델 — 미설정 가능) + 실제 기록 통계. 탭하면 닉네임 시트.
+ *   - 프로필: 닉네임(서버 저장·중복 방지, 로그인 필요) + 실제 기록 통계. 탭하면 닉네임 시트.
  *   - 화면: ThemeModeToggle (라이트/다크/시스템) — 다크 모드 복원 입구.
  *   - 설정: 닉네임 변경 / 알림(준비 중)
  *   - 곧 만나요: 프리미엄 테마·폰트 / 단어장 PDF 내보내기 (BM 로드맵, 비활성)
@@ -29,7 +29,6 @@ import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStreak } from '@/store/journal-store';
-import { useSettingsStore } from '@/store/settings-store';
 import { useTheme } from '@/theme';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
@@ -38,8 +37,8 @@ export default function MyPageScreen() {
   const theme = useTheme();
   const router = useRouter();
 
-  const nickname = useSettingsStore((s) => s.nickname);
-  const setNickname = useSettingsStore((s) => s.setNickname);
+  const nickname = useAuthStore((s) => s.user?.nickname ?? '');
+  const updateNickname = useAuthStore((s) => s.updateNickname);
   const stats = useJournalStats();
   const streak = useJournalStreak();
 
@@ -53,6 +52,15 @@ export default function MyPageScreen() {
 
   const hasNickname = nickname.length > 0;
   const avatarLetter = hasNickname ? nickname[0] : '';
+
+  // 닉네임은 서버 저장(중복 검사) — 비로그인이면 편집 대신 로그인 화면으로.
+  function openNicknameEditor() {
+    if (!token) {
+      router.push('/auth');
+      return;
+    }
+    setNicknameSheetOpen(true);
+  }
 
   // 프로필 부제 — 실제 기록 통계 (가짜 수치 없이)
   // 연속 기록은 2일 이상일 때만 — "1일 연속"은 의미가 약하고, 0일은 압박이 되므로 생략.
@@ -72,7 +80,7 @@ export default function MyPageScreen() {
       >
         {/* ─── 프로필 ─── */}
         <PressableScale
-          onPress={() => setNicknameSheetOpen(true)}
+          onPress={openNicknameEditor}
           style={styles.profile}
         >
           <View
@@ -97,7 +105,11 @@ export default function MyPageScreen() {
           <View style={styles.profileText}>
             <View style={styles.nameRow}>
               <ThemedText variant="h3">
-                {hasNickname ? nickname : '닉네임을 정해보세요'}
+                {hasNickname
+                  ? nickname
+                  : token
+                    ? '닉네임을 정해보세요'
+                    : '로그인하고 닉네임을 정해보세요'}
               </ThemedText>
               <Icon name="edit" size={15} color={theme.colors.ink.placeholder} />
             </View>
@@ -160,8 +172,8 @@ export default function MyPageScreen() {
             theme={theme}
             icon="user"
             label="닉네임 변경"
-            value={hasNickname ? nickname : '미설정'}
-            onPress={() => setNicknameSheetOpen(true)}
+            value={token ? (hasNickname ? nickname : '미설정') : '로그인 필요'}
+            onPress={openNicknameEditor}
           />
           <Divider theme={theme} />
           <Row
@@ -222,7 +234,7 @@ export default function MyPageScreen() {
       <NicknameSheet
         visible={nicknameSheetOpen}
         current={nickname}
-        onSave={setNickname}
+        onSave={updateNickname}
         onClose={() => setNicknameSheetOpen(false)}
       />
 
