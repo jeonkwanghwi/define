@@ -15,6 +15,7 @@
  *   - 저장 완료 마이크로 인터랙션 + 루비 적립 (현재는 단순 alert)
  *   - 실제 단어장 저장 (현재는 mock — 상태 초기화만)
  */
+import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -44,6 +45,7 @@ import { controlPresets, useTheme } from '@/theme';
 
 export default function RecordScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
 
   // 단어 풀과 현재 인덱스. 진입 시 랜덤 1개 선택.
@@ -52,13 +54,13 @@ export default function RecordScreen() {
   const [wordIdx, setWordIdx] = useState(() => Math.floor(Math.random() * RECOMMENDED_WORDS.length));
 
   const [definition, setDefinition] = useState('');
-  // 재정의(과거 기록 있는 단어)일 때만 쓰는 "이전과 달라진 점" 선택 메모.
-  const [changeNote, setChangeNote] = useState('');
   const [customSheetVisible, setCustomSheetVisible] = useState(false);
 
   // 저장 완료 마이크로 인터랙션 상태
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmedWord, setConfirmedWord] = useState('');
+  // 방금 저장으로 이 단어가 몇 번째 정의가 됐는지 — 2 이상이면 완료 화면에서 리빌.
+  const [confirmedCount, setConfirmedCount] = useState(1);
 
   // ─── Hero 단어 swap 트랜지션 — "차분히 떠오름": 이전 단어는 가라앉고, 새 단어가 아래에서 무게감 있게 안착 ───
   const heroOpacity = useRef(new Animated.Value(1)).current;
@@ -77,8 +79,6 @@ export default function RecordScreen() {
       const applyChange = () => {
         if (poolUpdate) setPool(poolUpdate);
         setWordIdx(nextIdx);
-        // 단어가 바뀌면 이전 단어용 변화 메모는 의미 없으므로 초기화
-        setChangeNote('');
       };
 
       if (reduceMotion) {
@@ -109,8 +109,9 @@ export default function RecordScreen() {
   );
 
   const word = pool[wordIdx];
-  // 이 단어를 전에도 정의했는가 → 그렇다면 "생각의 변화" 메모를 받는다.
-  const isRedefinition = useEntryCountForWord(word) > 0;
+  // 이 단어의 기존 기록 수. 쓰는 동안엔 어떤 힌트도 노출하지 않는다(블라인드 쓰기 —
+  // 재정의임을 알면 일부러 다르게/같게 쓰게 되므로). 저장 후 리빌에만 사용.
+  const entryCount = useEntryCountForWord(word);
   const today = useMemo(() => new Date(), []);
   // 최소 20자 — 미달 시 "기록 완료" disabled + 카운터가 n/20자로 목표를 보여줌.
   const canSubmit = definition.trim().length >= MIN_DEFINITION_LENGTH;
@@ -136,12 +137,12 @@ export default function RecordScreen() {
     Keyboard.dismiss();
     // 항상 현재 시각으로 저장 (과거 날짜 기록 제거 — 현재를 기록한다).
     const savedAt = new Date();
-    // 재정의일 때만 메모 전달. 빈 값은 store에서 undefined로 정규화됨.
-    addEntry(word, definition.trim(), savedAt, isRedefinition ? changeNote : undefined);
+    // 변화 노트는 쓰기 시점에 받지 않는다 — 타임라인에서 길게 눌러 사후 기록.
+    addEntry(word, definition.trim(), savedAt);
     setConfirmedWord(word);
+    setConfirmedCount(entryCount + 1);
     setConfirmVisible(true);
     setDefinition('');
-    setChangeNote('');
   }
 
   function handleConfirmDismiss() {
@@ -300,43 +301,9 @@ export default function RecordScreen() {
             </View>
           </Card>
 
-          {/* ─── 3-1. 변화 노트 (재정의일 때만) ─── */}
-          {/* 같은 단어를 다시 정의하는 순간에만 "이전과 달라진 점"을 선택 입력받는다.
-              첫 정의에는 비교 대상이 없으므로 노출하지 않음 — 첫 기록 흐름은 그대로 가볍게. */}
-          {isRedefinition ? (
-            <Card
-              style={{ marginTop: theme.spacing.s4 }}
-              radius="lg"
-              elevation="sm"
-              padded={false}
-            >
-              <View style={{ padding: theme.spacing.s5 }}>
-                <View style={styles.changeNoteHead}>
-                  <Icon name="arrowUp" size={15} color={theme.colors.point.p600} />
-                  <ThemedText
-                    variant="caption"
-                    style={{ color: theme.colors.point.p600, letterSpacing: 0.3 }}
-                  >
-                    생각의 변화 · 선택
-                  </ThemedText>
-                </View>
-                <TextInput
-                  multiline
-                  value={changeNote}
-                  onChangeText={setChangeNote}
-                  placeholder="예전과 무엇이 달라졌나요?"
-                  placeholderTextColor={theme.colors.ink.placeholder}
-                  style={[
-                    styles.changeNoteInput,
-                    {
-                      color: theme.colors.ink.primary,
-                      fontFamily: 'PretendardVariable',
-                    },
-                  ]}
-                />
-              </View>
-            </Card>
-          ) : null}
+          {/* 변화 노트 입력은 제거됨 — 재정의 여부를 쓰는 동안 알려주는 유일한 신호였고,
+              인지하는 순간 기록이 오염된다(블라인드 쓰기, 2026-07-17 결정). 사후 기록은
+              단어 상세 타임라인의 "변화 노트 추가"로. */}
 
           {/* ─── 4. 액션 ─── */}
           <View style={[styles.actions, { marginTop: theme.spacing.s4 }]}>
@@ -359,11 +326,17 @@ export default function RecordScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* 저장 완료 — 포인트 원 + 체크 + 메시지. 1.6초 후 자동 사라지고 새 단어로 이어짐. */}
+      {/* 저장 완료 연출. 재정의였다면 여기서 처음으로 공개(N번째 정의) — 탭하면 타임라인으로. */}
       <SaveConfirmation
         visible={confirmVisible}
         word={confirmedWord}
+        count={confirmedCount}
         onDismiss={handleConfirmDismiss}
+        onViewTimeline={() => {
+          setConfirmVisible(false);
+          drawNewWord();
+          router.push({ pathname: '/journal/[word]', params: { word: confirmedWord } });
+        }}
       />
 
       {/* 커스텀 단어 추가 시트 — "단어 추가" 액션으로 열림. 완료 시 풀 추가 + 그 단어로 swap. */}
@@ -415,19 +388,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-  },
-
-  changeNoteHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  changeNoteInput: {
-    minHeight: 54,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlignVertical: 'top', // Android 상단 정렬
   },
 
   actions: {

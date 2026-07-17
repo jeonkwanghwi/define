@@ -5,15 +5,20 @@
  * 그 아래로 펜 획(밑줄)이 왼→오로 그어진다. define의 핵심 행위(정의를 새김)에
  * 무게를 주는 시그니처 마이크로 인터랙션. ~1.8초 후 자동 dismiss.
  *
+ * 재정의 리빌: count ≥ 2면 마지막 단계에서 "N번째 정의"를 처음으로 공개한다.
+ * (쓰는 동안엔 재정의임을 숨기는 블라인드 쓰기 설계의 짝 — 놀람은 저장 후에.)
+ * 리빌 칩을 탭하면 onViewTimeline으로 지난 생각과 비교하러 이동.
+ *
  * 접근성: reduced-motion이면 연출을 건너뛰고 최종 상태로 즉시 표시.
  *
  * 사용:
- *   <SaveConfirmation visible={done} word={word} onDismiss={() => setDone(false)} />
+ *   <SaveConfirmation visible={done} word={word} count={n} onDismiss={...} onViewTimeline={...} />
  */
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Modal, StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
+import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { useTheme } from '@/theme';
@@ -22,7 +27,11 @@ export type SaveConfirmationProps = {
   visible: boolean;
   word: string;
   onDismiss: () => void;
-  /** 자동 dismiss까지 시간 (ms). 기본 1800. */
+  /** 방금 저장으로 이 단어가 몇 번째 정의가 됐는지. 2 이상이면 리빌 노출. */
+  count?: number;
+  /** 리빌 칩 탭 → 단어 타임라인으로. 없으면 리빌은 문구만 표시. */
+  onViewTimeline?: () => void;
+  /** 자동 dismiss까지 시간 (ms). 기본 1800, 리빌이 있으면 3400(읽고 탭할 시간). */
   autoDismissMs?: number;
 };
 
@@ -32,16 +41,23 @@ export function SaveConfirmation({
   visible,
   word,
   onDismiss,
-  autoDismissMs = 1800,
+  count,
+  onViewTimeline,
+  autoDismissMs,
 }: SaveConfirmationProps) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
 
-  // 연출 단계별 진행값 — 깃펜 → 단어(잉크) → 밑줄(획) → 문구.
+  // 재정의 리빌 — 이 단어가 처음이 아니었음을 저장 후에야 공개.
+  const isReveal = (count ?? 1) >= 2;
+  const dismissMs = autoDismissMs ?? (isReveal ? 3400 : 1800);
+
+  // 연출 단계별 진행값 — 깃펜 → 단어(잉크) → 밑줄(획) → 문구 → (리빌).
   const feather = useRef(new Animated.Value(0)).current;
   const ink = useRef(new Animated.Value(0)).current;
   const stroke = useRef(new Animated.Value(0)).current;
   const caption = useRef(new Animated.Value(0)).current;
+  const reveal = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!visible) {
@@ -49,6 +65,7 @@ export function SaveConfirmation({
       ink.setValue(0);
       stroke.setValue(0);
       caption.setValue(0);
+      reveal.setValue(0);
       return;
     }
 
@@ -58,19 +75,22 @@ export function SaveConfirmation({
       ink.setValue(1);
       stroke.setValue(1);
       caption.setValue(1);
+      reveal.setValue(1);
     } else {
       // 겹쳐 흐르는 시퀀스(총 ~0.9초): 깃펜 → 단어가 번짐 → 획 → 문구.
+      // 리빌은 한 박자 쉬고(~1.1초) 등장 — "새겼다"의 여운 뒤에 오는 반전.
       Animated.parallel([
         Animated.timing(feather, { toValue: 1, duration: 240, delay: 0, easing: EASE, useNativeDriver: true }),
         Animated.timing(ink, { toValue: 1, duration: 380, delay: 140, easing: EASE, useNativeDriver: true }),
         Animated.timing(stroke, { toValue: 1, duration: 440, delay: 320, easing: EASE, useNativeDriver: true }),
         Animated.timing(caption, { toValue: 1, duration: 300, delay: 560, easing: EASE, useNativeDriver: true }),
+        Animated.timing(reveal, { toValue: 1, duration: 320, delay: 1100, easing: EASE, useNativeDriver: true }),
       ]).start();
     }
 
-    const timer = setTimeout(onDismiss, autoDismissMs);
+    const timer = setTimeout(onDismiss, dismissMs);
     return () => clearTimeout(timer);
-  }, [visible, reduceMotion, autoDismissMs, onDismiss, feather, ink, stroke, caption]);
+  }, [visible, reduceMotion, dismissMs, onDismiss, feather, ink, stroke, caption, reveal]);
 
   // 단어: 잉크가 번지듯 살짝 크게 들어와 제자리에 안착.
   const inkScale = ink.interpolate({ inputRange: [0, 1], outputRange: [1.08, 1] });
@@ -123,6 +143,29 @@ export function SaveConfirmation({
               오늘의 나를 한 조각 남겼어요
             </ThemedText>
           </Animated.View>
+
+          {/* 재정의 리빌 — 여기서 처음 공개. 탭하면 지난 생각과 비교하러. */}
+          {isReveal ? (
+            <Animated.View style={{ opacity: reveal }}>
+              <PressableScale
+                onPress={onViewTimeline}
+                disabled={!onViewTimeline}
+                style={[
+                  styles.revealChip,
+                  { backgroundColor: theme.colors.point.p050, marginTop: theme.spacing.s5 },
+                ]}
+              >
+                <ThemedText variant="sm" style={{ color: theme.colors.point.p600, fontWeight: '700' }}>
+                  이 단어, {count}번째 정의예요
+                </ThemedText>
+                {onViewTimeline ? (
+                  <ThemedText variant="caption" style={{ color: theme.colors.point.p600, marginTop: 2 }}>
+                    지난 생각과 비교해보기 →
+                  </ThemedText>
+                ) : null}
+              </PressableScale>
+            </Animated.View>
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -149,5 +192,11 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginTop: 12,
     transformOrigin: 'left',
+  },
+  revealChip: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 16,
   },
 });

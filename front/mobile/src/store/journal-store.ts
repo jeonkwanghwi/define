@@ -184,13 +184,29 @@ export function useJournalWord(word: string): JournalWord | undefined {
   return useMemo(() => grouped.find((w) => w.word === word), [grouped, word]);
 }
 
-/** 통계 카드 — 총 기록 수와 변화 단어 수. */
-export function useJournalStats(): { totalEntries: number; uniqueWords: number; changedWords: number } {
+/**
+ * 통계 카드 — 총 기록 수와 변화 통계.
+ * 변화 기준은 "2회 이상 정의"가 아니라 **사용자가 남긴 변화 노트**(2026-07-17 변경).
+ * 기계적 재정의 횟수는 쓸수록 전체에 수렴해 신호가 죽지만, 노트는 사용자가 직접
+ * "생각이 변했다"고 선언한 것이라 시간이 지나도 의미가 유지된다.
+ *   - changedWords: 변화 노트가 1개 이상 있는 단어 수 (마이페이지 문구용)
+ *   - changeNotes:  변화 노트 총 개수 (단어장 "생각 변화" 카드용)
+ */
+export function useJournalStats(): {
+  totalEntries: number;
+  uniqueWords: number;
+  changedWords: number;
+  changeNotes: number;
+} {
   const grouped = useGroupedByWord();
   return useMemo(() => {
     const total = grouped.reduce((sum, w) => sum + w.entries.length, 0);
-    const changed = grouped.filter((w) => w.changed).length;
-    return { totalEntries: total, uniqueWords: grouped.length, changedWords: changed };
+    const changedWords = grouped.filter((w) => w.entries.some((e) => e.changeNote)).length;
+    const changeNotes = grouped.reduce(
+      (sum, w) => sum + w.entries.filter((e) => e.changeNote).length,
+      0,
+    );
+    return { totalEntries: total, uniqueWords: grouped.length, changedWords, changeNotes };
   }, [grouped]);
 }
 

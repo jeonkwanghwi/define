@@ -2,7 +2,9 @@
  * WordRow — 단어장 리스트의 한 행.
  *
  * 좌: 단어(h3) + 최신 정의 한 줄 (말줄임)
- * 우: (변화 뱃지) + 정의 횟수(작은 원) + chevronR
+ * 우: 정의 횟수(작은 원) + chevronR
+ *   ("변화" 뱃지는 2026-07-17 제거 — 기준이 '2회 이상 정의'라 실제 변화와 무관했고,
+ *    쓸수록 모든 행에 붙어 신호가 죽음. 역사의 존재는 횟수 원이 이미 전달.)
  *
  * 누름 시 onPress 호출. 화면 측에서 router.push로 단어 상세로 이동.
  */
@@ -11,7 +13,7 @@ import { StyleSheet, View } from 'react-native';
 import { Card, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
-import { controlPresets, useTheme } from '@/theme';
+import { useTheme } from '@/theme';
 import type { JournalWord } from '@/types/word';
 
 export type WordRowProps = {
@@ -51,28 +53,9 @@ export function WordRow({ item, onPress }: WordRowProps) {
           ) : null}
         </View>
 
-        {/* 우측 메타 — 위: 변화/개수/화살표, 아래: 마지막 날짜(우하단) */}
+        {/* 우측 메타 — 위: 개수/화살표, 아래: 마지막 날짜(우하단) */}
         <View style={styles.side}>
           <View style={styles.metaRow}>
-            {item.changed ? (
-              <View
-                style={[
-                  styles.changeBadge,
-                  {
-                    backgroundColor: theme.colors.point.p050,
-                    borderColor: theme.colors.point.p100,
-                  },
-                ]}
-              >
-                <Icon name="arrowUp" size={11} color={theme.colors.point.p600} />
-                <ThemedText
-                  variant="caption"
-                  style={{ color: theme.colors.point.p600 }}
-                >
-                  변화
-                </ThemedText>
-              </View>
-            ) : null}
             <View
               style={[
                 styles.countCircle,
@@ -111,14 +94,6 @@ const styles = StyleSheet.create({
   },
   side: { alignItems: 'flex-end', justifyContent: 'space-between', gap: 6 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  changeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    ...controlPresets.badge,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
   countCircle: {
     width: 22,
     height: 22,
