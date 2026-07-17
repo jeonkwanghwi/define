@@ -8,6 +8,8 @@
  * 재정의 리빌: count ≥ 2면 마지막 단계에서 "N번째 정의"를 처음으로 공개한다.
  * (쓰는 동안엔 재정의임을 숨기는 블라인드 쓰기 설계의 짝 — 놀람은 저장 후에.)
  * 리빌 칩을 탭하면 onViewTimeline으로 지난 생각과 비교하러 이동.
+ * 리빌이 있을 땐 자동 닫힘 없음 — 이 순간이 핵심이라 타이머로 끊지 않는다.
+ * (화면 아무 데나 탭하면 닫힘. 일반 저장은 기존대로 1.8초 자동 닫힘.)
  *
  * 접근성: reduced-motion이면 연출을 건너뛰고 최종 상태로 즉시 표시.
  *
@@ -15,7 +17,7 @@
  *   <SaveConfirmation visible={done} word={word} count={n} onDismiss={...} onViewTimeline={...} />
  */
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Modal, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
 import { PressableScale } from '@/components/primitives';
@@ -31,7 +33,7 @@ export type SaveConfirmationProps = {
   count?: number;
   /** 리빌 칩 탭 → 단어 타임라인으로. 없으면 리빌은 문구만 표시. */
   onViewTimeline?: () => void;
-  /** 자동 dismiss까지 시간 (ms). 기본 1800, 리빌이 있으면 3400(읽고 탭할 시간). */
+  /** 자동 dismiss까지 시간 (ms). 기본 1800. 리빌이 있으면 무시(탭으로만 닫힘). */
   autoDismissMs?: number;
 };
 
@@ -50,7 +52,6 @@ export function SaveConfirmation({
 
   // 재정의 리빌 — 이 단어가 처음이 아니었음을 저장 후에야 공개.
   const isReveal = (count ?? 1) >= 2;
-  const dismissMs = autoDismissMs ?? (isReveal ? 3400 : 1800);
 
   // 연출 단계별 진행값 — 깃펜 → 단어(잉크) → 밑줄(획) → 문구 → (리빌).
   const feather = useRef(new Animated.Value(0)).current;
@@ -88,9 +89,11 @@ export function SaveConfirmation({
       ]).start();
     }
 
-    const timer = setTimeout(onDismiss, dismissMs);
+    // 리빌이 있으면 자동 닫힘 없음 — 사용자가 탭할 때까지 기다린다.
+    if (isReveal) return;
+    const timer = setTimeout(onDismiss, autoDismissMs ?? 1800);
     return () => clearTimeout(timer);
-  }, [visible, reduceMotion, dismissMs, onDismiss, feather, ink, stroke, caption, reveal]);
+  }, [visible, reduceMotion, isReveal, autoDismissMs, onDismiss, feather, ink, stroke, caption, reveal]);
 
   // 단어: 잉크가 번지듯 살짝 크게 들어와 제자리에 안착.
   const inkScale = ink.interpolate({ inputRange: [0, 1], outputRange: [1.08, 1] });
@@ -103,7 +106,11 @@ export function SaveConfirmation({
       onRequestClose={onDismiss}
       statusBarTranslucent
     >
-      <View style={[styles.scrim, { backgroundColor: theme.colors.paper.base + 'F2' }]}>
+      {/* 스크림 탭 → 닫기. 리빌일 땐 이게 유일한 닫힘 경로(자동 닫힘 없음). */}
+      <Pressable
+        style={[styles.scrim, { backgroundColor: theme.colors.paper.base + 'F2' }]}
+        onPress={onDismiss}
+      >
         <View style={styles.card}>
           {/* 깃펜 — "이 단어를 썼다"는 표식 */}
           <Animated.View style={{ opacity: feather }}>
@@ -167,7 +174,7 @@ export function SaveConfirmation({
             </Animated.View>
           ) : null}
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 }
