@@ -7,22 +7,23 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { Button, PressableScale, TextField } from '@/components/primitives';
+import { YearPickerSheet } from '@/components/domain/year-picker-sheet';
+import { Button, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { INTERESTS } from '@/constants/interests';
+import { Icon } from '@/icons';
 import type { ApiError } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { useTheme } from '@/theme';
-
-const THIS_YEAR = 2026;
 
 export default function ProfileSetupScreen() {
   const theme = useTheme();
   const router = useRouter();
   const updateProfile = useAuthStore((s) => s.updateProfile);
 
-  const [year, setYear] = useState('');
+  const [year, setYear] = useState<number | null>(null);
+  const [yearSheetOpen, setYearSheetOpen] = useState(false);
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +36,8 @@ export default function ProfileSetupScreen() {
   }
 
   function validate(): string | null {
-    const y = Number(year);
-    if (!/^\d{4}$/.test(year) || y < 1900 || y > THIS_YEAR) return '출생연도를 4자리로 입력해 주세요.';
+    // 연도는 드롭다운 선택이라 범위 검증 불필요 — 선택 여부만 확인.
+    if (year == null) return '출생연도를 선택해 주세요.';
     if (!gender) return '성별을 선택해 주세요.';
     if (selected.length === 0) return '관심사를 1개 이상 골라 주세요.';
     return null;
@@ -51,7 +52,7 @@ export default function ProfileSetupScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      await updateProfile({ birthYear: Number(year), gender: gender!, interests: selected });
+      await updateProfile({ birthYear: year!, gender: gender!, interests: selected });
       // 가입 → 프로필 완성 후에도 로그인과 동일하게 기록 탭(홈)으로.
       router.replace('/');
     } catch (e) {
@@ -74,13 +75,26 @@ export default function ProfileSetupScreen() {
         <ThemedText variant="h3" style={[styles.label, { marginTop: theme.spacing.s8 }]}>
           출생연도
         </ThemedText>
-        <TextField
-          value={year}
-          onChangeText={(t) => setYear(t.replace(/[^0-9]/g, '').slice(0, 4))}
-          placeholder="예) 1996"
-          keyboardType="number-pad"
-          maxLength={4}
-        />
+        {/* 직접 입력 대신 드롭다운 — TextField와 같은 시각 언어의 선택 필드 */}
+        <PressableScale
+          onPress={() => setYearSheetOpen(true)}
+          style={[
+            styles.yearField,
+            {
+              backgroundColor: theme.colors.surface.nested,
+              borderColor: theme.colors.line.base,
+              borderRadius: theme.radii.md,
+            },
+          ]}
+        >
+          <ThemedText
+            variant="body"
+            style={{ color: year ? theme.colors.ink.primary : theme.colors.ink.placeholder }}
+          >
+            {year ?? '연도를 선택해 주세요'}
+          </ThemedText>
+          <Icon name="chevronD" size={18} color={theme.colors.ink.placeholder} />
+        </PressableScale>
 
         {/* 성별 */}
         <ThemedText variant="h3" style={[styles.label, { marginTop: theme.spacing.s6 }]}>
@@ -158,6 +172,14 @@ export default function ProfileSetupScreen() {
           style={{ marginTop: theme.spacing.s6 }}
         />
       </ScrollView>
+
+      {/* 출생연도 선택 시트 */}
+      <YearPickerSheet
+        visible={yearSheetOpen}
+        current={year}
+        onSelect={setYear}
+        onClose={() => setYearSheetOpen(false)}
+      />
     </ThemedView>
   );
 }
@@ -166,6 +188,15 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32 },
   label: { marginBottom: 12 },
+  // TextField(base) 시각 규약과 맞춤: 1.5px 보더 + 14/16 패딩
+  yearField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
   genderRow: { flexDirection: 'row', gap: 12 },
   genderBtn: {
     flex: 1,
