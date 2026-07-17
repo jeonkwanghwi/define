@@ -162,7 +162,7 @@ export function SaveConfirmation({
               <View style={styles.revealActions}>
                 <View style={styles.revealBtn}>
                   <Button
-                    label="다음에 볼게요"
+                    label="다음에 보기"
                     variant="ghost"
                     size="sm"
                     fullWidth
@@ -172,7 +172,7 @@ export function SaveConfirmation({
                 </View>
                 <View style={styles.revealBtn}>
                   <Button
-                    label="지난 생각 보기"
+                    label="보러 가기"
                     size="sm"
                     fullWidth
                     onPress={onViewTimeline}
