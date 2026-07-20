@@ -16,7 +16,7 @@
  *   - 실제 단어장 저장 (현재는 mock — 상태 초기화만)
  */
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Keyboard,
@@ -54,6 +54,14 @@ export default function RecordScreen() {
   const [wordIdx, setWordIdx] = useState(() => Math.floor(Math.random() * RECOMMENDED_WORDS.length));
 
   const [definition, setDefinition] = useState('');
+  // 입력창 auto-grow — 고정 높이면 5줄(~110자)부터 먼저 쓴 내용이 위로 밀려
+  // "지워진 것처럼" 보임(2026-07-06 제보). 내용 높이를 따라가 전체가 항상 보이게.
+  const [inputContentHeight, setInputContentHeight] = useState(0);
+  // 비워지면(저장 후 리셋 포함) 기본 높이로 복귀. 웹 textarea는 scrollHeight가
+  // 현재 높이 아래로 안 내려가 onContentSizeChange만으론 줄어들지 않는다.
+  useEffect(() => {
+    if (definition === '') setInputContentHeight(0);
+  }, [definition]);
   const [customSheetVisible, setCustomSheetVisible] = useState(false);
 
   // 저장 완료 마이크로 인터랙션 상태
@@ -269,10 +277,12 @@ export default function RecordScreen() {
                 multiline
                 value={definition}
                 onChangeText={setDefinition}
+                onContentSizeChange={(e) => setInputContentHeight(e.nativeEvent.contentSize.height)}
                 placeholder={`나에게 ${word}${topicSuffix(word)}…`}
                 placeholderTextColor={theme.colors.ink.placeholder}
                 style={[
                   styles.definitionInput,
+                  inputContentHeight > 140 && { height: inputContentHeight },
                   {
                     color: theme.colors.ink.primary,
                     fontFamily: 'PretendardVariable',
