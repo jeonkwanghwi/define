@@ -15,6 +15,8 @@ import { RecallEntry, RecallRepository } from './recall.repository';
 
 /** 대화 1건 시작당 차감 잉크. */
 export const RECALL_COST = 30;
+/** 회상 열림 조건: 서로 다른 단어 수 (프론트 past.tsx UNLOCK_WORDS와 동일 값). */
+export const RECALL_UNLOCK_WORDS = 20;
 /** 프롬프트에 넣는 엔트리 상한(토큰 관리, 최신 우선). */
 const MAX_ENTRIES = 60;
 
@@ -49,6 +51,20 @@ export class RecallService {
     const ctx = await this.recall.findUserContext(userId);
     if (!ctx) throw new NotFoundException('사용자를 찾을 수 없습니다.');
 
+    // 열림 게이트 — 프론트 잠금 화면과 별개로 서버가 권위로 검사. isNewConversation은
+    // 클라 주장이라 매 턴 검사(이어하기로 우회 불가). 엔트리는 아래 프롬프트에서 재사용.
+    const allEntries = await this.recall.findEntries(userId);
+    const distinctWords = new Set(allEntries.map((e) => e.word)).size;
+    if (distinctWords < RECALL_UNLOCK_WORDS) {
+      throw new HttpException(
+        {
+          message: `서로 다른 단어 ${RECALL_UNLOCK_WORDS}개를 모으면 회상이 열려요.`,
+          code: 'RECALL_LOCKED',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     // 새 대화 시작 — 동의·잔액 선검사(OpenAI 호출 낭비 방지). 실제 차감은 성공 후.
     if (dto.isNewConversation) {
       if (!ctx.recallConsentAt) {
@@ -66,7 +82,7 @@ export class RecallService {
       }
     }
 
-    const entries = this.applyFilter(await this.recall.findEntries(userId), dto.filter, ctx.birthYear);
+    const entries = this.applyFilter(allEntries, dto.filter, ctx.birthYear);
     const system = buildSystemPrompt({
       entries: entries.slice(0, MAX_ENTRIES),
       mode: dto.mode ?? 'free',
