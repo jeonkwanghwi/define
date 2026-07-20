@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { CurrencyRepository } from './currency.repository';
 import { recordRewardForDay } from './record-reward';
@@ -15,14 +15,23 @@ export class CurrencyService {
 
   /**
    * 오늘 처음 호출이면 +ATTENDANCE_AMOUNT, 이미 받았으면 무지급. 멱등.
-   * '오늘' = 클라가 보낸 localDate. lastAttendanceDate와 다르면 신규 출석.
+   * '오늘' = 클라가 보낸 localDate. 단 서버가 권위로 검증(임의 날짜 반복 적립 차단):
+   *  - 서버 UTC 날짜 ±1일 밖이면 400 — 전 세계 시간대(UTC-12~+14)의 로컬 날짜는 이 창 안에 들어옴
+   *  - 마지막 적립일보다 이전이거나 같으면 무지급 — 날짜를 되돌려 보내는 파밍 차단
    */
   async claimAttendance(userId: string, localDate: string): Promise<AttendanceResult> {
     const state = await this.currency.findState(userId);
     if (!state) {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
-    if (state.lastAttendanceDate === localDate) {
+    const serverUtcDay = Date.parse(new Date().toISOString().slice(0, 10));
+    const claimDay = Date.parse(localDate); // YYYY-MM-DD → UTC 자정 (DTO가 형식 보장)
+    const DAY_MS = 86_400_000;
+    if (Number.isNaN(claimDay) || Math.abs(claimDay - serverUtcDay) > DAY_MS) {
+      throw new BadRequestException('날짜가 올바르지 않습니다.');
+    }
+    // YYYY-MM-DD는 문자열 비교 = 시간순 비교.
+    if (state.lastAttendanceDate !== null && localDate <= state.lastAttendanceDate) {
       return { balance: state.balance, claimed: false, amount: ATTENDANCE_AMOUNT };
     }
     const balance = await this.currency.grantAttendance(userId, ATTENDANCE_AMOUNT, localDate);
