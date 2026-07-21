@@ -16,7 +16,7 @@
  *   - 실제 단어장 저장 (현재는 mock — 상태 초기화만)
  */
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Keyboard,
@@ -43,10 +43,10 @@ import { topicSuffix } from '@/lib/korean';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
 import { controlPresets, useTheme } from '@/theme';
 
-// 입력창 auto-grow 상한(px). 이 위로는 입력창 내부 스크롤(캐럿 따라감) — 화면이 밀려
-// 버튼이 하단 탭바 밑으로 사라지지 않게 입력창을 탭바 위에 머무는 박스로 가둔다.
-// minHeight 140(≈4~5줄) → 상한 ≈ 6~7줄. 짧은 정의(20자~)는 상한에 안 닿음.
-const MAX_INPUT_HEIGHT = 200;
+// 입력창 고정 높이(px). 처음부터 이 크기로 고정 — 타이핑에 따라 박스가 커지지 않아
+// 화면이 출렁이지 않는다. 내용이 넘치면 입력창 내부에서 스크롤(캐럿=마지막 줄 따라감).
+// 이 값이 탭바 위에 머물러 "기록 완료" 버튼이 밀려나지 않는 상한이기도 하다(뷰포트 664 기준).
+const INPUT_HEIGHT = 200;
 
 export default function RecordScreen() {
   const theme = useTheme();
@@ -59,16 +59,6 @@ export default function RecordScreen() {
   const [wordIdx, setWordIdx] = useState(() => Math.floor(Math.random() * RECOMMENDED_WORDS.length));
 
   const [definition, setDefinition] = useState('');
-  // 입력창 auto-grow — 고정 높이면 5줄(~110자)부터 먼저 쓴 내용이 위로 밀려
-  // "지워진 것처럼" 보임(2026-07-06 제보). 내용 높이를 따라가되, MAX_INPUT_HEIGHT까지만.
-  // 상한 없이 늘리면 긴 글(~270자+)에서 입력창이 하단 탭바를 뚫고 내려가
-  // "기록 완료" 버튼이 화면 밖으로 밀려남(2026-07-21 제보) → 상한 넘으면 내부 스크롤.
-  const [inputContentHeight, setInputContentHeight] = useState(0);
-  // 비워지면(저장 후 리셋 포함) 기본 높이로 복귀. 웹 textarea는 scrollHeight가
-  // 현재 높이 아래로 안 내려가 onContentSizeChange만으론 줄어들지 않는다.
-  useEffect(() => {
-    if (definition === '') setInputContentHeight(0);
-  }, [definition]);
   const [customSheetVisible, setCustomSheetVisible] = useState(false);
 
   // 저장 완료 마이크로 인터랙션 상태
@@ -284,14 +274,10 @@ export default function RecordScreen() {
                 multiline
                 value={definition}
                 onChangeText={setDefinition}
-                onContentSizeChange={(e) => setInputContentHeight(e.nativeEvent.contentSize.height)}
                 placeholder={`나에게 ${word}${topicSuffix(word)}…`}
                 placeholderTextColor={theme.colors.ink.placeholder}
                 style={[
                   styles.definitionInput,
-                  inputContentHeight > 140 && {
-                    height: Math.min(inputContentHeight, MAX_INPUT_HEIGHT),
-                  },
                   {
                     color: theme.colors.ink.primary,
                     fontFamily: 'PretendardVariable',
@@ -397,7 +383,7 @@ const styles = StyleSheet.create({
   },
 
   definitionInput: {
-    minHeight: 140,
+    height: INPUT_HEIGHT, // 고정 — 넘치면 내부 스크롤(auto-grow 안 함)
     fontSize: 18,
     lineHeight: 30,
     textAlignVertical: 'top', // Android 상단 정렬
