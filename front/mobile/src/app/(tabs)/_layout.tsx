@@ -35,6 +35,11 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      // GO_BACK이 탭까지 버블되면(예: 타 탭에서 단어 상세로 바로 push 후 뒤로)
+      // 기본 backBehavior('firstRoute')는 첫 탭=광장(비로그인 잠금 화면)으로 보낸다
+      // → "뒤로 눌렀더니 가입 유도가 뜨는" 오동작. 초기 탭(기록)으로 지정.
+      initialRouteName="index"
+      backBehavior="initialRoute"
       screenOptions={{
         headerShown: false,
         // 좌우 슬라이드(책장 넘김 느낌). 헤더가 화면 안에 있어 같이 넘어가지만,
