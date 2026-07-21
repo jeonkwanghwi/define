@@ -121,6 +121,7 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
               maxLength={MAX_LENGTH}
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
+              error={error ?? undefined}
             />
 
             <View style={[styles.counterRow, { marginTop: theme.spacing.s2 }]}>
@@ -129,20 +130,11 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
               </ThemedText>
             </View>
 
-            {error ? (
-              <ThemedText
-                variant="sm"
-                style={{ color: theme.colors.ruby.base, marginTop: theme.spacing.s2 }}
-              >
-                {error}
-              </ThemedText>
-            ) : null}
-
             <Button
-              label={saving ? '잠시만요…' : '저장'}
+              label="저장"
+              loading={saving}
               fullWidth
               onPress={handleSubmit}
-              disabled={saving}
               style={{ marginTop: theme.spacing.s4 }}
             />
           </Pressable>
