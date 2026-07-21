@@ -97,6 +97,10 @@ function RecallHome() {
     try {
       await recallConsent(token);
       setRecallConsented();
+      // 동의는 "시작하기"를 누른 흐름의 중간 관문 — 기록됐으면 원래 의도(대화 시작)로 이어간다.
+      // (기존엔 시트만 닫혀 시작 버튼을 한 번 더 눌러야 했음.)
+      if (convoMode === 'question') startQuestion();
+      else startChat();
     } catch (e) {
       console.warn('[recall] 동의 기록 실패:', e);
     }
