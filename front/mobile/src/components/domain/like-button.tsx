@@ -37,13 +37,14 @@ export function LikeButton({ liked, count, onToggle }: LikeButtonProps) {
       style={[
         styles.btn,
         {
-          borderColor: liked ? theme.colors.point.p300 : theme.colors.line.base,
+          // 비선택도 line.strong·secondary로 — line.base·placeholder는 다크에서 배경과 동화되어 버튼이 안 보였음
+          borderColor: liked ? theme.colors.point.p300 : theme.colors.line.strong,
           backgroundColor: liked ? theme.colors.point.p100 : 'transparent',
         },
       ]}
     >
       <Animated.View style={{ transform: [{ scale: pulse }] }}>
-        <Icon name="heart" size={16} color={liked ? theme.colors.point.p600 : theme.colors.ink.placeholder} />
+        <Icon name="heart" size={16} color={liked ? theme.colors.point.p600 : theme.colors.ink.secondary} />
       </Animated.View>
       {count > 0 ? (
         <ThemedText variant="caption" style={{ color: liked ? theme.colors.point.p700 : theme.colors.ink.secondary }}>
