@@ -33,9 +33,9 @@ export function VerifyIdentityMock({ onComplete, submitting }: VerifyIdentityMoc
       </ThemedText>
       <View style={{ height: theme.spacing.s6 }} />
       <Button
-        label={submitting ? '잠시만요…' : '인증 완료'}
+        label="인증 완료"
         onPress={onComplete}
-        disabled={submitting}
+        loading={submitting}
         fullWidth
       />
     </ThemedView>

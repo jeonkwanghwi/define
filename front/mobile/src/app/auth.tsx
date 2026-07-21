@@ -177,9 +177,9 @@ export default function AuthScreen() {
               ) : null}
 
               <Button
-                label={submitting ? '잠시만요…' : isSignup ? '다음' : '로그인'}
+                label={isSignup ? '다음' : '로그인'}
                 onPress={handleFormSubmit}
-                disabled={submitting}
+                loading={submitting}
                 fullWidth
                 style={{ marginTop: theme.spacing.s5 }}
               />
@@ -272,7 +272,8 @@ function AuthModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) =>
             <ThemedText
               variant="bodyMd"
               style={{
-                color: selected ? theme.colors.point.p600 : theme.colors.ink.placeholder,
+                // 비선택 라벨 placeholder는 다크에서 판독이 어려워 secondary로
+                color: selected ? theme.colors.point.p600 : theme.colors.ink.secondary,
                 fontWeight: selected ? '700' : '500',
               }}
             >

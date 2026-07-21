@@ -165,9 +165,9 @@ export default function ProfileSetupScreen() {
         ) : null}
 
         <Button
-          label={submitting ? '저장 중…' : '시작하기'}
+          label="시작하기"
           onPress={handleSubmit}
-          disabled={submitting}
+          loading={submitting}
           fullWidth
           style={{ marginTop: theme.spacing.s6 }}
         />
