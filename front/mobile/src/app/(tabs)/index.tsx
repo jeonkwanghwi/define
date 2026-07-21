@@ -43,6 +43,11 @@ import { topicSuffix } from '@/lib/korean';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
 import { controlPresets, useTheme } from '@/theme';
 
+// 입력창 auto-grow 상한(px). 이 위로는 입력창 내부 스크롤(캐럿 따라감) — 화면이 밀려
+// 버튼이 하단 탭바 밑으로 사라지지 않게 입력창을 탭바 위에 머무는 박스로 가둔다.
+// minHeight 140(≈4~5줄) → 상한 ≈ 6~7줄. 짧은 정의(20자~)는 상한에 안 닿음.
+const MAX_INPUT_HEIGHT = 200;
+
 export default function RecordScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -55,7 +60,9 @@ export default function RecordScreen() {
 
   const [definition, setDefinition] = useState('');
   // 입력창 auto-grow — 고정 높이면 5줄(~110자)부터 먼저 쓴 내용이 위로 밀려
-  // "지워진 것처럼" 보임(2026-07-06 제보). 내용 높이를 따라가 전체가 항상 보이게.
+  // "지워진 것처럼" 보임(2026-07-06 제보). 내용 높이를 따라가되, MAX_INPUT_HEIGHT까지만.
+  // 상한 없이 늘리면 긴 글(~270자+)에서 입력창이 하단 탭바를 뚫고 내려가
+  // "기록 완료" 버튼이 화면 밖으로 밀려남(2026-07-21 제보) → 상한 넘으면 내부 스크롤.
   const [inputContentHeight, setInputContentHeight] = useState(0);
   // 비워지면(저장 후 리셋 포함) 기본 높이로 복귀. 웹 textarea는 scrollHeight가
   // 현재 높이 아래로 안 내려가 onContentSizeChange만으론 줄어들지 않는다.
@@ -282,7 +289,9 @@ export default function RecordScreen() {
                 placeholderTextColor={theme.colors.ink.placeholder}
                 style={[
                   styles.definitionInput,
-                  inputContentHeight > 140 && { height: inputContentHeight },
+                  inputContentHeight > 140 && {
+                    height: Math.min(inputContentHeight, MAX_INPUT_HEIGHT),
+                  },
                   {
                     color: theme.colors.ink.primary,
                     fontFamily: 'PretendardVariable',
