@@ -50,6 +50,9 @@ export default function JournalListScreen() {
   if (sorted.length === 0) {
     return (
       <ThemedView bg="paper" style={styles.root}>
+        <View style={styles.headerWrap}>
+          <AppHeader />
+        </View>
         <View style={styles.emptyWrap}>
           <Icon name="book" size={56} color={theme.colors.point.p300} />
           <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
@@ -151,6 +154,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
   scroll: {
     paddingHorizontal: 24,
     paddingTop: 24,

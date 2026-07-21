@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { AppHeader } from '@/components/domain/app-header';
 import { Button } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -42,38 +43,45 @@ export function AuthGate({ icon, title, description, children }: AuthGateProps) 
     return <>{children}</>;
   }
 
-  // 로그아웃 상태면 가입 유도 잠금 화면.
+  // 로그아웃 상태면 가입 유도 잠금 화면. 헤더는 유지해 로그인 진입점을 남긴다.
   return (
-    <ThemedView bg="paper" style={styles.container}>
-      <Icon name={icon} size={56} color={theme.colors.point.p600} />
-      <ThemedText variant="h2" style={{ marginTop: theme.spacing.s4 }}>
-        {title}
-      </ThemedText>
-      <ThemedText
-        variant="body"
-        tone="secondary"
-        style={{ marginTop: theme.spacing.s2, textAlign: 'center', lineHeight: 24 }}
-      >
-        {description}
-      </ThemedText>
-
-      <View style={[styles.lockRow, { marginTop: theme.spacing.s6 }]}>
-        <Icon name="lock" size={15} color={theme.colors.ink.placeholder} />
-        <ThemedText variant="caption" tone="placeholder">
-          가입한 분들에게 열려요
-        </ThemedText>
+    <ThemedView bg="paper" style={styles.root}>
+      <View style={styles.headerWrap}>
+        <AppHeader />
       </View>
+      <View style={styles.container}>
+        <Icon name={icon} size={56} color={theme.colors.point.p600} />
+        <ThemedText variant="h2" style={{ marginTop: theme.spacing.s4 }}>
+          {title}
+        </ThemedText>
+        <ThemedText
+          variant="body"
+          tone="secondary"
+          style={{ marginTop: theme.spacing.s2, textAlign: 'center', lineHeight: 24 }}
+        >
+          {description}
+        </ThemedText>
 
-      <Button
-        label="가입하고 시작하기"
-        onPress={() => router.push('/auth')}
-        style={{ marginTop: theme.spacing.s5 }}
-      />
+        <View style={[styles.lockRow, { marginTop: theme.spacing.s6 }]}>
+          <Icon name="lock" size={15} color={theme.colors.ink.placeholder} />
+          <ThemedText variant="caption" tone="placeholder">
+            가입한 분들에게 열려요
+          </ThemedText>
+        </View>
+
+        <Button
+          label="가입하고 시작하기"
+          onPress={() => router.push('/auth')}
+          style={{ marginTop: theme.spacing.s5 }}
+        />
+      </View>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
+  headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
   container: {
     flex: 1,
     alignItems: 'center',

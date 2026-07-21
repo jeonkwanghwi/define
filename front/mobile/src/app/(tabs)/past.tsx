@@ -69,24 +69,29 @@ function RecallHome() {
   // ── 잠금: 서로 다른 단어 20개 미만 ──
   if (uniqueWords < UNLOCK_WORDS) {
     return (
-      <ThemedView bg="paper" style={styles.center}>
-        <Icon name="lock" size={48} color={theme.colors.ink.placeholder} />
-        <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
-          회상을 시작하려면
-        </ThemedText>
-        <ThemedText
-          variant="body"
-          tone="secondary"
-          style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
-        >
-          서로 다른 단어 {UNLOCK_WORDS}개를 모으면 그 시절의 나와 대화할 수 있어요.
-        </ThemedText>
-        <ThemedText
-          variant="h2"
-          style={{ marginTop: theme.spacing.s5, color: theme.colors.point.p600 }}
-        >
-          {uniqueWords} / {UNLOCK_WORDS}
-        </ThemedText>
+      <ThemedView bg="paper" style={{ flex: 1 }}>
+        <View style={styles.headerWrap}>
+          <AppHeader />
+        </View>
+        <View style={styles.center}>
+          <Icon name="lock" size={48} color={theme.colors.ink.placeholder} />
+          <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
+            회상을 시작하려면
+          </ThemedText>
+          <ThemedText
+            variant="body"
+            tone="secondary"
+            style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
+          >
+            서로 다른 단어 {UNLOCK_WORDS}개를 모으면 그 시절의 나와 대화할 수 있어요.
+          </ThemedText>
+          <ThemedText
+            variant="h2"
+            style={{ marginTop: theme.spacing.s5, color: theme.colors.point.p600 }}
+          >
+            {uniqueWords} / {UNLOCK_WORDS}
+          </ThemedText>
+        </View>
       </ThemedView>
     );
   }
@@ -394,6 +399,7 @@ function AnimatedPill({
 }
 
 const styles = StyleSheet.create({
+  headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
   segment: { flexDirection: 'row', gap: 8 },

@@ -273,18 +273,25 @@ function WordCard({ word, onPress }: { word: PlazaWord; onPress: () => void }) {
   );
 }
 
+/** 로딩/에러 상태 — 헤더는 유지해 잉크·마이페이지 접근을 잃지 않게. */
 function CenterMessage({ text }: { text: string }) {
   return (
-    <ThemedView bg="paper" style={styles.center}>
-      <ThemedText variant="body" tone="secondary">
-        {text}
-      </ThemedText>
+    <ThemedView bg="paper" style={styles.root}>
+      <View style={styles.headerWrap}>
+        <AppHeader />
+      </View>
+      <View style={styles.center}>
+        <ThemedText variant="body" tone="secondary">
+          {text}
+        </ThemedText>
+      </View>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
   scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   list: { gap: 12 },
