@@ -272,6 +272,12 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-07-24 — EAS 네이티브 빌드 스캐폴딩 (소셜/광고/IAP 언락 준비)
+- **무엇**: 네이티브 dev build 준비. `app.json`에 **`ios.bundleIdentifier`·`android.package` = `com.define.app`**(스토어 영구 식별자, 사용자 확정) + `ios.supportsTablet`. `eas.json` 신설(profiles: development=dev client·internal / preview·internal / production·autoIncrement, `appVersionSource: remote`). `expo-dev-client ~56.0.24` 추가. tsc·`expo config`(식별자 인식) 검증.
+- **왜**: 소셜(Apple/Kakao)·보상형 광고·IAP는 네이티브 모듈이라 웹/Expo Go 불가 → dev build가 셋 다의 언락. **AWS 무관**(이메일 인증만 AWS 대기).
+- **사용자 실행(Expo 계정 필요 — 나는 스캐폴딩까지)**: `cd front/mobile` → `npx eas login` → `npx eas init`(프로젝트 연결, `extra.eas.projectId` 기록됨) → `npx eas build --profile development --platform android`. **첫 빌드는 Android 권장**(Apple Developer 계정 불요, 바로 폰 설치·네이티브 테스트). iOS 실기기 빌드는 Apple Developer 가입 후.
+- **다음**: dev build 뜨면 소셜 로그인 설계·구현. 병렬로 Apple Developer($99)·Kakao Developers·AdMob 계정 신청.
+
 ### 2026-07-24 — 인증 E2E 검증: 전 도메인 회원가입 + 실계정 생성 + 로그인 (22/22)
 - **무엇**: 실제 백엔드(스크래치 DB) + 실 UI로 이메일 인증 플로우 전수 검증. 6개 도메인(naver·gmail·daum·nate·kakao·hanmail) + **직접입력**(mycompany.co.kr) 각각: chooser→회원가입→`아이디@도메인`→비번→다음→인증완료(목업) 완주 → **서버 DB에 7개 계정 실제 생성**(조합 이메일 정확) → 만든 계정 7개 전부 **로그인 성공**. **22/22 PASS**(가입 완주 7 + DB 생성 7 + 로그인 7 + 계정 수 1).
 - **의의**: 도메인 셀렉트/직접입력 조합 이메일이 서버까지 정확히 도달·계정 생성·로그인 라운드트립됨을 실증. dev.db 무접촉.
