@@ -165,7 +165,7 @@ export default function AuthScreen() {
                 onPress={() => setSocialNotice('카카오 로그인은 준비 중이에요 · 곧 만나요')}
                 style={[
                   styles.socialBtn,
-                  { backgroundColor: '#FEE500', borderRadius: theme.radii.pill, marginTop: theme.spacing.s3 },
+                  { backgroundColor: '#FEE500', borderRadius: theme.radii.pill, marginTop: theme.spacing.s4 },
                 ]}
               >
                 <ThemedText variant="bodyMd" style={{ color: '#191600', fontWeight: '700' }}>
@@ -182,7 +182,7 @@ export default function AuthScreen() {
                     borderRadius: theme.radii.pill,
                     borderWidth: 1,
                     borderColor: theme.colors.line.base,
-                    marginTop: theme.spacing.s3,
+                    marginTop: theme.spacing.s4,
                   },
                 ]}
               >
@@ -305,9 +305,6 @@ export default function AuthScreen() {
                       </PressableScale>
                     )}
                   </View>
-                  <ThemedText variant="caption" tone="placeholder" style={{ marginTop: 6 }}>
-                    탭해서 자주 쓰는 도메인 선택 · '직접 입력'도 돼요
-                  </ThemedText>
                   <EmailDomainDropdown
                     visible={domainOpen}
                     current={emailDomain}
@@ -362,6 +359,25 @@ export default function AuthScreen() {
                 fullWidth
                 style={{ marginTop: theme.spacing.s5 }}
               />
+
+              {/* 로그인 폼에서 신규 유저용 회원가입 링크(가입 폼은 chooser 하단에서 진입). */}
+              {!isSignup ? (
+                <PressableScale
+                  onPress={() => goEmail('signup')}
+                  hitSlop={8}
+                  style={{ marginTop: theme.spacing.s5, flexDirection: 'row', justifyContent: 'center' }}
+                >
+                  <ThemedText variant="sm" tone="secondary">
+                    처음이신가요?{' '}
+                  </ThemedText>
+                  <ThemedText
+                    variant="sm"
+                    style={{ color: theme.colors.point.p600, fontWeight: '700' }}
+                  >
+                    회원가입
+                  </ThemedText>
+                </PressableScale>
+              ) : null}
             </Animated.View>
           </View>
         )}
