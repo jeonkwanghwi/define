@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
 import { Button, PressableScale, TextField } from '@/components/primitives';
-import { EmailDomainSheet } from '@/components/domain/email-domain-sheet';
+import { EmailDomainDropdown } from '@/components/domain/email-domain-dropdown';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { VerifyIdentityMock } from '@/components/domain/verify-identity-mock';
 import { ThemedText } from '@/components/themed-text';
@@ -35,7 +35,7 @@ export default function AuthScreen() {
   // 가입 전용 — 아이디/도메인 분리 입력(오타 방지). 로그인은 위 email 단일 칸 사용.
   const [emailLocal, setEmailLocal] = useState('');
   const [emailDomain, setEmailDomain] = useState('');
-  const [domainSheetOpen, setDomainSheetOpen] = useState(false);
+  const [domainOpen, setDomainOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -156,11 +156,13 @@ export default function AuthScreen() {
               </ThemedText>
 
               {isSignup ? (
-                <View style={{ marginBottom: theme.spacing.s3 }}>
+                // 도메인 드롭다운이 아래 필드 위로 겹쳐 내려오도록 relative + zIndex.
+                <View style={{ marginBottom: theme.spacing.s3, position: 'relative', zIndex: 20 }}>
                   <View style={styles.emailRow}>
                     <TextField
                       value={emailLocal}
                       onChangeText={setEmailLocal}
+                      onFocus={() => setDomainOpen(false)}
                       placeholder="아이디"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -173,6 +175,7 @@ export default function AuthScreen() {
                     <TextField
                       value={emailDomain}
                       onChangeText={setEmailDomain}
+                      onFocus={() => setDomainOpen(false)}
                       placeholder="gmail.com"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -180,7 +183,7 @@ export default function AuthScreen() {
                       style={styles.emailDomain}
                     />
                     <PressableScale
-                      onPress={() => setDomainSheetOpen(true)}
+                      onPress={() => setDomainOpen((v) => !v)}
                       hitSlop={8}
                       style={[
                         styles.domainChevron,
@@ -197,6 +200,13 @@ export default function AuthScreen() {
                   <ThemedText variant="caption" tone="placeholder" style={{ marginTop: 6 }}>
                     ▾ 눌러 자주 쓰는 도메인 선택 · 직접 입력도 돼요
                   </ThemedText>
+                  <EmailDomainDropdown
+                    visible={domainOpen}
+                    current={emailDomain}
+                    onSelect={setEmailDomain}
+                    onClose={() => setDomainOpen(false)}
+                    style={styles.emailDropdown}
+                  />
                 </View>
               ) : (
                 <TextField
@@ -214,6 +224,7 @@ export default function AuthScreen() {
                 // 공백은 입력 즉시 제거 — 모바일 키보드 자동완성이 몰래 붙이는 공백 때문에
                 // "가입은 됐는데 로그인이 안 되는" 사고를 원천 차단. (\s = 모든 공백 문자)
                 onChangeText={(t) => setPassword(t.replace(/\s/g, ''))}
+                onFocus={() => setDomainOpen(false)}
                 placeholder="비밀번호 (8자 이상)"
                 autoCapitalize="none"
                 secureTextEntry
@@ -240,13 +251,6 @@ export default function AuthScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
-
-      <EmailDomainSheet
-        visible={domainSheetOpen}
-        current={emailDomain}
-        onSelect={setEmailDomain}
-        onClose={() => setDomainSheetOpen(false)}
-      />
     </ThemedView>
   );
 }
@@ -366,6 +370,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
+  },
+  // 도메인 박스 아래로 붙어 내려오는 드롭다운 — 행(≈52) 바로 밑, 힌트/비번 위로 겹침.
+  emailDropdown: {
+    position: 'absolute',
+    top: 58,
+    left: 0,
+    right: 0,
   },
   track: {
     flexDirection: 'row',
