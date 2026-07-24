@@ -274,7 +274,7 @@
 
 ### 2026-07-24 — 가입 이메일: 아이디+도메인 분리 입력 (드롭다운 + 직접입력, 오타 방지)
 - **무엇**: `/auth` **회원가입** 폼의 단일 이메일 칸을 `아이디 @ 도메인 ▾`로 분리. ▾ = 흔한 도메인 시트(naver·gmail·daum·nate·kakao·hanmail) 빠른 선택 + 도메인 칸 **직접입력 허용**(회사·학교 이메일 수용) → **하드 화이트리스트 아님**. **로그인은 단일 이메일 칸 유지**(OS 자동완성 보존). 목적=오타 방지, 소유 확인은 후속 이메일 인증(§0 다음 후보)이 담당.
-- **구현**: 신규 `EmailDomainSheet`(YearPickerSheet 규약) + `auth.tsx` 조합(`effectiveEmail = 아이디@도메인`, 로그인은 email 단일). **백엔드 무변경**(조합 이메일이 기존 `@IsEmail` 통과 — 직접입력 허용이라 서버 allowlist 불필요).
+- **구현**: 신규 `EmailDomainDropdown`(도메인 박스 바로 아래로 내려오는 **인라인 앵커드 드롭다운** — FadeIn offset 음수로 "스르륵", `shadows.md`로 아래 필드 위 오버레이, relative 부모+zIndex; ▾토글·선택·필드 포커스로 닫힘) + `auth.tsx` 조합(`effectiveEmail = 아이디@도메인`, 로그인은 email 단일). **백엔드 무변경**(조합 이메일이 기존 `@IsEmail` 통과 — 직접입력 허용이라 서버 allowlist 불필요). ※ 초안은 바텀시트였으나 사용자 요청으로 박스 앵커드 드롭다운으로 교체.
 - **함정/교훈**: ⒜ 웹 flex 행에서 `<input>`이 min-content 밑으로 안 줄어 도메인칸·▾가 **오프스크린** → flex 필드에 **`minWidth:0`**(네이티브 무해). ⒝ Metro `CI=1`은 리로드 비활성이라 소스 수정 반영에 **expo 재시작** 필요(수정했는데 화면 그대로면 이거 의심).
 - **검증**: front tsc 클린 + 웹 E2E **9/9**(로그인 단일칸 / 가입 분리칸 / ▾ 시트 열림·naver 노출 / 제외 도메인(outlook·icloud·yahoo·hotmail) 없음 / 시트 선택→도메인 채움 / 조합 이메일 검증 통과→verify 진입 / pageerror 0). 스크린샷 레이아웃 육안 확인.
 
