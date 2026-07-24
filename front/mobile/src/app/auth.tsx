@@ -110,12 +110,13 @@ export default function AuthScreen() {
     }
   }
 
-  function selectMode(next: Mode) {
-    if (next === mode) return;
+  // 방법 선택 화면에서 이메일 폼으로 — 로그인/회원가입 모드를 정해 진입.
+  function goEmail(next: Mode) {
+    setSocialNotice(null);
+    setError(null);
     setDir(next === 'signup' ? 1 : -1);
     setMode(next);
     setStep('form');
-    setError(null);
   }
 
   function handleBack() {
@@ -158,15 +159,7 @@ export default function AuthScreen() {
             </FadeIn>
 
             <View style={styles.chooserButtons}>
-              <Button
-                label="이메일로 계속하기"
-                fullWidth
-                onPress={() => {
-                  setSocialNotice(null);
-                  setError(null);
-                  setStep('form');
-                }}
-              />
+              <Button label="이메일로 로그인" fullWidth onPress={() => goEmail('login')} />
 
               <PressableScale
                 onPress={() => setSocialNotice('카카오 로그인은 준비 중이에요 · 곧 만나요')}
@@ -210,6 +203,20 @@ export default function AuthScreen() {
                 </FadeIn>
               ) : null}
             </View>
+
+            {/* 회원가입은 로그인 방법 고르기 전 결정 → 방법 선택 화면 하단에. */}
+            <PressableScale
+              onPress={() => goEmail('signup')}
+              hitSlop={8}
+              style={styles.signupLink}
+            >
+              <ThemedText variant="sm" tone="secondary">
+                아직 회원이 아니신가요?{' '}
+              </ThemedText>
+              <ThemedText variant="sm" style={{ color: theme.colors.point.p600, fontWeight: '700' }}>
+                회원가입
+              </ThemedText>
+            </PressableScale>
           </View>
         ) : (
           <View style={styles.body}>
@@ -355,23 +362,6 @@ export default function AuthScreen() {
                 fullWidth
                 style={{ marginTop: theme.spacing.s5 }}
               />
-
-              {/* 로그인↔회원가입 전환 = 세그먼트 배너 대신 경량 텍스트 링크. */}
-              <PressableScale
-                onPress={() => selectMode(isSignup ? 'login' : 'signup')}
-                hitSlop={8}
-                style={{ marginTop: theme.spacing.s5, flexDirection: 'row', justifyContent: 'center' }}
-              >
-                <ThemedText variant="sm" tone="secondary">
-                  {isSignup ? '이미 계정이 있나요? ' : '처음이신가요? '}
-                </ThemedText>
-                <ThemedText
-                  variant="sm"
-                  style={{ color: theme.colors.point.p600, fontWeight: '700' }}
-                >
-                  {isSignup ? '로그인' : '회원가입'}
-                </ThemedText>
-              </PressableScale>
             </Animated.View>
           </View>
         )}
@@ -397,11 +387,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
   },
-  // 헤딩 아래 남은 공간에서 버튼 3개를 세로 중앙 정렬. paddingBottom으로 살짝 위로.
+  // 헤딩 아래 남은 공간에서 버튼 3개 세로 중앙(하단 회원가입 링크는 이 아래 별도).
   chooserButtons: {
     flex: 1,
     justifyContent: 'center',
-    paddingBottom: 48,
+  },
+  // 방법 선택 화면 하단 회원가입 링크.
+  signupLink: {
+    paddingTop: 16,
+    paddingBottom: 28,
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   // 소셜 로그인 버튼 — 브랜드색(카카오 노랑/애플 검정). 이메일 Button과 높이 맞춤.
   socialBtn: {
