@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 
 import { CurrencyService } from '../currency/currency.service';
 import { UsageService } from '../usage/usage.service';
@@ -19,6 +20,10 @@ export const RECALL_COST = 30;
 export const RECALL_UNLOCK_WORDS = 20;
 /** 프롬프트에 넣는 엔트리 상한(토큰 관리, 최신 우선). */
 const MAX_ENTRIES = 60;
+/** 이어하기(무료 턴) 대화 토큰 TTL — 발급 시점부터 고정(롤링/갱신 아님). */
+const CONV_TOKEN_TTL = '2h';
+/** 대화 토큰 식별 클레임 — auth 액세스 토큰과 상호 오용 차단. */
+const CONV_TOKEN_PURPOSE = 'recall-conv';
 
 /** 필터를 사람이 읽는 "시절" 라벨로. 나이 우선, 없으면 연도. 둘 다 없으면 전체(undefined). */
 function describePeriod(filter: RecallChatDto['filter']): string | undefined {
@@ -34,6 +39,7 @@ export class RecallService {
     private readonly openai: OpenAiClient,
     private readonly currency: CurrencyService,
     private readonly usage: UsageService,
+    private readonly jwt: JwtService,
   ) {}
 
   /** AI 데이터 동의 기록(멱등 — 다시 부르면 시각만 갱신). */
@@ -43,16 +49,34 @@ export class RecallService {
     return { recallConsentAt: at.toISOString() };
   }
 
-  /** 과거의 나와 1턴 대화. 새 대화 시작이면 동의·잔액 선검사 후 성공 시 30잉크 차감. */
+  /** 이어하기 대화 토큰 발급 — 새 대화 차감 성공 후에만 호출. */
+  private signConvToken(userId: string): string {
+    return this.jwt.sign(
+      { sub: userId, purpose: CONV_TOKEN_PURPOSE },
+      { expiresIn: CONV_TOKEN_TTL },
+    );
+  }
+
+  /** 유효한 이어하기 토큰이면 true. 없음·위조·만료·타유저 → false(=새 대화 취급). */
+  private isValidConvToken(token: string | undefined, userId: string): boolean {
+    if (!token) return false;
+    try {
+      const p = this.jwt.verify<{ sub?: string; purpose?: string }>(token);
+      return p.purpose === CONV_TOKEN_PURPOSE && p.sub === userId;
+    } catch {
+      return false;
+    }
+  }
+
+  /** 과거의 나와 1턴 대화. 새 대화(유효 토큰 없음)면 동의·잔액 검사 후 30잉크 차감·토큰 발급. */
   async chat(
     userId: string,
     dto: RecallChatDto,
-  ): Promise<{ message: string; balance: number }> {
+  ): Promise<{ message: string; balance: number; conversationToken: string }> {
     const ctx = await this.recall.findUserContext(userId);
     if (!ctx) throw new NotFoundException('사용자를 찾을 수 없습니다.');
 
-    // 열림 게이트 — 프론트 잠금 화면과 별개로 서버가 권위로 검사. isNewConversation은
-    // 클라 주장이라 매 턴 검사(이어하기로 우회 불가). 엔트리는 아래 프롬프트에서 재사용.
+    // 열림 게이트 — 서버 권위로 매 턴 검사. 엔트리는 아래 프롬프트에서 재사용.
     const allEntries = await this.recall.findEntries(userId);
     const distinctWords = new Set(allEntries.map((e) => e.word)).size;
     if (distinctWords < RECALL_UNLOCK_WORDS) {
@@ -65,8 +89,11 @@ export class RecallService {
       );
     }
 
-    // 새 대화 시작 — 동의·잔액 선검사(OpenAI 호출 낭비 방지). 실제 차감은 성공 후.
-    if (dto.isNewConversation) {
+    // 새 대화 판단 = 서버 서명 토큰 유효성(클라 주장 불신). 없음·위조·만료·타유저 → 새 대화.
+    const isNew = !this.isValidConvToken(dto.conversationToken, userId);
+
+    // 새 대화만 동의·잔액 선검사(OpenAI 낭비 방지). 실제 차감은 성공 후.
+    if (isNew) {
       if (!ctx.recallConsentAt) {
         throw new HttpException(
           { message: '회상을 시작하려면 동의가 필요해요.', code: 'RECALL_CONSENT_REQUIRED' },
@@ -96,7 +123,7 @@ export class RecallService {
     ];
 
     const result = await this.openai.chat(messages, { maxTokens: 500 }); // 실패 시 throw → 미차감·미기록
-    // 사용량·비용 기록(비치명적). 매 턴 기록 — 모든 호출이 토큰을 소비.
+    // 사용량·비용 기록(비치명적). 매 턴 기록.
     await this.usage.recordLlm({
       userId,
       feature: 'recall',
@@ -104,21 +131,24 @@ export class RecallService {
       usage: result.usage,
     });
 
-    // 성공 후 차감(새 대화 시작에만). 선검사를 통과했으니 보통 ok:true.
+    // 새 대화만 차감 + 새 토큰 발급. 이어하기는 유효 토큰을 그대로 에코(재서명 X = 고정 TTL 유지).
     let balance: number;
-    if (dto.isNewConversation) {
+    let conversationToken: string;
+    if (isNew) {
       const spent = await this.currency.spend(userId, RECALL_COST);
       balance = spent.balance;
+      conversationToken = this.signConvToken(userId);
     } else {
       balance = await this.currency.getBalance(userId);
+      conversationToken = dto.conversationToken as string; // isValidConvToken이 존재 보장
     }
 
-    // 말투 프로필 갱신 — 응답을 막지 않게 백그라운드로(void = 기다리지 않음). 실패해도 비치명적.
+    // 말투 프로필 갱신 — 응답 막지 않게 백그라운드(void). 실패해도 비치명적.
     void this.maybeUpdateSpeechProfile(userId, dto.messages).catch((e) =>
       console.warn('[recall] 말투 프로필 갱신 실패(다음 대화에 재시도):', e),
     );
 
-    return { message: result.content, balance };
+    return { message: result.content, balance, conversationToken };
   }
 
   /**

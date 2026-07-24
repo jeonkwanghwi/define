@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -27,7 +26,8 @@ export class RecallChatDto {
   @ValidateNested() @Type(() => RecallFilterDto) filter: RecallFilterDto;
   @IsArray() @ValidateNested({ each: true }) @Type(() => RecallMessageDto)
   messages: RecallMessageDto[];
-  @IsBoolean() isNewConversation: boolean;
+  /** 이어하기 대화 토큰(서버 발급). 없음/무효/만료 → 새 대화로 취급(30잉크 차감). */
+  @IsOptional() @IsString() conversationToken?: string;
   /** v1: 'free'(사용자 먼저) | 'question'(과거의 내가 먼저 질문). */
   @IsOptional() @IsIn(['free', 'question']) mode?: 'free' | 'question';
   /** 질문모드: 이 단어를 콕 집어 묻게 함. */

@@ -26,7 +26,7 @@ export class RecallController {
   chat(
     @Req() req: { user: { userId: string } },
     @Body() dto: RecallChatDto,
-  ): Promise<{ message: string; balance: number }> {
+  ): Promise<{ message: string; balance: number; conversationToken: string }> {
     return this.recall.chat(req.user.userId, dto);
   }
 }
