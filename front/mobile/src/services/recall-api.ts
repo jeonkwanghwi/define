@@ -6,7 +6,7 @@ import { apiRequest } from './api-client';
 
 export type RecallFilter = { age?: number; periodStart?: string; periodEnd?: string };
 export type RecallMessage = { role: 'user' | 'assistant'; content: string };
-export type RecallChatResult = { message: string; balance: number };
+export type RecallChatResult = { message: string; balance: number; conversationToken: string };
 
 /** POST /api/recall/consent — AI 데이터 동의 기록(1회). */
 export function recallConsent(token: string): Promise<{ recallConsentAt: string }> {
@@ -16,13 +16,13 @@ export function recallConsent(token: string): Promise<{ recallConsentAt: string 
   });
 }
 
-/** POST /api/recall/chat — 과거의 나와 1턴. 새 대화면 isNewConversation:true(30잉크 차감). */
+/** POST /api/recall/chat — 과거의 나와 1턴. 이어하기면 conversationToken 첨부(무료), 없으면 새 대화(30잉크 차감). */
 export function recallChat(
   token: string,
   body: {
     filter: RecallFilter;
     messages: RecallMessage[];
-    isNewConversation: boolean;
+    conversationToken?: string;
     mode?: 'free' | 'question';
     focusWord?: string;
   },

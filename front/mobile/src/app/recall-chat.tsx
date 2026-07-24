@@ -63,6 +63,7 @@ export default function RecallChatScreen() {
   const [error, setError] = useState<string | null>(null);
   const [redefineOpen, setRedefineOpen] = useState(false);
   const startedRef = useRef(false); // 첫 요청 = 새 대화(차감)
+  const conversationTokenRef = useRef<string | undefined>(undefined); // 서버 발급 이어하기 토큰
   const listRef = useRef<FlatList<RecallMessage>>(null);
 
   // 나가기 확인 — 잉크를 쓴 대화(ephemeral)라 실수로 나가면 통째로 사라짐.
@@ -98,8 +99,9 @@ export default function RecallChatScreen() {
     startedRef.current = true;
     setSending(true);
     setError(null);
-    recallChat(token, { filter, messages: [], isNewConversation: true, mode: 'question', focusWord })
+    recallChat(token, { filter, messages: [], conversationToken: conversationTokenRef.current, mode: 'question', focusWord })
       .then((res) => {
+        conversationTokenRef.current = res.conversationToken;
         setBalance(res.balance);
         setMessages([{ role: 'assistant', content: res.message }]);
       })
@@ -128,11 +130,12 @@ export default function RecallChatScreen() {
       const res = await recallChat(token, {
         filter,
         messages: next,
-        isNewConversation: !startedRef.current,
+        conversationToken: conversationTokenRef.current,
         mode,
         focusWord,
       });
       startedRef.current = true;
+      conversationTokenRef.current = res.conversationToken;
       setBalance(res.balance);
       setMessages((m) => [...m, { role: 'assistant', content: res.message }]);
     } catch (e) {
