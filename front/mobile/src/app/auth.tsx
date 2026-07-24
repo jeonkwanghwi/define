@@ -402,14 +402,14 @@ const styles = StyleSheet.create({
   emailLocal: { flex: 1, minWidth: 0 },
   emailAt: { marginHorizontal: 6 },
   // 도메인 셀렉트 박스 — 박스 자체가 드롭다운 트리거(안에 ▾ 내장). TextField와 같은 시각 언어.
+  // 고정 폭(가장 긴 도메인 hanmail.net + ▾가 안 잘릴 만큼) → 아이디 칸(flex)이 나머지를 차지해 넓어짐.
   domainBox: {
-    flex: 1.7,
-    minWidth: 0,
+    width: 148,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    paddingLeft: 16,
-    paddingRight: 8,
+    paddingLeft: 14,
+    paddingRight: 6,
     paddingVertical: 14,
   },
   domainBoxText: { flex: 1 },
