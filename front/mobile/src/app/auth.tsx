@@ -213,8 +213,6 @@ export default function AuthScreen() {
           </View>
         ) : (
           <View style={styles.body}>
-            <AuthModeToggle mode={mode} onChange={selectMode} />
-
             <Animated.View
               style={{
                 marginTop: theme.spacing.s8,
@@ -357,6 +355,23 @@ export default function AuthScreen() {
                 fullWidth
                 style={{ marginTop: theme.spacing.s5 }}
               />
+
+              {/* 로그인↔회원가입 전환 = 세그먼트 배너 대신 경량 텍스트 링크. */}
+              <PressableScale
+                onPress={() => selectMode(isSignup ? 'login' : 'signup')}
+                hitSlop={8}
+                style={{ marginTop: theme.spacing.s5, flexDirection: 'row', justifyContent: 'center' }}
+              >
+                <ThemedText variant="sm" tone="secondary">
+                  {isSignup ? '이미 계정이 있나요? ' : '처음이신가요? '}
+                </ThemedText>
+                <ThemedText
+                  variant="sm"
+                  style={{ color: theme.colors.point.p600, fontWeight: '700' }}
+                >
+                  {isSignup ? '로그인' : '회원가입'}
+                </ThemedText>
+              </PressableScale>
             </Animated.View>
           </View>
         )}
@@ -372,92 +387,6 @@ function mapAuthError(e: unknown): string {
   if (err?.status === 401) return '이메일 또는 비밀번호를 확인해 주세요.';
   if (err?.message) return err.message;
   return '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
-}
-
-const TRACK_PADDING = 4;
-const MODES: { mode: Mode; label: string }[] = [
-  { mode: 'login', label: '로그인' },
-  { mode: 'signup', label: '회원가입' },
-];
-
-/**
- * 로그인 / 회원가입 2분할 세그먼트 — 현재 모드를 항상 명시.
- * 선택 하이라이트가 두 칸 사이를 부드럽게 슬라이드(ThemeModeToggle와 같은 패턴).
- */
-function AuthModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
-  const theme = useTheme();
-  const activeIndex = MODES.findIndex((o) => o.mode === mode);
-
-  const [trackWidth, setTrackWidth] = useState(0);
-  const innerWidth = Math.max(0, trackWidth - TRACK_PADDING * 2);
-  const segWidth = innerWidth / MODES.length;
-
-  const slide = useRef(new Animated.Value(activeIndex)).current;
-  useEffect(() => {
-    Animated.timing(slide, {
-      toValue: activeIndex,
-      duration: motion.duration.base,
-      easing: motion.easing.standard,
-      useNativeDriver: true,
-    }).start();
-  }, [activeIndex, slide]);
-
-  const translateX = slide.interpolate({
-    inputRange: [0, MODES.length - 1],
-    outputRange: [0, segWidth * (MODES.length - 1)],
-  });
-
-  return (
-    <View
-      onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-      style={[
-        styles.track,
-        {
-          backgroundColor: theme.colors.surface.nested,
-          borderColor: theme.colors.line.base,
-          borderRadius: theme.radii.pill,
-        },
-      ]}
-    >
-      {segWidth > 0 ? (
-        <Animated.View
-          style={[
-            styles.highlight,
-            theme.shadows.sm,
-            {
-              width: segWidth,
-              backgroundColor: theme.colors.surface.base,
-              borderRadius: theme.radii.pill,
-              transform: [{ translateX }],
-            },
-          ]}
-        />
-      ) : null}
-
-      {MODES.map((opt) => {
-        const selected = opt.mode === mode;
-        return (
-          <PressableScale
-            key={opt.mode}
-            onPress={() => onChange(opt.mode)}
-            style={styles.segment}
-            hitSlop={4}
-          >
-            <ThemedText
-              variant="bodyMd"
-              style={{
-                // 비선택 라벨 placeholder는 다크에서 판독이 어려워 secondary로
-                color: selected ? theme.colors.point.p600 : theme.colors.ink.secondary,
-                fontWeight: selected ? '700' : '500',
-              }}
-            >
-              {opt.label}
-            </ThemedText>
-          </PressableScale>
-        );
-      })}
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -503,24 +432,5 @@ const styles = StyleSheet.create({
     top: 58,
     left: 0,
     right: 0,
-  },
-  track: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    padding: TRACK_PADDING,
-    position: 'relative',
-  },
-  highlight: {
-    position: 'absolute',
-    top: TRACK_PADDING,
-    left: TRACK_PADDING,
-    bottom: TRACK_PADDING,
-  },
-  segment: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 11,
   },
 });
