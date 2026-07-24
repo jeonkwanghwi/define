@@ -7,7 +7,7 @@
  */
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button, PressableScale, TextField } from '@/components/primitives';
 import { EmailDomainDropdown } from '@/components/domain/email-domain-dropdown';
@@ -36,6 +36,8 @@ export default function AuthScreen() {
   const [emailLocal, setEmailLocal] = useState('');
   const [emailDomain, setEmailDomain] = useState('');
   const [domainOpen, setDomainOpen] = useState(false);
+  // 기본은 드롭다운 셀렉트, "직접 입력" 고르면 도메인 칸이 편집 가능해진다.
+  const [domainCustom, setDomainCustom] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -172,38 +174,75 @@ export default function AuthScreen() {
                     <ThemedText variant="body" tone="secondary" style={styles.emailAt}>
                       @
                     </ThemedText>
-                    <TextField
-                      value={emailDomain}
-                      onChangeText={setEmailDomain}
-                      onFocus={() => setDomainOpen(false)}
-                      placeholder="gmail.com"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      keyboardType="email-address"
-                      style={styles.emailDomain}
-                    />
-                    <PressableScale
-                      onPress={() => setDomainOpen((v) => !v)}
-                      hitSlop={8}
-                      style={[
-                        styles.domainChevron,
-                        {
-                          borderColor: theme.colors.line.base,
-                          borderRadius: theme.radii.md,
-                          backgroundColor: theme.colors.surface.nested,
-                        },
-                      ]}
-                    >
-                      <Icon name="chevronD" size={20} color={theme.colors.ink.secondary} />
-                    </PressableScale>
+                    {domainCustom ? (
+                      // 직접 입력 모드 — 박스가 편집 가능. 안쪽 ▾로 언제든 목록 재오픈.
+                      <View
+                        style={[
+                          styles.domainBox,
+                          {
+                            borderColor: theme.colors.line.base,
+                            borderRadius: theme.radii.md,
+                            backgroundColor: theme.colors.surface.nested,
+                          },
+                        ]}
+                      >
+                        <TextInput
+                          value={emailDomain}
+                          onChangeText={setEmailDomain}
+                          onFocus={() => setDomainOpen(false)}
+                          placeholder="도메인 입력"
+                          placeholderTextColor={theme.colors.ink.placeholder}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          autoFocus
+                          keyboardType="email-address"
+                          style={[styles.domainBoxInput, theme.typography.body, { color: theme.colors.ink.primary }]}
+                        />
+                        <PressableScale onPress={() => setDomainOpen((v) => !v)} hitSlop={8}>
+                          <Icon name="chevronD" size={20} color={theme.colors.ink.secondary} />
+                        </PressableScale>
+                      </View>
+                    ) : (
+                      // 셀렉트 모드 — 박스 자체가 드롭다운 트리거.
+                      <PressableScale
+                        onPress={() => setDomainOpen((v) => !v)}
+                        style={[
+                          styles.domainBox,
+                          {
+                            borderColor: theme.colors.line.base,
+                            borderRadius: theme.radii.md,
+                            backgroundColor: theme.colors.surface.nested,
+                          },
+                        ]}
+                      >
+                        <ThemedText
+                          variant="body"
+                          numberOfLines={1}
+                          style={[
+                            styles.domainBoxText,
+                            { color: emailDomain ? theme.colors.ink.primary : theme.colors.ink.placeholder },
+                          ]}
+                        >
+                          {emailDomain || '선택'}
+                        </ThemedText>
+                        <Icon name="chevronD" size={20} color={theme.colors.ink.secondary} />
+                      </PressableScale>
+                    )}
                   </View>
                   <ThemedText variant="caption" tone="placeholder" style={{ marginTop: 6 }}>
-                    ▾ 눌러 자주 쓰는 도메인 선택 · 직접 입력도 돼요
+                    탭해서 자주 쓰는 도메인 선택 · '직접 입력'도 돼요
                   </ThemedText>
                   <EmailDomainDropdown
                     visible={domainOpen}
                     current={emailDomain}
-                    onSelect={setEmailDomain}
+                    onSelect={(d) => {
+                      setEmailDomain(d);
+                      setDomainCustom(false);
+                    }}
+                    onCustom={() => {
+                      setDomainCustom(true);
+                      setEmailDomain('');
+                    }}
                     onClose={() => setDomainOpen(false)}
                     style={styles.emailDropdown}
                   />
@@ -362,15 +401,19 @@ const styles = StyleSheet.create({
   // minWidth:0 — 웹 <input>이 min-content 밑으로 안 줄어들어 행이 오버플로우하는 것 방지(네이티브 무해).
   emailLocal: { flex: 1, minWidth: 0 },
   emailAt: { marginHorizontal: 6 },
-  emailDomain: { flex: 1.3, minWidth: 0 },
-  domainChevron: {
-    width: 46,
-    marginLeft: 6,
-    paddingVertical: 14,
+  // 도메인 셀렉트 박스 — 박스 자체가 드롭다운 트리거(안에 ▾ 내장). TextField와 같은 시각 언어.
+  domainBox: {
+    flex: 1.7,
+    minWidth: 0,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 1.5,
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 14,
   },
+  domainBoxText: { flex: 1 },
+  domainBoxInput: { flex: 1, padding: 0 },
   // 도메인 박스 아래로 붙어 내려오는 드롭다운 — 행(≈52) 바로 밑, 힌트/비번 위로 겹침.
   emailDropdown: {
     position: 'absolute',

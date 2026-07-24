@@ -30,6 +30,8 @@ export type EmailDomainDropdownProps = {
   visible: boolean;
   current: string;
   onSelect: (domain: string) => void;
+  /** "직접 입력" 선택 — 부모가 도메인 칸을 편집 모드로 전환. */
+  onCustom: () => void;
   onClose: () => void;
   /** 부모 기준 절대배치(top/left/right) — 도메인 박스 바로 아래로. */
   style?: StyleProp<ViewStyle>;
@@ -39,6 +41,7 @@ export function EmailDomainDropdown({
   visible,
   current,
   onSelect,
+  onCustom,
   onClose,
   style,
 }: EmailDomainDropdownProps) {
@@ -87,6 +90,24 @@ export function EmailDomainDropdown({
           </Pressable>
         );
       })}
+
+      {/* 목록 밖 도메인(회사·학교 등) — 편집 모드로 전환. */}
+      <View style={[styles.divider, { backgroundColor: theme.colors.line.base }]} />
+      <Pressable
+        onPress={() => {
+          onCustom();
+          onClose();
+        }}
+        style={({ pressed }) => [
+          styles.item,
+          pressed && { backgroundColor: theme.colors.surface.nested },
+        ]}
+      >
+        <ThemedText variant="bodyMd" style={{ color: theme.colors.point.p600, fontWeight: '600' }}>
+          직접 입력
+        </ThemedText>
+        <Icon name="chevronR" size={16} color={theme.colors.point.p600} />
+      </Pressable>
     </FadeIn>
   );
 }
@@ -105,5 +126,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  divider: {
+    height: 1,
+    marginVertical: 4,
+    marginHorizontal: 12,
   },
 });
