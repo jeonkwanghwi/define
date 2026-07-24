@@ -149,13 +149,15 @@ export default function AuthScreen() {
         {step === 'verify' ? (
           <VerifyIdentityMock onComplete={handleVerified} submitting={submitting} />
         ) : step === 'chooser' ? (
-          // 방법 선택 = 화면 세로 가운데 정렬(centered auth).
-          <View style={[styles.body, styles.chooserCenter]}>
-            <FadeIn>
-              <ThemedText variant="h1" style={{ marginBottom: theme.spacing.s8 }}>
-                {'나만의 정의를\n시작해 보세요'}
+          <View style={styles.body}>
+            {/* 헤딩은 상단 고정, 버튼 3개만 남은 공간에서 세로 중앙. */}
+            <FadeIn style={{ marginTop: theme.spacing.s8 }}>
+              <ThemedText variant="h1">
+                {'나만의 단어를\n정의해보세요'}
               </ThemedText>
+            </FadeIn>
 
+            <View style={styles.chooserButtons}>
               <Button
                 label="이메일로 계속하기"
                 fullWidth
@@ -207,7 +209,7 @@ export default function AuthScreen() {
                   </ThemedText>
                 </FadeIn>
               ) : null}
-            </FadeIn>
+            </View>
           </View>
         ) : (
           <View style={styles.body}>
@@ -466,10 +468,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
   },
-  // 방법 선택 화면 세로 중앙 정렬. paddingBottom으로 상단 헤더만큼 위로 당겨 화면 정중앙 느낌.
-  chooserCenter: {
+  // 헤딩 아래 남은 공간에서 버튼 3개를 세로 중앙 정렬. paddingBottom으로 살짝 위로.
+  chooserButtons: {
+    flex: 1,
     justifyContent: 'center',
-    paddingBottom: 56,
+    paddingBottom: 48,
   },
   // 소셜 로그인 버튼 — 브랜드색(카카오 노랑/애플 검정). 이메일 Button과 높이 맞춤.
   socialBtn: {
