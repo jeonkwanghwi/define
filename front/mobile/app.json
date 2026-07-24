@@ -7,7 +7,12 @@
     "icon": "./assets/images/define.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.define.app",
+      "supportsTablet": true
+    },
     "android": {
+      "package": "com.define.app",
       "adaptiveIcon": {
         "backgroundColor": "#FCFAF6",
         "foregroundImage": "./assets/images/define.png"
