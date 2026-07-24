@@ -149,8 +149,9 @@ export default function AuthScreen() {
         {step === 'verify' ? (
           <VerifyIdentityMock onComplete={handleVerified} submitting={submitting} />
         ) : step === 'chooser' ? (
-          <View style={styles.body}>
-            <FadeIn style={{ marginTop: theme.spacing.s8 }}>
+          // 방법 선택 = 화면 세로 가운데 정렬(centered auth).
+          <View style={[styles.body, styles.chooserCenter]}>
+            <FadeIn>
               <ThemedText variant="h1" style={{ marginBottom: theme.spacing.s8 }}>
                 {'나만의 정의를\n시작해 보세요'}
               </ThemedText>
@@ -464,6 +465,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 24,
+  },
+  // 방법 선택 화면 세로 중앙 정렬. paddingBottom으로 상단 헤더만큼 위로 당겨 화면 정중앙 느낌.
+  chooserCenter: {
+    justifyContent: 'center',
+    paddingBottom: 56,
   },
   // 소셜 로그인 버튼 — 브랜드색(카카오 노랑/애플 검정). 이메일 Button과 높이 맞춤.
   socialBtn: {
