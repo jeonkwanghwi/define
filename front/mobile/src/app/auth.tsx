@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 
-import { Button, PressableScale, TextField } from '@/components/primitives';
+import { Button, FadeIn, PressableScale, TextField } from '@/components/primitives';
 import { EmailDomainDropdown } from '@/components/domain/email-domain-dropdown';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { VerifyIdentityMock } from '@/components/domain/verify-identity-mock';
@@ -21,7 +21,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { motion, useTheme } from '@/theme';
 
 type Mode = 'login' | 'signup';
-type Step = 'form' | 'verify';
+type Step = 'chooser' | 'form' | 'verify';
 
 export default function AuthScreen() {
   const theme = useTheme();
@@ -30,7 +30,9 @@ export default function AuthScreen() {
   const login = useAuthStore((s) => s.login);
 
   const [mode, setMode] = useState<Mode>('login');
-  const [step, setStep] = useState<Step>('form');
+  const [step, setStep] = useState<Step>('chooser');
+  // 미구현 소셜(카카오/애플) 탭 시 우리 톤 인라인 안내.
+  const [socialNotice, setSocialNotice] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   // 가입 전용 — 아이디/도메인 분리 입력(오타 방지). 로그인은 위 email 단일 칸 사용.
   const [emailLocal, setEmailLocal] = useState('');
@@ -122,6 +124,12 @@ export default function AuthScreen() {
       setError(null);
       return;
     }
+    if (step === 'form') {
+      // 이메일 폼 → 방법 선택으로 되돌림.
+      setStep('chooser');
+      setError(null);
+      return;
+    }
     // 딥링크로 /auth에 바로 들어오면 히스토리가 없어 back이 경고를 낸다 → 홈으로 대체.
     if (router.canGoBack()) router.back();
     else router.replace('/');
@@ -140,6 +148,66 @@ export default function AuthScreen() {
 
         {step === 'verify' ? (
           <VerifyIdentityMock onComplete={handleVerified} submitting={submitting} />
+        ) : step === 'chooser' ? (
+          <View style={styles.body}>
+            <FadeIn style={{ marginTop: theme.spacing.s8 }}>
+              <ThemedText variant="h1" style={{ marginBottom: theme.spacing.s8 }}>
+                {'나만의 정의를\n시작해 보세요'}
+              </ThemedText>
+
+              <Button
+                label="이메일로 계속하기"
+                fullWidth
+                onPress={() => {
+                  setSocialNotice(null);
+                  setError(null);
+                  setStep('form');
+                }}
+              />
+
+              <PressableScale
+                onPress={() => setSocialNotice('카카오 로그인은 준비 중이에요 · 곧 만나요')}
+                style={[
+                  styles.socialBtn,
+                  { backgroundColor: '#FEE500', borderRadius: theme.radii.pill, marginTop: theme.spacing.s3 },
+                ]}
+              >
+                <ThemedText variant="bodyMd" style={{ color: '#191600', fontWeight: '700' }}>
+                  카카오 로그인
+                </ThemedText>
+              </PressableScale>
+
+              <PressableScale
+                onPress={() => setSocialNotice('Apple 로그인은 준비 중이에요 · 곧 만나요')}
+                style={[
+                  styles.socialBtn,
+                  {
+                    backgroundColor: '#000000',
+                    borderRadius: theme.radii.pill,
+                    borderWidth: 1,
+                    borderColor: theme.colors.line.base,
+                    marginTop: theme.spacing.s3,
+                  },
+                ]}
+              >
+                <ThemedText variant="bodyMd" style={{ color: '#FFFFFF', fontWeight: '700' }}>
+                  Apple로 로그인
+                </ThemedText>
+              </PressableScale>
+
+              {socialNotice ? (
+                <FadeIn>
+                  <ThemedText
+                    variant="sm"
+                    tone="secondary"
+                    style={{ marginTop: theme.spacing.s4, textAlign: 'center' }}
+                  >
+                    {socialNotice}
+                  </ThemedText>
+                </FadeIn>
+              ) : null}
+            </FadeIn>
+          </View>
         ) : (
           <View style={styles.body}>
             <AuthModeToggle mode={mode} onChange={selectMode} />
@@ -396,6 +464,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 24,
+  },
+  // 소셜 로그인 버튼 — 브랜드색(카카오 노랑/애플 검정). 이메일 Button과 높이 맞춤.
+  socialBtn: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emailRow: { flexDirection: 'row', alignItems: 'center' },
   // minWidth:0 — 웹 <input>이 min-content 밑으로 안 줄어들어 행이 오버플로우하는 것 방지(네이티브 무해).
