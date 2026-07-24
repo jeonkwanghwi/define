@@ -10,10 +10,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
 import { Button, PressableScale, TextField } from '@/components/primitives';
+import { EmailDomainSheet } from '@/components/domain/email-domain-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { VerifyIdentityMock } from '@/components/domain/verify-identity-mock';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/icons';
 import type { ApiError } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { motion, useTheme } from '@/theme';
@@ -30,11 +32,17 @@ export default function AuthScreen() {
   const [mode, setMode] = useState<Mode>('login');
   const [step, setStep] = useState<Step>('form');
   const [email, setEmail] = useState('');
+  // 가입 전용 — 아이디/도메인 분리 입력(오타 방지). 로그인은 위 email 단일 칸 사용.
+  const [emailLocal, setEmailLocal] = useState('');
+  const [emailDomain, setEmailDomain] = useState('');
+  const [domainSheetOpen, setDomainSheetOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const isSignup = mode === 'signup';
+  // 가입=아이디@도메인 조합, 로그인=단일 이메일 칸(자동완성 유지).
+  const effectiveEmail = isSignup ? `${emailLocal.trim()}@${emailDomain.trim()}` : email.trim();
 
   // 모드 전환 시 폼이 진행 방향(로그인=왼쪽, 회원가입=오른쪽)으로 슬라이드+페이드 →
   // "다른 화면으로 넘어왔다"는 느낌을 준다. 상단 세그먼트가 현재 모드를 항상 명시.
@@ -51,7 +59,7 @@ export default function AuthScreen() {
   }, [mode, swap]);
 
   function validate(): string | null {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return '올바른 이메일 형식이 아니에요.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail)) return '올바른 이메일 형식이 아니에요.';
     if (password.length < 8) return '비밀번호는 8자 이상이에요.';
     return null;
   }
@@ -70,7 +78,7 @@ export default function AuthScreen() {
     }
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(effectiveEmail, password);
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
       // 로그인 성공 후에는 어디서 들어왔든(마이페이지 등) 기록 탭(홈)으로 —
       // back()으로 이전 화면 복귀시키면 진입점마다 도착지가 달라져 혼란.
@@ -88,7 +96,7 @@ export default function AuthScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      await signup(email.trim(), password);
+      await signup(effectiveEmail, password);
       router.replace('/profile-setup');
     } catch (e) {
       setError(mapAuthError(e));
@@ -147,15 +155,60 @@ export default function AuthScreen() {
                 {isSignup ? '나만의 정의를\n저장해 보세요' : '다시 만나서\n반가워요'}
               </ThemedText>
 
-              <TextField
-                value={email}
-                onChangeText={setEmail}
-                placeholder="이메일"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-                style={{ marginBottom: theme.spacing.s3 }}
-              />
+              {isSignup ? (
+                <View style={{ marginBottom: theme.spacing.s3 }}>
+                  <View style={styles.emailRow}>
+                    <TextField
+                      value={emailLocal}
+                      onChangeText={setEmailLocal}
+                      placeholder="아이디"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType="email-address"
+                      style={styles.emailLocal}
+                    />
+                    <ThemedText variant="body" tone="secondary" style={styles.emailAt}>
+                      @
+                    </ThemedText>
+                    <TextField
+                      value={emailDomain}
+                      onChangeText={setEmailDomain}
+                      placeholder="gmail.com"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType="email-address"
+                      style={styles.emailDomain}
+                    />
+                    <PressableScale
+                      onPress={() => setDomainSheetOpen(true)}
+                      hitSlop={8}
+                      style={[
+                        styles.domainChevron,
+                        {
+                          borderColor: theme.colors.line.base,
+                          borderRadius: theme.radii.md,
+                          backgroundColor: theme.colors.surface.nested,
+                        },
+                      ]}
+                    >
+                      <Icon name="chevronD" size={20} color={theme.colors.ink.secondary} />
+                    </PressableScale>
+                  </View>
+                  <ThemedText variant="caption" tone="placeholder" style={{ marginTop: 6 }}>
+                    ▾ 눌러 자주 쓰는 도메인 선택 · 직접 입력도 돼요
+                  </ThemedText>
+                </View>
+              ) : (
+                <TextField
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="이메일"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  style={{ marginBottom: theme.spacing.s3 }}
+                />
+              )}
               <TextField
                 value={password}
                 // 공백은 입력 즉시 제거 — 모바일 키보드 자동완성이 몰래 붙이는 공백 때문에
@@ -187,6 +240,13 @@ export default function AuthScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      <EmailDomainSheet
+        visible={domainSheetOpen}
+        current={emailDomain}
+        onSelect={setEmailDomain}
+        onClose={() => setDomainSheetOpen(false)}
+      />
     </ThemedView>
   );
 }
@@ -293,6 +353,19 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 24,
+  },
+  emailRow: { flexDirection: 'row', alignItems: 'center' },
+  // minWidth:0 — 웹 <input>이 min-content 밑으로 안 줄어들어 행이 오버플로우하는 것 방지(네이티브 무해).
+  emailLocal: { flex: 1, minWidth: 0 },
+  emailAt: { marginHorizontal: 6 },
+  emailDomain: { flex: 1.3, minWidth: 0 },
+  domainChevron: {
+    width: 46,
+    marginLeft: 6,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
   },
   track: {
     flexDirection: 'row',
