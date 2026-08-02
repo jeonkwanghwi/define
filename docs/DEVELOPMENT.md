@@ -272,6 +272,14 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-08-02 — EAS 프로젝트 연결 완료 + 빌드 보류 판단(테스터 iOS·환경별 언락 정리)
+- **진행**: `eas-cli 21.4.0` 설치 + robot 토큰(`EXPO_TOKEN`, kwanghwis-team·Developer)으로 인증 + **`eas init --id 55e40889-...` 프로젝트 연결 완료**(app.json에 `extra.eas.projectId`·`owner: kwanghwis-team` 기록, slug `mobile`→`define` 웹 프로젝트 정합). 커밋 ba25b49.
+- **빌드 보류 결정(사용자)**: 첫 빌드는 원래 Android 권장했으나 **테스터가 전원 iOS** → Android 빌드 실익 없음. iOS 빌드는 **Apple Developer($99/년) 필요**(출시엔 어차피 필수)라, 지금 결제 안 하고 **EAS 빌드 자체를 보류**. 그동안 웹에서 되는 작업 진행.
+- **환경별 언락 정리(중요 — 오해 방지)**: ⒜ **소셜 로그인(카카오/애플) = EAS(네이티브) 대기**, **AWS 아님**(앱이 카카오톡/애플로 튕기는 게 네이티브 SDK). ⒝ **이메일 본인인증 = AWS(SES) 대기**. ⒞ **이메일 로그인/회원가입 = 이미 웹에서 됨**(순수 서버, EAS·AWS 불필요 — 22/22·4/4 검증 완료). ⒟ 보상형 광고·IAP = EAS 대기.
+- **AWS 선착수 검토 결론**: "AWS 먼저 하면 소셜 열리나?" → **아니오**(소셜은 EAS 몫). AWS가 여는 건 이메일 본인인증뿐. AWS 이관은 대규모 1회 작업이라 스키마 안정된 **출시 직전(~8/17)**이 정석 — 지금 당기면 빈 서버 과금 + 스키마 변경 시 재이관. **당장 실익 적어 보류.**
+- **카카오 "서버만 먼저" 옵션(메모, 미착수)**: 카카오 로그인은 서버(토큰 검증 `POST /auth/kakao` — kapi.kakao.com 조회, curl 검증 가능)와 앱(네이티브 SDK로 토큰 수령, EAS 필요)로 나뉨. 서버 절반은 지금 로컬 구현 가능하나 **소셜 데이터모델(카카오id↔User 연결·이메일 중복 병합·이메일 미제공 케이스) 설계 선행 필요**. 애플도 세트(App Store 4.8)라 쪼개면 반쪽. → 소셜은 EAS 재개 때 통째 권장.
+- **다음**: 웹에서 되는 버그 수정으로 전환(사용자 지시). 소셜·IAP·이메일인증·AWS는 위 조건 충족 시 재개.
+
 ### 2026-07-24 — EAS 네이티브 빌드 스캐폴딩 (소셜/광고/IAP 언락 준비)
 - **무엇**: 네이티브 dev build 준비. `app.json`에 **`ios.bundleIdentifier`·`android.package` = `com.define.app`**(스토어 영구 식별자, 사용자 확정) + `ios.supportsTablet`. `eas.json` 신설(profiles: development=dev client·internal / preview·internal / production·autoIncrement, `appVersionSource: remote`). `expo-dev-client ~56.0.24` 추가. tsc·`expo config`(식별자 인식) 검증.
 - **왜**: 소셜(Apple/Kakao)·보상형 광고·IAP는 네이티브 모듈이라 웹/Expo Go 불가 → dev build가 셋 다의 언락. **AWS 무관**(이메일 인증만 AWS 대기).
