@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "define",
-    "slug": "mobile",
+    "slug": "define",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/define.png",
@@ -39,6 +39,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "55e40889-4c83-4615-8796-55d9efca9e55"
+      }
+    },
+    "owner": "kwanghwis-team"
   }
 }
