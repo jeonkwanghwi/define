@@ -196,6 +196,8 @@ export default function RecallChatScreen() {
               >
                 <ThemedText
                   variant="body"
+                  // 마음에 드는 답변을 복사할 수 있게 — 길게 눌러 선택/복사(RN Text 기본은 선택 불가).
+                  selectable
                   style={{ color: isUser ? theme.colors.paper.base : theme.colors.ink.primary }}
                 >
                   {item.content}
