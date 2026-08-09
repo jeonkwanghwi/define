@@ -37,6 +37,14 @@ export type SavedEntry = {
 type JournalState = {
   entries: SavedEntry[];
   /**
+   * 이 로컬 단어장의 주인(계정 id). null = 익명(아직 어느 계정 것도 아님).
+   * 로그인 시 이 값과 로그인 계정을 비교해 "계정 전환"을 감지 → 남의 계정에
+   * 내 로컬 데이터가 업로드되는 오염을 막는다. 로그아웃해도 유지(다음 로그인 판별용).
+   */
+  ownerId: string | null;
+  /** 로컬 단어장의 주인 지정(로그인 계정 클레임 / 익명 복귀 시 null). */
+  setOwner: (id: string | null) => void;
+  /**
    * 정의 저장.
    * @param savedAt 지정 안 하면 현재 시각. 과거 날짜 기록(캘린더 선택) 시 그 Date 전달.
    * @param changeNote 재정의 시 "이전과 달라진 점" 선택 메모. 빈 값이면 생략.
@@ -68,6 +76,8 @@ export const useJournalStore = create<JournalState>()(
   persist(
     (set) => ({
       entries: [],
+      ownerId: null,
+      setOwner: (id) => set({ ownerId: id }),
       addEntry: (word, text, savedAt, changeNote) =>
         set((state) => ({
           entries: [

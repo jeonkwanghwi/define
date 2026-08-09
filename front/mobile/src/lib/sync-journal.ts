@@ -27,6 +27,26 @@ function isUploadable(e: SavedEntry): boolean {
   );
 }
 
+/** 로컬 단어장의 현재 주인(계정 id). null=익명. auth-store가 계정 전환 판별에 사용. */
+export function getLocalOwner(): string | null {
+  return useJournalStore.getState().ownerId ?? null;
+}
+
+/** 로컬 단어장 주인을 이 계정으로 지정(익명→로그인, 또는 같은 계정 재확인). */
+export function claimLocalOwner(userId: string): void {
+  useJournalStore.getState().setOwner(userId);
+}
+
+/**
+ * 계정 전환 시: 로컬을 비우고 주인을 새 계정으로. 업로드는 호출부에서 생략 →
+ * 이전 계정의 로컬 데이터가 새 계정으로 새어나가지 않는다(오염/프라이버시 차단).
+ */
+export function resetLocalForAccount(userId: string): void {
+  const journal = useJournalStore.getState();
+  journal.clearAll();
+  journal.setOwner(userId);
+}
+
 /** 업로드: 로컬 → 서버 (멱등 import). 검증 통과 항목만, 0개면 호출 생략. */
 export async function syncJournal(token: string): Promise<ImportResult> {
   const { entries } = useJournalStore.getState();

@@ -16,6 +16,7 @@ import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { runAttendanceClaim } from '@/lib/attendance';
 import { startAutoSync } from '@/lib/auto-sync';
+import { claimLocalOwner, getLocalOwner } from '@/lib/sync-journal';
 import { useAuthStore } from '@/store/auth-store';
 
 // 폰트 로드 완료까지 스플래시 화면 자동 해제 막기 (깜빡임 방지)
@@ -28,7 +29,17 @@ export default function RootLayout() {
   });
 
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const claimedRef = useRef(false);
+
+  // 마이그레이션·안전망: 이미 로그인된 상태인데 로컬 단어장 주인이 미지정(null)이면
+  // 현재 계정으로 클레임. 업그레이드 전부터 로그인해 있던 유저가 계정 전환 시 오염되지
+  // 않게 한다(신규 로그인은 reconcileForUser가 이미 주인을 지정하므로 여긴 안전망).
+  useEffect(() => {
+    if (token && user && getLocalOwner() === null) {
+      claimLocalOwner(user.id);
+    }
+  }, [token, user]);
 
   // 토큰이 (하이드레이션 후) 준비되면 앱 세션당 1회 출석 적립 시도.
   // 잔액 갱신은 runAttendanceClaim 내부의 setBalance가 담당 → 칩이 반응.

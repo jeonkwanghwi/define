@@ -10,7 +10,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { downloadJournal, syncJournal } from '@/lib/sync-journal';
+import {
+  claimLocalOwner,
+  downloadJournal,
+  getLocalOwner,
+  resetLocalForAccount,
+  syncJournal,
+} from '@/lib/sync-journal';
 import {
   login as loginApi,
   signup as signupApi,
@@ -58,12 +64,12 @@ export const useAuthStore = create<AuthState>()(
       signup: async (email, password) => {
         const { token, user } = await signupApi(email, password);
         set({ token, user, hasLoggedInBefore: true });
-        await runSync(token, set);
+        await reconcileForUser(user.id, token, set);
       },
       login: async (email, password) => {
         const { token, user } = await loginApi(email, password);
         set({ token, user, hasLoggedInBefore: true });
-        await runSync(token, set);
+        await reconcileForUser(user.id, token, set);
       },
       updateProfile: async (input) => {
         const token = get().token;
@@ -95,19 +101,36 @@ export const useAuthStore = create<AuthState>()(
 );
 
 /**
- * 동기화 실행 — 비치명적. 인증(token 발급)은 이미 성공했으므로 sync가 실패해도
- * 로그인 상태를 롤백하지 않는다. 실패는 콘솔 경고만, 다음 로그인의 멱등 재동기화가 복구.
+ * 로그인/가입 직후 단어장 정합 — 로컬 데이터의 "주인"에 따라 갈린다.
+ * 비치명적(인증은 이미 성공, sync 실패해도 로그인 유지·다음 로그인이 복구).
  *
- * 순서 = 업로드 먼저(로컬→서버), 그다음 다운로드(서버→로컬).
- *   업로드로 로컬-only 단어를 서버에 올린 뒤, 다운로드로 서버-only(다른 기기/과거) 단어를
- *   로컬로 복원 → 로그인이 곧 양방향 reconcile. 둘 다 멱등이라 반복 안전.
+ * - 로컬 주인 ≠ 로그인 계정  → **계정 전환**: 업로드 금지(오염 차단) + 로컬 비우고 서버 것만.
+ * - 로컬 주인 = null(익명) 또는 = 로그인 계정 → 소유권 클레임 + 양방향 sync(업로드→다운로드).
+ *
+ * 오염 버그(다른 계정 로컬 데이터가 새 계정에 업로드되던 문제)의 핵심 방어선.
  */
-async function runSync(
+async function reconcileForUser(
+  userId: string,
   token: string,
   set: (partial: Partial<AuthState>) => void,
 ): Promise<void> {
-  // 업로드 실패가 다운로드를 막지 않도록 분리한다. 로컬에 잘못된 항목이 하나 있어도
-  // 서버 단어장(다른 기기/과거) 복원은 되어야 한다. 둘 다 비치명적(멱등 재동기화가 복구).
+  const localOwner = getLocalOwner();
+
+  // 계정 전환 — 이전 계정 로컬 데이터를 새 계정에 올리지 않는다. 로컬 비우고 서버 것만 내려받음.
+  if (localOwner !== null && localOwner !== userId) {
+    resetLocalForAccount(userId);
+    try {
+      await downloadJournal(token);
+      set({ lastSyncedAt: new Date().toISOString() });
+    } catch (e) {
+      console.warn('[auth] 전환 후 다운로드 실패 (다음 로그인에 재시도):', e);
+    }
+    return;
+  }
+
+  // 익명 첫 로그인 or 같은 계정 재로그인 — 이 로컬은 이 계정 것. 기존 양방향 reconcile.
+  claimLocalOwner(userId);
+  // 업로드 실패가 다운로드를 막지 않도록 분리(멱등 재동기화가 복구).
   try {
     const res = await syncJournal(token);
     if (res.recordBonus) {
