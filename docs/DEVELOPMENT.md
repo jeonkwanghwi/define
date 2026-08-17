@@ -273,6 +273,13 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-08-17 — AWS 이관 결정(경로 B: App Runner+RDS+S3/CloudFront) + 계획서 작성
+- **배경**: Apple Developer 등록이 "지금은 완료 불가" 소프트블록으로 막힘 + Railway 스테이징이 무료체험 만료로 다운(`Application not found`). 두 병목 대응으로 **AWS 이관을 앞당김**(원래 로드맵 8/17경 목표라 타이밍도 맞음). 사용자 회사에서 AWS 담당 예정 → 학습 목적 겸함.
+- **내부 구조 실측**: 프론트=Expo 웹 정적빌드 / 백=NestJS 무상태 API(파일업로드·웹소켓·크론 **없음**) / DB=SQLite 148KB(작음). 환경변수 PORT·DATABASE_URL·JWT_SECRET·OPENAI_API_KEY. 옮길 실데이터 없음(Railway DB 소실 → 새 출발).
+- **경로 결정(사용자)**: **B = App Runner(컨테이너) + RDS Postgres + S3/CloudFront + SSM Parameter Store**. (대안 A=Lightsail은 빠르지만 IAM/컨테이너/RDS 등 "진짜 AWS" 학습이 안 됨 → 학습 목적상 B.) **S3만으론 배포 불가**(정적 프론트용, 백엔드는 컴퓨팅 필요)를 명확히 함.
+- **산출물**: [AWS-MIGRATION-PLAN.md](./AWS-MIGRATION-PLAN.md) — Phase 0(계정)~5(팀QA) 단계별 계획서(개념+작업+검증), 목표 아키텍처 다이어그램, 비용 대략, 공통 함정 체크리스트(Postgres 재베이스라인·JWT_SECRET·CORS·EXPO_PUBLIC_API_URL 빌드타임·ACM us-east-1·App Runner→RDS VPC커넥터·SPA 폴백).
+- **다음**: Phase 0(AWS 계정·IAM·CLI)부터. 1(RDS+Postgres 전환)·2(Docker→ECR→App Runner)가 핵심 산.
+
 ### 2026-08-17 — 🔴 기기 간 단어장 동기화 버그 수정 (앱 시작·포그라운드 다운로드)
 - **증상(팀원 제보, 8/1 메모)**: 같은 계정(iamtony99@hanmail.net)을 노트북에서 쓰면 31개, 데탑에서 보면 24개 그대로. 광장 왕복·새로고침해도 24개.
 - **root cause(코드로 확정)**: `downloadJournal`(서버→로컬)이 **오직 `reconcileForUser` 안에서만** 호출되고, 그건 **`login`/`signup`에서만** 불림 → **이미 로그인된 기기는 서버의 새 단어를 영영 안 받음**(다운로드가 "로그인 순간"에만). 웹 새로고침은 재하이드레이션만 하지 다운로드를 트리거 안 함 → "새로고침해도 24개"의 정체. 로그아웃했다 재로그인해야만 반영됐을 것.
