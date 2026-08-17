@@ -9,7 +9,7 @@
  *   - 화면: ThemeModeToggle (라이트/다크/시스템) — 다크 모드 복원 입구.
  *   - 설정: 닉네임 변경 / 알림(준비 중)
  *   - 지원: 버그 제보·문의 (준비 중 — 위치는 헤더 아닌 마이페이지로 결정)
- *   - 곧 만나요: 프리미엄 테마·폰트 / 단어장 PDF 내보내기 (BM 로드맵, 비활성)
+ *   - 곧 만나요: 프리미엄 테마·폰트 (BM 로드맵, 비활성). PDF 내보내기는 단어장 탭으로 이동함
  *   - 버전 정보
  *
  * 의도적으로 뺀 것:
@@ -217,14 +217,6 @@ export default function MyPageScreen() {
             theme={theme}
             icon="sparkle"
             label="프리미엄 테마 · 폰트"
-            value="준비 중"
-            disabled
-          />
-          <Divider theme={theme} />
-          <Row
-            theme={theme}
-            icon="book"
-            label="단어장 PDF 내보내기"
             value="준비 중"
             disabled
           />
