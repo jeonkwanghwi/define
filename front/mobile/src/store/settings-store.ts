@@ -34,6 +34,16 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'define-settings-v1', // 모델 깨는 변경 시 v2로 마이그레이션
       storage: createJSONStorage(() => AsyncStorage),
+      // v0 → v1: 예전 익명 닉네임이 여기 저장됐다가 auth-store(계정)로 이전됨.
+      // persist에 남은 옛 nickname 필드가 죽은 데이터로 떠돌아 혼란을 줌 → 정리한다.
+      version: 1,
+      migrate: (persisted, version) => {
+        if (version === 0 && persisted && typeof persisted === 'object' && 'nickname' in persisted) {
+          const { nickname: _legacy, ...rest } = persisted as Record<string, unknown>;
+          return rest as SettingsState;
+        }
+        return persisted as SettingsState;
+      },
     },
   ),
 );
