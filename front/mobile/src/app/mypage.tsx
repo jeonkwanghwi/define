@@ -8,6 +8,7 @@
  *   - 프로필: 닉네임(서버 저장·중복 방지, 로그인 필요) + 실제 기록 통계. 탭하면 닉네임 시트.
  *   - 화면: ThemeModeToggle (라이트/다크/시스템) — 다크 모드 복원 입구.
  *   - 설정: 닉네임 변경 / 알림(준비 중)
+ *   - 지원: 버그 제보·문의 (준비 중 — 위치는 헤더 아닌 마이페이지로 결정)
  *   - 곧 만나요: 프리미엄 테마·폰트 / 단어장 PDF 내보내기 (BM 로드맵, 비활성)
  *   - 버전 정보
  *
@@ -194,6 +195,20 @@ export default function MyPageScreen() {
             </Group>
           </>
         )}
+
+        {/* ─── 지원 ───
+            버그 제보/문의 진입점. 위치는 헤더가 아니라 여기로 결정(저빈도 액션·표준 관례).
+            기능(이메일 열기/인앱 폼→서버/외부 폼)은 추후 구현 — 지금은 비활성 placeholder. */}
+        <SectionLabel theme={theme} text="지원" />
+        <Group theme={theme}>
+          <Row
+            theme={theme}
+            icon="send"
+            label="버그 제보 · 문의"
+            value="준비 중"
+            disabled
+          />
+        </Group>
 
         {/* ─── 곧 만나요 (BM 로드맵) ─── */}
         <SectionLabel theme={theme} text="곧 만나요" />
