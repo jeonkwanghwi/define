@@ -16,6 +16,7 @@ import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { runAttendanceClaim } from '@/lib/attendance';
 import { startAutoSync } from '@/lib/auto-sync';
+import { startForegroundSync } from '@/lib/foreground-sync';
 import { claimLocalOwner, getLocalOwner } from '@/lib/sync-journal';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -31,6 +32,7 @@ export default function RootLayout() {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   const claimedRef = useRef(false);
+  const pulledRef = useRef(false);
 
   // 마이그레이션·안전망: 이미 로그인된 상태인데 로컬 단어장 주인이 미지정(null)이면
   // 현재 계정으로 클레임. 업그레이드 전부터 로그인해 있던 유저가 계정 전환 시 오염되지
@@ -50,6 +52,16 @@ export default function RootLayout() {
     }
   }, [token]);
 
+  // 앱 시작 시(토큰 하이드레이션 후) 1회 서버 단어장 당겨오기.
+  // 이미 로그인된 기기가 다른 기기의 새 단어를 받도록(로그인 순간에만 하던 다운로드를 시작에도).
+  // 포그라운드 복귀 시 추가 다운로드는 아래 startForegroundSync가 담당.
+  useEffect(() => {
+    if (token && !pulledRef.current) {
+      pulledRef.current = true;
+      useAuthStore.getState().pullRemoteJournal();
+    }
+  }, [token]);
+
   // 로드 성공/실패 시 둘 다 스플래시 해제 (실패해도 시스템 폰트로 폴백되어 앱은 동작)
   useEffect(() => {
     if (loaded || error) {
@@ -60,6 +72,12 @@ export default function RootLayout() {
   // 단어장 변경 → 서버 자동 동기화(로그인 상태에서만). 언마운트 시 해제.
   useEffect(() => {
     const stop = startAutoSync();
+    return stop;
+  }, []);
+
+  // 포그라운드 복귀(웹 탭 focus/visible, 네이티브 active) 시 서버 변경 당겨오기. 언마운트 시 해제.
+  useEffect(() => {
+    const stop = startForegroundSync();
     return stop;
   }, []);
 

@@ -46,6 +46,12 @@ type AuthState = {
   }) => Promise<void>;
   /** 닉네임 설정/변경. 성공 시 user 갱신. 중복(409) 등 실패 시 throw(시트가 인라인 에러). */
   updateNickname: (nickname: string) => Promise<void>;
+  /**
+   * 이미 로그인된 세션에서 서버 단어장 변경을 로컬로 당겨온다(다른 기기에서 추가한 단어 반영).
+   * 앱 시작·포그라운드 복귀 시 호출. 비치명적(실패는 warn, 다음 기회에 재시도).
+   * reconcileForUser(로그인 시)와 달리 다운로드만 — 업로드는 auto-sync가 담당.
+   */
+  pullRemoteJournal: () => Promise<void>;
   /** 출석 적립 등으로 잔액만 갱신(서버 응답값으로). */
   setBalance: (balance: number) => void;
   /** 동의 완료 표시(서버 기록 후). */
@@ -82,6 +88,16 @@ export const useAuthStore = create<AuthState>()(
         if (!token) throw new Error('로그인이 필요합니다.');
         const { user } = await updateNicknameApi(token, nickname);
         set({ user });
+      },
+      pullRemoteJournal: async () => {
+        const token = get().token;
+        if (!token) return; // 익명 — 서버 없음
+        try {
+          await downloadJournal(token);
+          set({ lastSyncedAt: new Date().toISOString() });
+        } catch (e) {
+          console.warn('[auth] 포그라운드 다운로드 실패 (다음 기회에 재시도):', e);
+        }
       },
       setBalance: (balance) => {
         const user = get().user;
