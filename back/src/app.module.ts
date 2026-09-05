@@ -12,6 +12,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
+import { HealthController } from './health.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { JournalModule } from './modules/journal/journal.module';
 import { CurrencyModule } from './modules/currency/currency.module';
@@ -30,5 +31,6 @@ import { WordModule } from './modules/word/word.module';
     CurrencyModule,
     RecallModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

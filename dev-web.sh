@@ -29,6 +29,12 @@ echo "■ 기존 :3000 / :8081 프로세스 정리…"
 lsof -ti tcp:3000 | xargs kill -9 2>/dev/null || true
 lsof -ti tcp:8081 | xargs kill -9 2>/dev/null || true
 
+echo "▶ Postgres 컨테이너 확인 (back/docker-compose.yml) …"
+if ! ( cd back && docker compose up -d ); then
+  echo "✗ Postgres를 띄우지 못했습니다. Docker Desktop이 실행 중인지 확인하세요." >&2
+  exit 1
+fi
+
 echo "▶ 백엔드 시작 (NestJS watch, http://localhost:3000) …"
 ( cd back && npm run start:dev ) &
 BACK_PID=$!

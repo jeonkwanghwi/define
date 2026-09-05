@@ -273,6 +273,16 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-09-05 — AWS Phase 1·2 사전작업: SQLite→Postgres 전환 + Dockerfile + 시크릿/CORS 하드닝
+- **배경**: TestFlight 배포를 재점검하니 **Apple 승인만으로는 QA가 성립 안 됨**을 확인. ① Railway 스테이징 3개 URL 전부 `Application not found`(무료체험 만료로 완전 소멸) ② `front/mobile/eas.json`의 `production` 프로필에 `env`가 없어 지금 빌드하면 `api-client.ts`의 폴백 `http://localhost:3000/api`가 그대로 번들에 박힘 → 테스터 폰에서 로그인·동기화 전멸. **살아있는 백엔드가 TestFlight의 실제 선행조건** → AWS 이관이 크리티컬 패스로 확정. (Apple은 아직 무료 Apple ID만 생성, $99 미결제 상태.)
+- **Postgres 전환(Phase 1 코드 몫)**: `schema.prisma` provider `sqlite`→`postgresql`. 마이그레이션 SQL은 provider 종속이라 SQLite 히스토리 10개를 재생할 수 없음 → **`prisma/migrations`를 지우고 `20260905000000_init` 하나로 재베이스라인**(구 히스토리는 git에 남음). DB 없이 만들기 위해 `prisma migrate diff --from-empty --to-schema-datamodel --script`로 오프라인 생성 — 7테이블·유니크 6·인덱스 3·FK 4(ON DELETE CASCADE) 전부 보존 확인. **앱 코드 변경 0**: raw SQL(`$queryRaw`)이 한 군데도 없어서 repository 구현체가 그대로 통함.
+- **로컬 개발 DB도 Postgres로**(운영과 같은 엔진 = "로컬은 되는데" 방지): `back/docker-compose.yml`(postgres:16 + named volume + `pg_isready` healthcheck) 추가, `dev.sh`/`dev-web.sh`가 백엔드 띄우기 전에 `docker compose up -d`로 DB를 먼저 확인. → **로컬 개발에 Docker Desktop이 필요해짐**(어차피 Phase 2의 ECR 푸시에 필요).
+- **Dockerfile(Phase 2 몫)**: `back/Dockerfile` 멀티스테이지(build: devDeps로 `dist/` 생성 → run: `npm ci --omit=dev` + `dist/`만). node:22-slim + `openssl`(Prisma 쿼리 엔진이 libssl 필요), `USER node`, `CMD npx prisma migrate deploy && node dist/main`. prisma CLI가 `dependencies`에 있어 `--omit=dev` 후에도 migrate 가능. `.dockerignore` 추가.
+- **하드닝(배포 함정 1·3번 선처리)**: `configuration.ts`에 `requireEnv()` — **`JWT_SECRET`·`DATABASE_URL`은 폴백 제거**, 없으면 **부팅 실패**(`dev-secret-change-me` 폴백이 배포에 살아남으면 auth·회상 토큰 위조 가능). `main.ts` CORS는 `CORS_ORIGINS`(콤마 구분) 화이트리스트, 미설정 시에만 기존 `origin: true`(로컬 편의). App Runner 헬스체크용 `GET /api/health`(DB 안 건드림 — 순간 DB 장애로 컨테이너가 교체되지 않게) 신설. `.env.example` 갱신.
+- **검증(여기까지)**: `npm run build` 통과 / `prisma migrate diff` 산출 SQL의 테이블·인덱스·FK 대조 / `JWT_SECRET=` 빈 값으로 부팅 시 `필수 환경변수 JWT_SECRET가 없습니다`로 기동 거부 확인. **미검증**: 실제 Postgres에 `migrate deploy`+회원가입 E2E, 이미지 빌드 — 이 머신에 Docker·Postgres가 아직 없어서 못 돌림(다음 세션 첫 할 일).
+  - 함정 메모: Prisma Client가 import 시 `back/.env`를 **cwd와 무관하게** 자동 로드함 → "환경변수 없는 상태" 테스트가 조용히 무효화됨. 빈 문자열을 넘겨야 실제로 검증됨.
+- **다음**: ① Docker Desktop 설치 → `docker compose up -d` → `prisma migrate deploy` + `db:seed` + 회원가입/로그인 curl E2E ② AWS 계정·IAM·CLI(Phase 0) ③ RDS 생성 후 같은 마이그레이션 적용(Phase 1) ④ ECR 푸시·App Runner(Phase 2) ⑤ App Runner URL 확보 후 `eas.json` production에 `EXPO_PUBLIC_API_URL` 주입 → 그때부터 TestFlight 빌드가 의미 있음.
+
 ### 2026-08-17 — AWS 이관 결정(경로 B: App Runner+RDS+S3/CloudFront) + 계획서 작성
 - **배경**: Apple Developer 등록이 "지금은 완료 불가" 소프트블록으로 막힘 + Railway 스테이징이 무료체험 만료로 다운(`Application not found`). 두 병목 대응으로 **AWS 이관을 앞당김**(원래 로드맵 8/17경 목표라 타이밍도 맞음). 사용자 회사에서 AWS 담당 예정 → 학습 목적 겸함.
 - **내부 구조 실측**: 프론트=Expo 웹 정적빌드 / 백=NestJS 무상태 API(파일업로드·웹소켓·크론 **없음**) / DB=SQLite 148KB(작음). 환경변수 PORT·DATABASE_URL·JWT_SECRET·OPENAI_API_KEY. 옮길 실데이터 없음(Railway DB 소실 → 새 출발).

@@ -1,15 +1,16 @@
 // Prisma 스키마 — DB 구조의 단일 출처(SSOT).
 // 이 파일을 바꾸고 `npm run prisma:migrate` 하면 DB 테이블이 따라 바뀐다.
 //
-// DB 스왑 준비: provider만 "sqlite" → "postgresql"로 바꾸면 같은 스키마로 이전 가능.
-// (실제 교체는 repository 구현체가 격리해주므로 service 코드는 무변경.)
+// DB: PostgreSQL (2026-09-05 SQLite에서 전환 — AWS RDS 이관).
+// provider가 바뀌면 마이그레이션 SQL도 provider 종속이라 재생 불가 → migrations를 init 하나로 재베이스라인했다.
+// (service 코드는 repository 구현체가 격리해줘서 무변경.)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

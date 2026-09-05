@@ -16,9 +16,25 @@
 | `eas.json` `production` 프로필 (store 배포 빌드) | ✅ 준비됨 (손댈 것 없음) |
 | 앱 아이콘 알파 채널 제거 (iOS 리젝 방지) | ✅ 처리함 (`define.png` RGBA→RGB, 겉모습 동일) |
 | 권한 문구(infoPlist) 필요 네이티브 모듈 | ✅ 현재 없음 (카메라/위치/알림/추적 등 미사용) |
-| **Apple Developer $99 계정** | ⏳ **사용자 가입 중 — 이게 유일한 관문** |
+| **Apple Developer $99 계정** | ⏳ **미결제(무료 Apple ID만 생성) — 실세계 관문 1** |
+| **살아있는 백엔드 API + `eas.json`에 API 주소 주입** | ⏳ **미완 — 실세계 관문 2** (아래 ⚠️) |
 
-→ **Apple 계정만 나오면 아래 STEP 1부터 바로 실행 가능.**
+> ⚠️ **2026-09-05 추가 — Apple 계정만으로는 부족하다.**
+> `eas.json`의 `production` 프로필에 `env`가 없어서, 지금 빌드하면 `src/services/api-client.ts`의 폴백인
+> **`http://localhost:3000/api`가 번들에 그대로 박힌다** → 테스터 폰에서 로그인·동기화가 전부 실패(=QA 불가).
+> 게다가 Railway 스테이징은 무료체험 만료로 **사라졌다**(`Application not found`).
+> 그래서 **AWS 이관(App Runner API 주소 확보) → `eas.json`에 주입**이 STEP 2보다 먼저다:
+> ```jsonc
+> // front/mobile/eas.json
+> "production": {
+>   "autoIncrement": true,
+>   "env": { "EXPO_PUBLIC_API_URL": "https://<app-runner>.ap-northeast-2.awsapprunner.com/api" }
+> }
+> ```
+> `EXPO_PUBLIC_*`는 **빌드 타임에 박히는** 값이라, 주소가 바뀌면 반드시 재빌드해야 한다.
+> 진행 상황은 [AWS-MIGRATION-PLAN.md](./AWS-MIGRATION-PLAN.md).
+
+→ **위 두 관문이 풀리면 아래 STEP 1부터 바로 실행 가능.**
 
 ---
 

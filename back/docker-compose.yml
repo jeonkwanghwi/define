@@ -1,0 +1,29 @@
+# 로컬 개발용 PostgreSQL 1개. (운영/스테이징은 AWS RDS — docs/AWS-MIGRATION-PLAN.md Phase 1)
+#
+#   띄우기:  docker compose up -d     (back/ 에서)
+#   끄기:    docker compose down
+#   데이터까지 싹 지우기: docker compose down -v
+#
+# 데이터는 named volume(define-pgdata)에 남아 컨테이너를 지워도 유지된다.
+# 접속 문자열은 back/.env 의 DATABASE_URL 참고.
+services:
+  db:
+    image: postgres:16
+    container_name: define-db
+    environment:
+      POSTGRES_USER: define
+      POSTGRES_PASSWORD: define
+      POSTGRES_DB: define
+    ports:
+      - '5432:5432'
+    volumes:
+      - define-pgdata:/var/lib/postgresql/data
+    # 컨테이너는 떴는데 DB가 아직 접속을 못 받는 구간이 있어서, 준비됐는지 직접 확인한다.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U define -d define']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  define-pgdata:
