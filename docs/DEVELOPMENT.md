@@ -273,6 +273,15 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-09-06 — AWS Phase 3 완료: 웹 프론트 배포 → 브라우저로 볼 수 있는 링크 생김
+- **계기(사용자 질문)**: "url이 나온 게 아님? 배포가 된 게 아닌가?" — Phase 2에서 준 주소를 브라우저로 열면 `{"message":"Cannot GET /api"}` 404가 떠서 배포 실패로 보였다. 실제로는 **API 서버 주소를 웹사이트로 착각**한 것(NestJS는 `/api/health` 같은 정해진 경로에만 응답). "사람이 보는 화면"이 없던 게 원인이라 Phase 3(웹 배포)를 바로 진행.
+- **한 도메인으로 합침**: 새 배포를 만들지 않고 **기존 CloudFront(E2CH8Q63FJ0LS0)에 S3 오리진을 추가**해서 `기본 경로 → S3(웹앱)`, `/api`·`/api/*` → ALB로 라우팅. 덕분에 ① **CORS가 아예 불필요**(같은 오리진) ② `eas.json`에 이미 박은 API 주소가 **그대로 유효** ③ 팀에 줄 링크가 하나. S3 버킷 `define-web-staging`은 퍼블릭 전면 차단 + **OAC로 이 배포만** 읽기 허용.
+- **SPA 폴백을 CustomErrorResponses로 하지 않은 이유(함정)**: `403/404 → /index.html` 설정은 **배포 전체에 적용**돼서 `/api/...`가 돌려주는 정상적인 404·403 JSON까지 HTML 200으로 바꿔버린다(API 계약 파괴). 대신 **S3 동작에만 붙는 CloudFront Function `define-spa-rewrite`** 로 "확장자 없는 경로 → `/index.html`" 리라이트. expo export가 동적 라우트를 `journal/[word].html`로 뽑기 때문에 ".html 붙이기" 방식은 실제 단어 URL에서 깨진다 → 순수 SPA 폴백이 정답이었다.
+- **검증**: 번들에 `localhost:3000` **0건** + CloudFront API 주소 박힘 확인 / `/` 200 · `/auth` 200 · `/journal/행복` 200(딥링크) · JS 번들 2.1MB 200 / `/api/health` 200 · `/api`는 JSON 404 그대로 유지(경로 패턴에 `/api` 정확 일치를 따로 추가해 SPA로 새는 것 막음) / **브라우저 실렌더 확인** — "오늘의 단어" 화면 정상 표시, 하단 탭으로 `/plaza` 이동까지 동작(비로그인이라 광장은 가입 유도 화면이 정상).
+- **주소**: 웹 `https://d2kejc3sjm91mt.cloudfront.net` · API `https://d2kejc3sjm91mt.cloudfront.net/api`
+- **남은 소소한 것**: 웹 `<title>`이 비어 있어 브라우저 탭 이름이 URL로 뜬다(배포와 무관한 기존 app 설정 이슈). 정식 공개 전 채울 것.
+- **다음**: 첫 EAS iOS 빌드 → TestFlight 내부 테스터 배포(런북 STEP 1~4).
+
 ### 2026-09-06 — AWS 이관 Phase 0~2 완료: 백엔드가 클라우드에서 HTTPS로 살아남 (App Runner→ECS 경로 변경)
 - **Phase 0**: 사용자가 AWS 계정 생성(993232132996)·root MFA·IAM 사용자 `define-dev`(AdministratorAccess)·예산 알림 설정. AWS CLI는 brew/sudo 없이 `installer -target CurrentUserHomeDirectory`로 `~/aws-cli` 설치 후 `~/.local/bin/aws` 심볼릭 링크(v2.36.40).
 - **Phase 1 (RDS)**: `define-staging`(PostgreSQL **16.15**, db.t4g.micro, 20GB gp3, 단일 AZ). 비밀번호는 생성 즉시 **SSM SecureString**에만 저장(평문 어디에도 안 남김). 어제 만든 `20260905000000_init` 적용 → 시드 → **로컬 백엔드를 RDS에 붙여 회원가입 201 통과**(계획서 Phase 1 "완벽" 조건 달성).

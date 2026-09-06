@@ -22,7 +22,9 @@
 | ECR | `993232132996.dkr.ecr.ap-northeast-2.amazonaws.com/define-api:latest` (linux/amd64) |
 | ECS 클러스터 / 서비스 | `define` / `define-api` (Fargate 0.25 vCPU · 0.5GB · desired 1) |
 | ALB | `define-alb-280306306.ap-northeast-2.elb.amazonaws.com` (HTTP :80) |
-| **CloudFront (API HTTPS)** | **`https://d2kejc3sjm91mt.cloudfront.net/api`** ← `eas.json`에 주입한 값 |
+| **CloudFront (웹 + API 한 도메인)** | **`https://d2kejc3sjm91mt.cloudfront.net`** — 기본 경로→S3(웹앱), `/api`·`/api/*`→ALB. `/api`가 `eas.json`에 주입한 값 |
+| S3 (웹 정적) | `define-web-staging` — 퍼블릭 차단, **OAC로 이 배포만** 읽기 허용 |
+| CloudFront Function | `define-spa-rewrite` — 확장자 없는 경로를 `/index.html`로(expo-router SPA 폴백) |
 | 보안그룹 | `define-alb-sg`(인터넷→80) · `define-service-sg`(ALB→3000) · `define-rds-sg`(**내 IP + 서비스 SG만** →5432) |
 | IAM | `define-ecs-execution`(ECR pull·로그·SSM 주입) |
 | SSM SecureString | `/define/staging/{database-url, db-password, jwt-secret, openai-api-key}` |
@@ -148,7 +150,29 @@
 
 ---
 
-## Phase 3 — 프론트: S3 + CloudFront
+## Phase 3 — 프론트: S3 + CloudFront ✅ 완료(2026-09-06)
+
+> **웹과 API를 CloudFront 배포 하나로 합쳤다** → 같은 오리진이라 **CORS 자체가 필요 없고**, 팀에 줄 링크도 하나다.
+> 캐시 동작 순서: `/api`(정확 일치) → ALB · `/api/*` → ALB · 그 외 전부 → S3(CachingOptimized + SPA 함수).
+>
+> **SPA 폴백을 CustomErrorResponses로 하지 않은 이유(중요)**: `403/404 → /index.html`은 **배포 전체에 적용**돼서
+> `/api/...`의 정상적인 404·403 JSON까지 HTML 200으로 바꿔버린다. 대신 **S3 동작에만 붙는 CloudFront Function**으로
+> "확장자 없는 경로 → `/index.html`" 리라이트를 했다. API 동작은 함수가 안 붙어서 원래 상태 그대로.
+> (expo export가 동적 라우트를 `journal/[word].html`로 뽑아서 `.html` 붙이기 방식은 못 씀 → 순수 SPA 폴백이 정답.)
+>
+> **검증**: `/` 200(앱 렌더 확인) · `/auth` 200 · `/journal/행복` 200 · JS 번들 2.1MB 200 · `/api/health` 200 ·
+> `/api` JSON 404 유지 · 번들에 `localhost:3000` **0건**, CloudFront API 주소 박힘 확인.
+> 브라우저 실렌더 확인: "오늘의 단어" 화면 정상, 하단 탭 이동(`/plaza`) 시 딥링크도 정상.
+>
+> **재배포 방법**:
+> ```bash
+> cd front/mobile
+> EXPO_PUBLIC_API_URL="https://d2kejc3sjm91mt.cloudfront.net/api" npx expo export --platform web
+> aws s3 sync dist s3://define-web-staging --delete
+> aws cloudfront create-invalidation --distribution-id E2CH8Q63FJ0LS0 --paths "/*"
+> ```
+
+### (참고) 원래 계획
 
 **개념**: **S3** = 파일 저장소(정적 사이트 호스팅 가능). **CloudFront** = 그 파일을 전세계 엣지에서 캐시 + **HTTPS** 붙여 빠르게 서빙하는 CDN.
 
