@@ -29,6 +29,11 @@ echo "■ 기존 :3000 / :8081 프로세스 정리…"
 lsof -ti tcp:3000 | xargs kill -9 2>/dev/null || true
 lsof -ti tcp:8081 | xargs kill -9 2>/dev/null || true
 
+# docker가 PATH에 없으면(Docker Desktop이 사용자 설치라 /usr/local/bin 링크가 없는 경우) 직접 추가
+if ! command -v docker >/dev/null 2>&1 && [ -x "$HOME/.docker/bin/docker" ]; then
+  export PATH="$HOME/.docker/bin:$PATH"
+fi
+
 echo "▶ Postgres 컨테이너 확인 (back/docker-compose.yml) …"
 if ! ( cd back && docker compose up -d ); then
   echo "✗ Postgres를 띄우지 못했습니다. Docker Desktop이 실행 중인지 확인하세요." >&2

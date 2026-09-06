@@ -92,6 +92,7 @@
   - `.node-version` 없으니 베이스 이미지 **node:20-slim**(또는 22)로 고정
   - ⚠️ Prisma는 런타임에 **쿼리 엔진 바이너리** 필요 → `prisma generate`가 이미지 안에서 돌아야 함(위 build 단계 포함). slim 이미지면 `openssl` 설치 필요할 수 있음
 - [ ] ECR 리포 생성 → 이미지 빌드·태그·`docker push`
+  - ⚠️ **애플 실리콘 함정**: App Runner는 **x86_64만** 실행한다. 그냥 `docker build`하면 arm64 이미지가 나오므로 **`docker build --platform linux/amd64`** 로 고정할 것 (2026-09-06 확인: 이 맥에서 amd64 빌드 55초, 이미지 163MB)
 - [ ] **App Runner 서비스** 생성:
   - 소스 = ECR 이미지, 포트 **3000**, 헬스체크 경로 `/api`(또는 가벼운 헬스 엔드포인트 신설 권장)
   - **환경변수/시크릿**: `PORT=3000`, 그리고 `JWT_SECRET`·`OPENAI_API_KEY`·`DATABASE_URL`은 **SSM Parameter Store**(SecureString)에 넣고 App Runner에서 참조
@@ -162,6 +163,8 @@
 6. **ACM 인증서**는 CloudFront용만 **us-east-1**.
 7. **App Runner→RDS** 프라이빗이면 **VPC 커넥터** 필요.
 8. **SPA 폴백**(403/404→index.html) 없으면 새로고침 시 흰 화면/404.
+9. **이미지 아키텍처** — 애플 실리콘에서 빌드할 땐 `--platform linux/amd64`(App Runner는 x86_64 전용). Phase 2.
+10. **Docker CLI PATH** — Docker Desktop을 사용자 설치하면 `/usr/local/bin`에 링크가 안 걸린다. `~/.docker/bin`을 PATH에 넣어야 `docker` 명령이 잡힘(brew와 무관). 2026-09-06에 `~/.zshrc`·`dev.sh`·`dev-web.sh`에 반영.
 
 ---
 

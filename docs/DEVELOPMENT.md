@@ -273,6 +273,13 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-09-06 — Postgres 전환·Dockerfile 실검증 완료 (Docker Desktop PATH 함정 해결)
+- **Docker가 안 잡힌 원인**: Docker Desktop을 **사용자 설치**하면 `/usr/local/bin/docker` 심볼릭 링크가 안 걸리고 CLI가 `~/.docker/bin/docker`에만 생긴다. `brew: command not found`는 무관한 곁가지(brew는 애초에 필요 없음). → `~/.zshrc`에 `export PATH="$HOME/.docker/bin:$PATH"` 추가 + `dev.sh`/`dev-web.sh`에도 같은 폴백(npm 부트스트랩과 동일한 패턴) 삽입.
+- **로컬 Postgres E2E 통과**: `docker compose up -d` → `prisma migrate deploy`(init 적용, 7테이블 생성) → `db:seed`(단어 6개) → API 기동. curl 검증: `/api/health` 200 · 회원가입 **201** · 로그인 **200** · 오답 비번 **401** · 무토큰 journal **401** · 중복 이메일 **409** · journal import **200**(`imported:1`) · **같은 clientId 재import → `updated:1`**(= `(userId, clientId)` 유니크 업서트가 Postgres에서도 동일) · journal 조회 200 · 출석 **첫 호출 `claimed:true`/재호출 `claimed:false`**(= `lastAttendanceDate` 멱등 마커 정상) · `/api/plaza/words` 200. **provider 스왑으로 깨질 수 있던 지점(유니크 업서트·멱등)이 정확히 통과**.
+- **컨테이너 실검증**: `docker build` 33초 → 컨테이너를 compose 네트워크에 붙여 기동 → `migrate deploy` 자동 실행 → 회원가입 201. `CORS_ORIGINS` 지정 시 **허용 출처엔 ACAO 헤더 있음/미허용 출처엔 없음** 확인. `JWT_SECRET` 빼고 띄우면 컨테이너가 `필수 환경변수 JWT_SECRET가 없습니다`로 **부팅 거부** 확인.
+- **함정 하나 더(선제 처리)**: **App Runner는 x86_64만 실행** → 애플 실리콘에서 그냥 빌드하면 arm64 이미지가 나와 배포가 깨진다. `docker build --platform linux/amd64`로 고정해야 함(실측 55초, 163MB). Dockerfile 헤더·AWS 계획서 Phase 2·함정 체크리스트에 박아둠.
+- **다음**: AWS 계정·IAM·CLI(Phase 0) → RDS 생성 후 같은 마이그레이션 적용(Phase 1) → ECR 푸시·App Runner(Phase 2). 그 다음에야 `eas.json` production에 `EXPO_PUBLIC_API_URL` 주입 → TestFlight 빌드.
+
 ### 2026-09-05 — AWS Phase 1·2 사전작업: SQLite→Postgres 전환 + Dockerfile + 시크릿/CORS 하드닝
 - **배경**: TestFlight 배포를 재점검하니 **Apple 승인만으로는 QA가 성립 안 됨**을 확인. ① Railway 스테이징 3개 URL 전부 `Application not found`(무료체험 만료로 완전 소멸) ② `front/mobile/eas.json`의 `production` 프로필에 `env`가 없어 지금 빌드하면 `api-client.ts`의 폴백 `http://localhost:3000/api`가 그대로 번들에 박힘 → 테스터 폰에서 로그인·동기화 전멸. **살아있는 백엔드가 TestFlight의 실제 선행조건** → AWS 이관이 크리티컬 패스로 확정. (Apple은 아직 무료 Apple ID만 생성, $99 미결제 상태.)
 - **Postgres 전환(Phase 1 코드 몫)**: `schema.prisma` provider `sqlite`→`postgresql`. 마이그레이션 SQL은 provider 종속이라 SQLite 히스토리 10개를 재생할 수 없음 → **`prisma/migrations`를 지우고 `20260905000000_init` 하나로 재베이스라인**(구 히스토리는 git에 남음). DB 없이 만들기 위해 `prisma migrate diff --from-empty --to-schema-datamodel --script`로 오프라인 생성 — 7테이블·유니크 6·인덱스 3·FK 4(ON DELETE CASCADE) 전부 보존 확인. **앱 코드 변경 0**: raw SQL(`$queryRaw`)이 한 군데도 없어서 repository 구현체가 그대로 통함.

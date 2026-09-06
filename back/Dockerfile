@@ -3,6 +3,11 @@
 #
 # 멀티스테이지: build 단계에서만 devDependencies(nest cli·typescript)를 쓰고,
 # 최종 이미지에는 prod 의존성 + dist/ 만 남긴다 → 이미지가 작아지고 공격면도 준다.
+#
+# ⚠️ App Runner는 x86_64만 실행한다. 애플 실리콘 맥에서 그냥 빌드하면 arm64 이미지가 나오므로
+#    ECR에 올릴 이미지는 반드시 플랫폼을 고정할 것:
+#      docker build --platform linux/amd64 -t define-api .
+#    (로컬에서 돌려보기만 할 땐 플랫폼 없이 빌드하는 게 빠르다.)
 
 # ─── 1) build: 타입스크립트 → dist/ ───────────────────────────────────
 FROM node:22-slim AS build
