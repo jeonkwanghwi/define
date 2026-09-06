@@ -1,8 +1,36 @@
-# AWS 이관 계획 (Path B: App Runner + RDS + S3/CloudFront)
+# AWS 이관 계획 (Path B: ~~App Runner~~ **ECS Fargate** + RDS + S3/CloudFront)
 
 > define 스테이징/운영을 **AWS**로 이관하는 실행 계획. Railway(임시)에서 종착 인프라로.
 > 대상 독자: AWS를 처음 담당하는 사람 → 각 단계에 **개념 한 줄 + 우리 앱 기준 작업 + 검증**을 붙였다.
 > 결정 근거·경로 비교는 DEVELOPMENT.md 작업 로그(2026-08-17) 참조.
+
+---
+
+## ⚠️ 실행 결과 (2026-09-06) — 경로가 한 번 바뀜
+
+**App Runner는 서울 리전(ap-northeast-2)에 존재하지 않는다.** `apprunner.ap-northeast-2.amazonaws.com` 엔드포인트 자체가 없어 CLI가 `Could not connect to the endpoint URL`로 실패한다(도쿄·싱가포르·오리건엔 있음). 권한·설정 문제가 아니라 서비스 미출시.
+
+**선택(사용자)**: 도쿄 이관(월 ~$18) 대신 **서울 유지 + ECS Fargate + ALB**(월 ~$40). 이유 — ① 실무 표준이라 학습 가치가 큼 ② ECS는 VPC 안이라 **RDS를 인터넷에 열 필요가 없음**(App Runner였다면 RDS 전면 개방 또는 NAT 게이트웨이 월 ~$43이 필요했다) ③ 이미 만든 서울 리소스를 하나도 안 버림. 예산 알림은 $20 → $50으로 상향함.
+
+**HTTPS**: ALB만으로는 커스텀 도메인 없이 HTTPS를 못 준다(인증서 붙일 도메인이 없음). iOS ATS가 평문 HTTP를 막으므로 **CloudFront를 ALB 앞에 세워** `*.cloudfront.net`의 유효한 인증서를 공짜로 얻었다. 나중에 도메인을 사면 ACM 인증서로 교체하면 된다.
+
+### 실제로 만들어진 것 (ap-northeast-2)
+
+| 리소스 | 식별자 |
+|---|---|
+| RDS PostgreSQL 16.15 | `define-staging` · db.t4g.micro · 20GB gp3 · 단일 AZ |
+| ECR | `993232132996.dkr.ecr.ap-northeast-2.amazonaws.com/define-api:latest` (linux/amd64) |
+| ECS 클러스터 / 서비스 | `define` / `define-api` (Fargate 0.25 vCPU · 0.5GB · desired 1) |
+| ALB | `define-alb-280306306.ap-northeast-2.elb.amazonaws.com` (HTTP :80) |
+| **CloudFront (API HTTPS)** | **`https://d2kejc3sjm91mt.cloudfront.net/api`** ← `eas.json`에 주입한 값 |
+| 보안그룹 | `define-alb-sg`(인터넷→80) · `define-service-sg`(ALB→3000) · `define-rds-sg`(**내 IP + 서비스 SG만** →5432) |
+| IAM | `define-ecs-execution`(ECR pull·로그·SSM 주입) |
+| SSM SecureString | `/define/staging/{database-url, db-password, jwt-secret, openai-api-key}` |
+| CloudWatch 로그 | `/ecs/define-api` (14일 보관) |
+
+미사용으로 남은 것: `define-apprunner-ecr-access`·`define-apprunner-instance` IAM 역할, `define-db-subnets`(RDS가 씀). App Runner 역할 2개는 지워도 됨.
+
+**검증 통과(HTTPS, 인터넷 경유)**: health 200 · HTTP→HTTPS 301 · words 6 · signup 201 · login 200 · 오답 401 · 무토큰 401 · 중복 409 · journal import `imported:1` → 재import `updated:1` · 출석 `claimed:true→false` · 광장 200.
 
 ---
 
@@ -11,7 +39,7 @@
 | 덩어리 | 실체 | AWS로 가면 |
 |---|---|---|
 | 프론트엔드 | Expo **웹 정적 빌드**(`expo export` → `dist/`) | **S3 + CloudFront** |
-| 백엔드 | **NestJS**(무상태 Node API, `/api`, JWT, bcrypt, OpenAI 호출) | **App Runner**(컨테이너) |
+| 백엔드 | **NestJS**(무상태 Node API, `/api`, JWT, bcrypt, OpenAI 호출) | **ECS Fargate**(컨테이너) + ALB + CloudFront |
 | DB | SQLite 148KB(작음), 마이그레이션 11개 | **RDS PostgreSQL** |
 | 시크릿 | `JWT_SECRET`·`OPENAI_API_KEY`·`DATABASE_URL` | **SSM Parameter Store** |
 | 이메일(미래) | 없음(아직) | **SES** |
@@ -79,7 +107,21 @@
 
 ---
 
-## Phase 2 — 백엔드: 컨테이너 → ECR → App Runner
+## Phase 2 — 백엔드: 컨테이너 → ECR → **ECS Fargate + ALB + CloudFront** ✅ 완료(2026-09-06)
+
+> 아래 원문은 App Runner 기준으로 쓴 것. **서울에 App Runner가 없어 ECS로 교체**했다(위 "실행 결과" 참조).
+> 실제 수행한 순서:
+> 1. 보안그룹 3개 — ALB(인터넷→80) / 서비스(ALB→3000) / RDS(서비스 SG→5432). **RDS는 인터넷에 열지 않음**
+> 2. IAM `define-ecs-execution` — `AmazonECSTaskExecutionRolePolicy` + `/define/staging/*` SSM 읽기 인라인 정책
+> 3. CloudWatch 로그 그룹 `/ecs/define-api`(14일) → ECS 클러스터 `define`
+> 4. ALB + 타깃그룹(IP 타입 :3000, 헬스체크 `/api/health`) + 리스너 :80
+> 5. 태스크 정의 `define-api:1` — Fargate 256/512, **X86_64**, 시크릿 3개를 SSM에서 주입
+> 6. 서비스 `define-api` — 퍼블릭 서브넷 2개 + `assignPublicIp=ENABLED`(NAT 없이 OpenAI 호출 가능) + ALB 연결
+> 7. CloudFront 배포 — 오리진=ALB(http-only), `CachingDisabled` + `AllViewerExceptHostHeader`(Authorization 헤더 전달), viewer는 `redirect-to-https`
+>
+> **함정**: 로컬 macOS DNS가 ALB 생성 **직전에** 조회한 NXDOMAIN을 캐시해서 `curl`이 계속 "Could not resolve host"를 냈다. `dig`는 정상 → 캐시 문제. `curl --resolve`로 우회해 검증했다.
+
+### (참고) 원래 App Runner 계획
 
 **개념**:
 - **컨테이너(Docker)** = 앱 + 런타임(node)을 한 상자에 봉인 → "내 컴퓨터에선 됐는데" 방지.

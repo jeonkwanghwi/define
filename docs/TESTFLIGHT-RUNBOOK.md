@@ -16,29 +16,29 @@
 | `eas.json` `production` 프로필 (store 배포 빌드) | ✅ 준비됨 (손댈 것 없음) |
 | 앱 아이콘 알파 채널 제거 (iOS 리젝 방지) | ✅ 처리함 (`define.png` RGBA→RGB, 겉모습 동일) |
 | 권한 문구(infoPlist) 필요 네이티브 모듈 | ✅ 현재 없음 (카메라/위치/알림/추적 등 미사용) |
-| **Apple Developer $99 계정** | ⏳ **미결제(무료 Apple ID만 생성) — 실세계 관문 1** |
-| **살아있는 백엔드 API + `eas.json`에 API 주소 주입** | ⏳ **미완 — 실세계 관문 2** (아래 ⚠️) |
+| **Apple Developer $99 계정** | ✅ **결제 완료 (2026-09-06, 129,000원)** |
+| **살아있는 백엔드 API + `eas.json`에 API 주소 주입** | ✅ **완료 (2026-09-06)** — 아래 참조 |
 
-> ⚠️ **2026-09-05 추가 — Apple 계정만으로는 부족하다.**
-> `eas.json`의 `production` 프로필에 `env`가 없어서, 지금 빌드하면 `src/services/api-client.ts`의 폴백인
-> **`http://localhost:3000/api`가 번들에 그대로 박힌다** → 테스터 폰에서 로그인·동기화가 전부 실패(=QA 불가).
-> 게다가 Railway 스테이징은 무료체험 만료로 **사라졌다**(`Application not found`).
-> 그래서 **AWS 이관(App Runner API 주소 확보) → `eas.json`에 주입**이 STEP 2보다 먼저다:
+> ✅ **2026-09-06 해소 — 백엔드가 AWS에서 살아있고 앱이 그 주소를 본다.**
+> `eas.json`의 `production` 프로필에 `env`가 없어서 빌드하면 `api-client.ts`의 폴백 `http://localhost:3000/api`가
+> 번들에 박히는 문제(2026-09-05 발견)를 AWS 이관으로 해결했다. 현재 값:
 > ```jsonc
 > // front/mobile/eas.json
 > "production": {
 >   "autoIncrement": true,
->   "env": { "EXPO_PUBLIC_API_URL": "https://<app-runner>.ap-northeast-2.awsapprunner.com/api" }
+>   "env": { "EXPO_PUBLIC_API_URL": "https://d2kejc3sjm91mt.cloudfront.net/api" }
 > }
 > ```
-> `EXPO_PUBLIC_*`는 **빌드 타임에 박히는** 값이라, 주소가 바뀌면 반드시 재빌드해야 한다.
-> 진행 상황은 [AWS-MIGRATION-PLAN.md](./AWS-MIGRATION-PLAN.md).
+> 경로: **CloudFront(HTTPS) → ALB → ECS Fargate → RDS PostgreSQL** (전부 ap-northeast-2).
+> CloudFront를 쓴 이유는 커스텀 도메인 없이 **유효한 TLS 인증서**를 얻기 위해서다 — iOS ATS가 평문 HTTP를 막는다.
+> ⚠️ `EXPO_PUBLIC_*`는 **빌드 타임에 번들에 박히는** 값이라, 주소가 바뀌면 반드시 재빌드해야 한다.
+> 상세는 [AWS-MIGRATION-PLAN.md](./AWS-MIGRATION-PLAN.md)의 "실행 결과(2026-09-06)".
 
-→ **위 두 관문이 풀리면 아래 STEP 1부터 바로 실행 가능.**
+→ **두 관문 모두 해소됨. 아래 STEP 1부터 바로 실행 가능.**
 
 ---
 
-## STEP 0 — Apple Developer 가입 (사용자, 실세계) ⏳
+## STEP 0 — Apple Developer 가입 (사용자, 실세계) ✅ 완료
 
 - **Apple Developer Program 연 $99** 가입: https://developer.apple.com/programs/enroll/
 - 개인(Individual) 등록이면 **D-U-N-S 불요**(법인/Organization만 필요). 개인 등록 권장 — 가장 빠름.
