@@ -8,12 +8,17 @@
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import type { Neighbor } from '@/data/village-mock';
 import { Icon } from '@/icons';
 import { useTheme } from '@/theme';
 
+/** 시트가 보여줄 이웃 — 서버 응답(village-api)이 그대로 들어온다. */
+export type SheetNeighbor = {
+  nickname: string;
+  words: { word: string; text: string }[];
+};
+
 type Props = {
-  neighbor: Neighbor | null; // null이면 닫힘
+  neighbor: SheetNeighbor | null; // null이면 닫힘
   onClose: () => void;
 };
 
@@ -37,7 +42,7 @@ export function NeighborSheet({ neighbor, onClose }: Props) {
         <View style={styles.handle} />
 
         <View style={styles.head}>
-          <ThemedText variant="h3">{neighbor?.name}</ThemedText>
+          <ThemedText variant="h3">{neighbor?.nickname}</ThemedText>
           <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
             <Icon name="close" size={20} color={theme.colors.ink.secondary} />
           </Pressable>
