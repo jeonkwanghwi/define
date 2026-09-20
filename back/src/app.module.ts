@@ -18,6 +18,7 @@ import { JournalModule } from './modules/journal/journal.module';
 import { CurrencyModule } from './modules/currency/currency.module';
 import { PlazaModule } from './modules/plaza/plaza.module';
 import { RecallModule } from './modules/recall/recall.module';
+import { VillageModule } from './modules/village/village.module';
 import { WordModule } from './modules/word/word.module';
 
 @Module({
@@ -30,6 +31,7 @@ import { WordModule } from './modules/word/word.module';
     PlazaModule,
     CurrencyModule,
     RecallModule,
+    VillageModule,
   ],
   controllers: [HealthController],
 })
