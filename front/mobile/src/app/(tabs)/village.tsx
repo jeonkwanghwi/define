@@ -18,9 +18,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { NeighborSheet, type SheetNeighbor } from '@/components/village/neighbor-sheet';
 import { VillageScene, zoneAspect } from '@/components/village/village-scene';
-import { ZONES, type Point, type Zone, type ZoneId } from '@/data/village-zones';
+import { entryPoint, ZONES, type Point, type Zone, type ZoneId } from '@/data/village-zones';
+import { WALK_GRIDS } from '@/data/village-grid';
 import { Icon } from '@/icons';
-import { findRouteToSlot, findWalkRoute } from '@/lib/village-path';
+import { findWalkRoute, snapToPath } from '@/lib/village-path';
 import { getNeighbors, type VillageNeighbor } from '@/services/village-api';
 import { useAuthStore } from '@/store/auth-store';
 import { motion, useTheme } from '@/theme';
@@ -47,7 +48,7 @@ export default function VillageScreen() {
 /** 걷기가 끝난 뒤에 할 일 — 도착해서야 집에 들어가거나 옆 맵으로 넘어간다. */
 type Arrival =
   | { kind: 'slot'; slotId: string }
-  | { kind: 'exit'; to: ZoneId; enterAt: string }
+  | { kind: 'exit'; to: ZoneId }
   | null;
 
 function VillageMap() {
@@ -56,7 +57,9 @@ function VillageMap() {
 
   const [zoneId, setZoneId] = useState<ZoneId>('center');
   const zone = ZONES[zoneId];
-  const [at, setAt] = useState<Point>(ZONES.center.nodes[ZONES.center.spawn]);
+  const [at, setAt] = useState<Point>(
+    () => snapToPath(WALK_GRIDS.center, ZONES.center.spawn) ?? ZONES.center.spawn,
+  );
   const [walk, setWalk] = useState<{ route: Point[]; then: Arrival } | null>(null);
   const [bySlot, setBySlot] = useState<Record<string, VillageNeighbor>>({});
   const [sheet, setSheet] = useState<SheetNeighbor | null>(null);
@@ -64,7 +67,7 @@ function VillageMap() {
   const [switching, setSwitching] = useState(false);
 
   const fade = useRef(new Animated.Value(1)).current;
-  const aspect = useMemo(() => zoneAspect(zone), [zone]);
+  const grid = WALK_GRIDS[zoneId];
   // 걷는 중·전환 중엔 탭을 받지 않는다(경로를 도중에 갈아끼우면 아바타가 순간이동한다).
   const busy = walk !== null || switching;
 
@@ -84,14 +87,19 @@ function VillageMap() {
   function tapGround(p: Point) {
     if (busy) return;
     setNotice(null);
-    const route = findWalkRoute(zone, at, p, aspect);
+    const route = findWalkRoute(grid, at, p);
+    if (route.length === 0) return; // 길이 아예 없는 곳(맵 밖·물 위)을 누른 경우
     setWalk({ route, then: exitAt(zone, route[route.length - 1]) });
   }
 
   function tapSlot(slotId: string) {
     if (busy) return;
     setNotice(null);
-    setWalk({ route: findRouteToSlot(zone, at, slotId, aspect), then: { kind: 'slot', slotId } });
+    const slot = zone.slots.find((sl) => sl.id === slotId);
+    if (!slot) return;
+    const route = findWalkRoute(grid, at, slot.door);
+    if (route.length === 0) return;
+    setWalk({ route, then: { kind: 'slot', slotId } });
   }
 
   function arrive() {
@@ -105,12 +113,12 @@ function VillageMap() {
       if (neighbor) setSheet({ nickname: neighbor.nickname, words: neighbor.words });
       else setNotice('아직 이웃이 없어요');
     } else if (then?.kind === 'exit') {
-      switchZone(then.to, then.enterAt);
+      switchZone(then.to);
     }
   }
 
   /** 맵 교체는 페이드아웃 → 갈아끼우기 → 페이드인. 중간에 보이면 화면이 툭 끊긴다. */
-  function switchZone(to: ZoneId, enterAt: string) {
+  function switchZone(to: ZoneId) {
     setSwitching(true);
     const step = (toValue: number) =>
       Animated.timing(fade, {
@@ -121,7 +129,9 @@ function VillageMap() {
       });
     step(0).start(() => {
       setZoneId(to);
-      setAt(ZONES[to].nodes[enterAt]);
+      // 들어온 문 자리에 세운다. 데이터가 반 칸 어긋나도 걷기가 막히지 않게 길 위로 붙인다.
+      const entry = entryPoint(zoneId, to);
+      setAt(snapToPath(WALK_GRIDS[to], entry) ?? entry);
       step(1).start(() => setSwitching(false));
     });
   }
@@ -206,9 +216,8 @@ function assign(list: VillageNeighbor[]): Record<string, VillageNeighbor> {
 function exitAt(zone: Zone, p: Point | undefined): Arrival {
   if (!p) return null;
   for (const exit of zone.exits) {
-    const node = zone.nodes[exit.node];
-    if (Math.hypot(node.x - p.x, node.y - p.y) <= EXIT_RADIUS) {
-      return { kind: 'exit', to: exit.to, enterAt: exit.enterAt };
+    if (Math.hypot(exit.at.x - p.x, exit.at.y - p.y) <= EXIT_RADIUS) {
+      return { kind: 'exit', to: exit.to };
     }
   }
   return null;

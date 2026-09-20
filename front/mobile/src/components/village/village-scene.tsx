@@ -21,6 +21,7 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 
+import { ZONE_BACKGROUNDS } from '@/data/village-backgrounds';
 import type { Point, Zone } from '@/data/village-zones';
 
 const AVATAR = require('../../../assets/village/avatar.png');
@@ -84,7 +85,7 @@ function coverFit(background: ImageSourcePropType, boxW: number, boxH: number): 
  * dispH/dispW = 원본 h/w라 박스 크기와 무관하고, 레이아웃 전에도 구할 수 있다.
  */
 export function zoneAspect(zone: Zone): number {
-  const src = assetSize(zone.background);
+  const src = assetSize(ZONE_BACKGROUNDS[zone.id]);
   return src ? src.height / src.width : 1;
 }
 
@@ -106,40 +107,48 @@ export function VillageScene({ zone, at, route, onArrive, onTapGround, onTapSlot
   // 보드의 화면상 원점 — 웹에서 탭 좌표를 만들 때 쓴다(아래 handleGround 주석 참고).
   const boardRef = useRef<View>(null);
   const origin = useRef({ x: 0, y: 0 });
-  const fit = useMemo(() => coverFit(zone.background, box.w, box.h), [zone.background, box.w, box.h]);
+  const background = ZONE_BACKGROUNDS[zone.id];
+  const fit = useMemo(() => coverFit(background, box.w, box.h), [background, box.w, box.h]);
 
-  // 아바타 위치는 "비율"로 들고 있다가 그릴 때 px로 편다 — 레이아웃이 바뀌어도 걷는 중에 안 어긋난다.
-  const ax = useRef(new Animated.Value(at.x)).current;
-  const ay = useRef(new Animated.Value(at.y)).current;
+  /**
+   * 걷기는 **경로 전체를 한 번의 애니메이션**으로 돌린다.
+   * 격자 길찾기는 점이 수십 개씩 나오는데 구간마다 따로 애니메이션을 걸면
+   * 구간 전환 지연이 쌓여 아바타가 기어간다(실제로 그랬다).
+   * progress 0→1 하나를 누적 거리로 보간하면 점이 몇 개든 등속으로 미끄러진다.
+   */
+  const progress = useRef(new Animated.Value(0)).current;
   const bob = useRef(new Animated.Value(0)).current;
   const facing = useRef(new Animated.Value(1)).current;
 
-  // 경로 도중에 콜백 identity가 바뀌어도 걷기가 끊기지 않게 ref로 최신값만 본다.
   const onArriveRef = useRef(onArrive);
   useEffect(() => {
     onArriveRef.current = onArrive;
   });
 
-  // 걷지 않을 때(맵 전환 직후 등)는 넘어온 위치로 바로 세운다.
-  useEffect(() => {
-    if (route) return;
-    ax.setValue(at.x);
-    ay.setValue(at.y);
-  }, [at, route, ax, ay]);
+  /** 경로를 화면 px 좌표와 누적거리(0~1)로 미리 펴둔다. */
+  const plan = useMemo(() => {
+    if (!route || route.length < 2 || fit.dispW === 0) return null;
+    const px = route.map((p) => ({ x: fit.offX + p.x * fit.dispW, y: fit.offY + p.y * fit.dispH }));
+    const cum = [0];
+    for (let i = 1; i < px.length; i += 1) {
+      cum.push(cum[i - 1] + Math.hypot(px[i].x - px[i - 1].x, px[i].y - px[i - 1].y));
+    }
+    const total = cum[cum.length - 1];
+    if (total < 1) return null;
+    // 같은 거리(=같은 입력값)가 연달아 오면 interpolate가 죽는다 → 미세하게 벌려준다.
+    const input = cum.map((d, i) => Math.min(1, d / total + i * 1e-6));
+    return { px, input, total };
+  }, [route, fit.offX, fit.offY, fit.dispW, fit.dispH]);
 
   useEffect(() => {
     if (!route) return;
-    // 레이아웃 전이면 구간 시간을 못 구한다 — 측정되면 이 effect가 다시 들어온다.
-    if (fit.dispW === 0) return;
-    if (route.length < 2) {
-      onArriveRef.current();
+    if (!plan) {
+      // 한 점짜리 경로(이미 그 자리)거나 레이아웃 전 — 레이아웃이 잡히면 다시 들어온다.
+      if (route.length < 2 && fit.dispW > 0) onArriveRef.current();
       return;
     }
 
-    // 경로 첫 점 = 현재 위치를 길 위로 끌어올린 지점. 이미 길 위라 눈에 띄는 점프는 없다.
-    ax.setValue(route[0].x);
-    ay.setValue(route[0].y);
-
+    progress.setValue(0);
     const bobLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(bob, { toValue: 1, duration: BOB_MS, easing: Easing.linear, useNativeDriver: true }),
@@ -148,40 +157,49 @@ export function VillageScene({ zone, at, route, onArrive, onTapGround, onTapSlot
     );
     bobLoop.start();
 
-    let cancelled = false;
-    let i = 1;
-    const step = () => {
-      if (cancelled) return;
-      if (i >= route.length) {
-        bobLoop.stop();
-        bob.setValue(0);
-        onArriveRef.current();
-        return;
-      }
-      const a = route[i - 1];
-      const b = route[i];
-      // 왼쪽으로 가면 뒤집어 방향감을 준다(스프라이트가 한 방향뿐이라).
-      if (b.x !== a.x) facing.setValue(b.x < a.x ? -1 : 1);
+    // 왼쪽으로 갈 땐 뒤집어 방향감을 준다(스프라이트가 한 방향뿐이라).
+    const sub = progress.addListener(({ value }) => {
+      const d = value * plan.total;
+      let i = 1;
+      while (i < plan.input.length - 1 && plan.input[i] * plan.total < d) i += 1;
+      const dx = plan.px[i].x - plan.px[i - 1].x;
+      if (Math.abs(dx) > 0.5) facing.setValue(dx < 0 ? -1 : 1);
+    });
+
+    const anim = Animated.timing(progress, {
+      toValue: 1,
       // 등속 — 걷기엔 가감속이 없어야 자연스럽다(ease-out은 UI 전환용 규칙).
-      const px = Math.hypot((b.x - a.x) * fit.dispW, (b.y - a.y) * fit.dispH);
-      const timing = { duration: Math.max(60, (px / WALK_PX_PER_SEC) * 1000), easing: Easing.linear, useNativeDriver: true };
-      Animated.parallel([
-        Animated.timing(ax, { toValue: b.x, ...timing }),
-        Animated.timing(ay, { toValue: b.y, ...timing }),
-      ]).start(({ finished }) => {
-        if (!finished || cancelled) return;
-        i += 1;
-        step();
-      });
-    };
-    step();
+      duration: Math.max(200, (plan.total / WALK_PX_PER_SEC) * 1000),
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    anim.start(({ finished }) => {
+      if (finished) onArriveRef.current();
+    });
 
     return () => {
-      cancelled = true;
+      anim.stop();
       bobLoop.stop();
       bob.setValue(0);
+      progress.removeListener(sub);
     };
-  }, [route, fit.dispW, fit.dispH, ax, ay, bob, facing]);
+  }, [route, plan, fit.dispW, progress, bob, facing]);
+
+  /**
+   * 보드 크기·화면상 위치를 직접 잰다.
+   * ⚠️ 웹에서는 onLayout이 아예 오지 않는 경우가 있다(실제로 보드가 0×0으로 남아
+   * 배경도 안 그려지고 탭도 죽었다). 렌더 뒤 한 번 재서 채운다. 값이 같으면 state를
+   * 안 건드리므로 렌더 루프는 생기지 않는다.
+   */
+  useEffect(() => {
+    const id = setTimeout(() => {
+      boardRef.current?.measureInWindow((x, y, w, h) => {
+        origin.current = { x, y };
+        if (w > 0 && h > 0) setBox((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+      });
+    }, 0);
+    return () => clearTimeout(id);
+  });
 
   const avatarH = Math.round(AVATAR_BASE_H * zone.avatarScale);
   const avatarW = Math.round(avatarH * AVATAR_RATIO);
@@ -189,16 +207,20 @@ export function VillageScene({ zone, at, route, onArrive, onTapGround, onTapSlot
   const shadowH = Math.max(4, Math.round(shadowW * 0.34));
 
   // transform만 쓰므로 네이티브 드라이버 사용 가능(interpolate도 네이티브에서 계산된다).
-  const translateX = ax.interpolate({ inputRange: [0, 1], outputRange: [fit.offX, fit.offX + fit.dispW] });
-  const translateY = ay.interpolate({ inputRange: [0, 1], outputRange: [fit.offY, fit.offY + fit.dispH] });
+  // 걷는 중이면 경로를 따라, 아니면 서 있는 자리에 고정.
+  const standX = fit.offX + at.x * fit.dispW;
+  const standY = fit.offY + at.y * fit.dispH;
+  const translateX = plan
+    ? progress.interpolate({ inputRange: plan.input, outputRange: plan.px.map((p) => p.x) })
+    : standX;
+  const translateY = plan
+    ? progress.interpolate({ inputRange: plan.input, outputRange: plan.px.map((p) => p.y) })
+    : standY;
   const bobY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, -BOB_PX] });
 
   function handleLayout(e: LayoutChangeEvent) {
     const { width, height } = e.nativeEvent.layout;
-    setBox({ w: width, h: height });
-    boardRef.current?.measureInWindow((x, y) => {
-      origin.current = { x, y };
-    });
+    setBox((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
   }
 
   function handleGround(e: GestureResponderEvent) {
@@ -224,7 +246,7 @@ export function VillageScene({ zone, at, route, onArrive, onTapGround, onTapSlot
         좌표 환산(coverFit)과 그림의 실제 위치가 한 곳에서 나와야 어긋나지 않는다.
       */}
       <Image
-        source={zone.background}
+        source={background}
         style={{ position: 'absolute', left: fit.offX, top: fit.offY, width: fit.dispW, height: fit.dispH }}
         resizeMode="stretch"
       />
@@ -233,8 +255,7 @@ export function VillageScene({ zone, at, route, onArrive, onTapGround, onTapSlot
       <Pressable style={StyleSheet.absoluteFill} onPress={handleGround} />
 
       {zone.slots.map((slot) => {
-        const door = zone.nodes[slot.door];
-        if (!door) return null;
+        const door = slot.door;
         return (
           <Pressable
             key={slot.id}
