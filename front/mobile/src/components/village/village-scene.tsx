@@ -5,8 +5,8 @@
  * "받은 경로를 어떻게 걷게 할지"만 책임진다. 렌더 방식(2D→3D)이 바뀌어도
  * 이 파일만 갈아끼우면 되도록 데이터·로직(village-zones / village-path)과 분리.
  *
- * ⚠️ 좌표 환산이 핵심: 0~1 비율 좌표는 "배경 그림" 기준인데 cover로 채우면 그림이 잘린다.
- * 잘린 만큼(offX/offY)과 확대된 만큼(dispW/dispH)을 보정해야 길·집 위치가 그림과 맞는다.
+ * ⚠️ 좌표 환산이 핵심: 0~1 비율 좌표는 "배경 그림" 기준이다. 그림이 놓인 사각형
+ * (offX/offY + dispW/dispH)을 거쳐야 길·집 위치가 화면과 맞는다.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -26,8 +26,11 @@ import type { Point, Zone } from '@/data/village-zones';
 const AVATAR = require('../../../assets/village/avatar.png');
 
 /** avatar.png 원본 — 비율 유지용(투명 배경, 발끝이 바닥에 닿아 있는 그림). */
-const AVATAR_SRC_W = 55;
-const AVATAR_SRC_H = 156;
+// 스프라이트 원본 비율은 파일에서 읽는다 — 아바타 그림을 갈아끼워도 가로가 안 찌그러진다.
+const AVATAR_RATIO = (() => {
+  const s = assetSize(AVATAR);
+  return s ? s.width / s.height : 55 / 156;
+})();
 /** 중앙 맵(avatarScale 1) 기준 아바타 높이(dp). 맵별 줌 차이는 zone.avatarScale이 보정. */
 const AVATAR_BASE_H = 52;
 
@@ -42,12 +45,34 @@ const SLOT_SIZE = 56;
 
 type CoverFit = { dispW: number; dispH: number; offX: number; offY: number };
 
-/** resizeMode="cover"가 그림을 어떻게 키우고 잘랐는지 계산. */
+/**
+ * 배경 원본 크기(px). 네이티브는 `Image.resolveAssetSource`로 얻지만,
+ * **RN Web에는 그 함수가 없다**(호출하면 그대로 터진다). 웹에선 번들러가
+ * require(png)를 `{ uri, width, height }` 객체로 내주므로 그걸 직접 읽는다.
+ */
+function assetSize(src: ImageSourcePropType): { width: number; height: number } | null {
+  const resolve = (Image as unknown as { resolveAssetSource?: (s: ImageSourcePropType) => unknown })
+    .resolveAssetSource;
+  const resolved = (typeof resolve === 'function' ? resolve(src) : src) as
+    | { width?: number; height?: number }
+    | undefined;
+  return resolved?.width && resolved?.height
+    ? { width: resolved.width, height: resolved.height }
+    : null;
+}
+
+/**
+ * 그림 전체가 박스 안에 들어오도록 배치(contain) — 남는 자리는 여백.
+ *
+ * 꽉 채우면(cover) 기기 비율에 따라 그림이 잘리는데, 하필 **잘리는 가장자리에
+ * 맵 전환 지점이 있다**. 폰(세로로 긴 화면)에선 좌우가 15%씩 잘려 옆 마을로 가는 길에
+ * 아예 닿을 수 없었다. 마을은 "전체를 보고 돌아다니는" 화면이라 여백이 낫다.
+ */
 function coverFit(background: ImageSourcePropType, boxW: number, boxH: number): CoverFit {
-  const src = Image.resolveAssetSource(background);
-  // 원본 크기를 못 얻으면(번들러 차이) 잘림 없이 박스에 맞춘다 — 좌표가 조금 늘어나도 화면은 산다.
+  const src = assetSize(background);
+  // 원본 크기를 못 얻으면(번들러 차이) 박스에 그대로 맞춘다 — 좌표가 조금 늘어나도 화면은 산다.
   if (!src?.width || !src?.height) return { dispW: boxW, dispH: boxH, offX: 0, offY: 0 };
-  const scale = Math.max(boxW / src.width, boxH / src.height);
+  const scale = Math.min(boxW / src.width, boxH / src.height);
   const dispW = src.width * scale;
   const dispH = src.height * scale;
   return { dispW, dispH, offX: (boxW - dispW) / 2, offY: (boxH - dispH) / 2 };
@@ -55,12 +80,12 @@ function coverFit(background: ImageSourcePropType, boxW: number, boxH: number): 
 
 /**
  * 거리 계산용 종횡비 — village-path의 aspect 인자에 그대로 넘긴다.
- * 비율 1은 가로로 dispW px, 세로로 dispH px이라 세로가 더 멀다. cover에선
- * dispH/dispW = 원본 h/w로 박스 크기와 무관해서 레이아웃 전에도 구할 수 있다.
+ * 비율 1은 가로로 dispW px, 세로로 dispH px이라 세로가 더 멀다.
+ * dispH/dispW = 원본 h/w라 박스 크기와 무관하고, 레이아웃 전에도 구할 수 있다.
  */
 export function zoneAspect(zone: Zone): number {
-  const src = Image.resolveAssetSource(zone.background);
-  return src?.width && src?.height ? src.height / src.width : 1;
+  const src = assetSize(zone.background);
+  return src ? src.height / src.width : 1;
 }
 
 export type VillageSceneProps = {
@@ -78,6 +103,9 @@ export type VillageSceneProps = {
 
 export function VillageScene({ zone, at, route, onArrive, onTapGround, onTapSlot }: VillageSceneProps) {
   const [box, setBox] = useState({ w: 0, h: 0 });
+  // 보드의 화면상 원점 — 웹에서 탭 좌표를 만들 때 쓴다(아래 handleGround 주석 참고).
+  const boardRef = useRef<View>(null);
+  const origin = useRef({ x: 0, y: 0 });
   const fit = useMemo(() => coverFit(zone.background, box.w, box.h), [zone.background, box.w, box.h]);
 
   // 아바타 위치는 "비율"로 들고 있다가 그릴 때 px로 편다 — 레이아웃이 바뀌어도 걷는 중에 안 어긋난다.
@@ -156,7 +184,7 @@ export function VillageScene({ zone, at, route, onArrive, onTapGround, onTapSlot
   }, [route, fit.dispW, fit.dispH, ax, ay, bob, facing]);
 
   const avatarH = Math.round(AVATAR_BASE_H * zone.avatarScale);
-  const avatarW = Math.round(avatarH * (AVATAR_SRC_W / AVATAR_SRC_H));
+  const avatarW = Math.round(avatarH * AVATAR_RATIO);
   const shadowW = Math.round(avatarW * 0.9);
   const shadowH = Math.max(4, Math.round(shadowW * 0.34));
 
@@ -168,20 +196,38 @@ export function VillageScene({ zone, at, route, onArrive, onTapGround, onTapSlot
   function handleLayout(e: LayoutChangeEvent) {
     const { width, height } = e.nativeEvent.layout;
     setBox({ w: width, h: height });
+    boardRef.current?.measureInWindow((x, y) => {
+      origin.current = { x, y };
+    });
   }
 
   function handleGround(e: GestureResponderEvent) {
     if (fit.dispW === 0) return;
+    // ⚠️ RN Web의 Pressable은 locationX/Y를 주지 않는다(null) — 그대로 쓰면 탭이 전부 무시된다.
+    // 웹에선 pageX/Y에서 보드의 화면상 원점을 빼서 보드 기준 좌표를 만든다.
+    const ne = e.nativeEvent as unknown as {
+      locationX?: number | null;
+      locationY?: number | null;
+      pageX?: number;
+      pageY?: number;
+    };
+    const lx = ne.locationX ?? (ne.pageX ?? 0) - origin.current.x;
+    const ly = ne.locationY ?? (ne.pageY ?? 0) - origin.current.y;
     // px → 비율 (그릴 때의 역산)
-    onTapGround({
-      x: (e.nativeEvent.locationX - fit.offX) / fit.dispW,
-      y: (e.nativeEvent.locationY - fit.offY) / fit.dispH,
-    });
+    onTapGround({ x: (lx - fit.offX) / fit.dispW, y: (ly - fit.offY) / fit.dispH });
   }
 
   return (
-    <View style={styles.board} onLayout={handleLayout}>
-      <Image source={zone.background} style={StyleSheet.absoluteFill} resizeMode="cover" />
+    <View ref={boardRef} style={styles.board} onLayout={handleLayout}>
+      {/*
+        cover에 맡기지 않고 우리가 계산한 사각형에 직접 그린다.
+        좌표 환산(coverFit)과 그림의 실제 위치가 한 곳에서 나와야 어긋나지 않는다.
+      */}
+      <Image
+        source={zone.background}
+        style={{ position: 'absolute', left: fit.offX, top: fit.offY, width: fit.dispW, height: fit.dispH }}
+        resizeMode="stretch"
+      />
 
       {/* 빈 땅 — 아래 깔고, 집 탭 영역을 그 위에 얹는다. */}
       <Pressable style={StyleSheet.absoluteFill} onPress={handleGround} />
