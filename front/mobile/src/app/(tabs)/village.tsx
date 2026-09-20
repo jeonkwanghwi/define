@@ -4,16 +4,33 @@
  * 이웃(=다른 사용자)의 집을 거닐며 그 사람의 정의를 들여다보는 공간.
  * 가입 필요 탭 — 로그아웃 시 AuthGate가 가입 유도 화면을 보여준다.
  *
- * 현재 실제 마을 화면은 2D 픽셀아트 목업(`/village-demo` dev 라우트)으로 별도 존재.
- * 2D/3D 렌더링 방향 확정(DEVELOPMENT.md §6) 후 이 탭에 본격 연결 예정.
- * 그때까지 children은 placeholder(공통 AppHeader 아래).
+ * 이 파일이 "상태 주인"이다: 지금 어느 맵인지, 아바타가 어디 서 있는지, 어디로 걷는 중인지,
+ * 어느 집에 누가 사는지. 그리기는 VillageScene, 길 찾기는 village-path, 맵 데이터는 village-zones.
+ * (설계: docs/superpowers/specs/2026-09-20-village-v1-design.md)
  */
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
-import { ScreenPlaceholder } from '@/components/domain/screen-placeholder';
+import { FadeIn, PressableScale } from '@/components/primitives';
+import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { NeighborSheet, type SheetNeighbor } from '@/components/village/neighbor-sheet';
+import { VillageScene, zoneAspect } from '@/components/village/village-scene';
+import { ZONES, type Point, type Zone, type ZoneId } from '@/data/village-zones';
+import { Icon } from '@/icons';
+import { findRouteToSlot, findWalkRoute } from '@/lib/village-path';
+import { getNeighbors, type VillageNeighbor } from '@/services/village-api';
+import { useAuthStore } from '@/store/auth-store';
+import { motion, useTheme } from '@/theme';
+
+/** 이웃을 꽂는 순서 — 받은 목록을 이 순서의 슬롯에 차례로 배정한다. */
+const ZONE_ORDER: ZoneId[] = ['center', 'east', 'south', 'west', 'north'];
+const TOTAL_SLOTS = ZONE_ORDER.reduce((n, id) => n + ZONES[id].slots.length, 0);
+
+/** 이만큼 안으로 도착하면 전환 지점에 닿은 것으로 본다(탭 지점이 길 위로 끌려와 노드와 미세하게 어긋난다). */
+const EXIT_RADIUS = 0.05;
 
 export default function VillageScreen() {
   return (
@@ -22,22 +39,187 @@ export default function VillageScreen() {
       title="마을"
       description="이웃들의 마을을 거닐며 다른 사람의 정의를 만나는 공간이에요. 가입해두면 가장 먼저 만나요."
     >
-      <ThemedView bg="paper" style={styles.root}>
-        <View style={styles.headerWrap}>
-          <AppHeader />
-        </View>
-        <ScreenPlaceholder
-          iconName="village"
-          title="마을"
-          subtitle="이웃의 집을 거닐며 그 사람의 정의를 보는 공간"
-          note="준비 중 — 2D/3D 방향 확정 후 진행"
-        />
-      </ThemedView>
+      <VillageMap />
     </AuthGate>
   );
+}
+
+/** 걷기가 끝난 뒤에 할 일 — 도착해서야 집에 들어가거나 옆 맵으로 넘어간다. */
+type Arrival =
+  | { kind: 'slot'; slotId: string }
+  | { kind: 'exit'; to: ZoneId; enterAt: string }
+  | null;
+
+function VillageMap() {
+  const theme = useTheme();
+  const token = useAuthStore((s) => s.token);
+
+  const [zoneId, setZoneId] = useState<ZoneId>('center');
+  const zone = ZONES[zoneId];
+  const [at, setAt] = useState<Point>(ZONES.center.nodes[ZONES.center.spawn]);
+  const [walk, setWalk] = useState<{ route: Point[]; then: Arrival } | null>(null);
+  const [bySlot, setBySlot] = useState<Record<string, VillageNeighbor>>({});
+  const [sheet, setSheet] = useState<SheetNeighbor | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
+
+  const fade = useRef(new Animated.Value(1)).current;
+  const aspect = useMemo(() => zoneAspect(zone), [zone]);
+  // 걷는 중·전환 중엔 탭을 받지 않는다(경로를 도중에 갈아끼우면 아바타가 순간이동한다).
+  const busy = walk !== null || switching;
+
+  const load = useCallback(() => {
+    if (!token) return;
+    getNeighbors(token, TOTAL_SLOTS)
+      .then((list) => setBySlot(assign(list)))
+      .catch(() => {
+        /* 비치명적 — 이웃을 못 받아도 마을은 걸어다닐 수 있어야 한다(집 탭 시 안내만). */
+      });
+  }, [token]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function tapGround(p: Point) {
+    if (busy) return;
+    setNotice(null);
+    const route = findWalkRoute(zone, at, p, aspect);
+    setWalk({ route, then: exitAt(zone, route[route.length - 1]) });
+  }
+
+  function tapSlot(slotId: string) {
+    if (busy) return;
+    setNotice(null);
+    setWalk({ route: findRouteToSlot(zone, at, slotId, aspect), then: { kind: 'slot', slotId } });
+  }
+
+  function arrive() {
+    if (!walk) return;
+    const end = walk.route[walk.route.length - 1];
+    if (end) setAt(end);
+    const then = walk.then;
+    setWalk(null);
+    if (then?.kind === 'slot') {
+      const neighbor = bySlot[then.slotId];
+      if (neighbor) setSheet({ nickname: neighbor.nickname, words: neighbor.words });
+      else setNotice('아직 이웃이 없어요');
+    } else if (then?.kind === 'exit') {
+      switchZone(then.to, then.enterAt);
+    }
+  }
+
+  /** 맵 교체는 페이드아웃 → 갈아끼우기 → 페이드인. 중간에 보이면 화면이 툭 끊긴다. */
+  function switchZone(to: ZoneId, enterAt: string) {
+    setSwitching(true);
+    const step = (toValue: number) =>
+      Animated.timing(fade, {
+        toValue,
+        duration: motion.duration.base,
+        easing: motion.easing.standard,
+        useNativeDriver: true,
+      });
+    step(0).start(() => {
+      setZoneId(to);
+      setAt(ZONES[to].nodes[enterAt]);
+      step(1).start(() => setSwitching(false));
+    });
+  }
+
+  return (
+    <ThemedView bg="paper" style={styles.root}>
+      <View style={styles.headerWrap}>
+        <AppHeader />
+        <View style={styles.bar}>
+          <ThemedText variant="bodyMd" tone="strong">
+            {zone.title}
+          </ThemedText>
+          <PressableScale
+            onPress={() => {
+              setNotice(null);
+              load();
+            }}
+            hitSlop={10}
+            style={styles.refresh}
+            accessibilityRole="button"
+            accessibilityLabel="이웃 새로고침"
+          >
+            <Icon name="shuffle" size={17} color={theme.colors.ink.secondary} />
+            <ThemedText variant="caption" tone="secondary">
+              새로고침
+            </ThemedText>
+          </PressableScale>
+        </View>
+      </View>
+
+      <Animated.View style={[styles.board, { opacity: fade }]}>
+        <VillageScene
+          zone={zone}
+          at={at}
+          route={walk?.route ?? null}
+          onArrive={arrive}
+          onTapGround={tapGround}
+          onTapSlot={tapSlot}
+        />
+        {notice ? (
+          <View pointerEvents="none" style={styles.noticeWrap}>
+            <FadeIn>
+              <View
+                style={[
+                  styles.notice,
+                  {
+                    backgroundColor: theme.colors.surface.base,
+                    borderColor: theme.colors.line.base,
+                    borderRadius: theme.radii.md,
+                  },
+                ]}
+              >
+                <ThemedText variant="caption" tone="secondary">
+                  {notice}
+                </ThemedText>
+              </View>
+            </FadeIn>
+          </View>
+        ) : null}
+      </Animated.View>
+
+      <NeighborSheet neighbor={sheet} onClose={() => setSheet(null)} />
+    </ThemedView>
+  );
+}
+
+/** 받은 순서대로 맵 순서(center→east→south→west→north)의 슬롯에 꽂는다. */
+function assign(list: VillageNeighbor[]): Record<string, VillageNeighbor> {
+  const out: Record<string, VillageNeighbor> = {};
+  let i = 0;
+  for (const id of ZONE_ORDER) {
+    for (const slot of ZONES[id].slots) {
+      const neighbor = list[i];
+      i += 1;
+      if (neighbor) out[slot.id] = neighbor;
+    }
+  }
+  return out;
+}
+
+/** 도착 지점이 전환 지점 코앞이면 그 출구. */
+function exitAt(zone: Zone, p: Point | undefined): Arrival {
+  if (!p) return null;
+  for (const exit of zone.exits) {
+    const node = zone.nodes[exit.node];
+    if (Math.hypot(node.x - p.x, node.y - p.y) <= EXIT_RADIUS) {
+      return { kind: 'exit', to: exit.to, enterAt: exit.enterAt };
+    }
+  }
+  return null;
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
+  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
+  refresh: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  board: { flex: 1 },
+  noticeWrap: { position: 'absolute', left: 0, right: 0, bottom: 20, alignItems: 'center' },
+  notice: { borderWidth: 1, paddingVertical: 8, paddingHorizontal: 14 },
 });
