@@ -16,7 +16,8 @@
 | `eas.json` `production` 프로필 (store 배포 빌드) | ✅ 준비됨 (손댈 것 없음) |
 | 앱 아이콘 알파 채널 제거 (iOS 리젝 방지) | ✅ 처리함 (`define.png` RGBA→RGB, 겉모습 동일) |
 | 권한 문구(infoPlist) 필요 네이티브 모듈 | ✅ 현재 없음 (카메라/위치/알림/추적 등 미사용) |
-| **Apple Developer $99 계정** | ✅ **결제 완료 (2026-09-06, 129,000원)** |
+| **Apple Developer $99 계정** | ✅ **결제 완료** — 단, **친구 명의**(Team `TAE SAGONG` / `4VYF6A725R`). 본인은 **Admin**으로 초대됨 |
+| **ASC API 팀 키** (2FA 없이 빌드/업로드) | ✅ 발급·검증 완료 — Key `LCS7467NY9`, `.p8`은 `~/.appstoreconnect/private_keys/` (레포 밖·600) |
 | **살아있는 백엔드 API + `eas.json`에 API 주소 주입** | ✅ **완료 (2026-09-06)** — 아래 참조 |
 
 > ✅ **2026-09-06 해소 — 백엔드가 AWS에서 살아있고 앱이 그 주소를 본다.**
@@ -65,13 +66,27 @@
 
 ## STEP 2 — iOS 빌드 (EAS)
 
+> **2026-09-20 갱신** — Apple 계정이 **친구 명의**(Team `TAE SAGONG` / `4VYF6A725R`)라, Apple 로그인 대신
+> **ASC API 팀 키**로 인증한다(친구 폰 2FA 불필요). 키는 레포 밖 `~/.appstoreconnect/private_keys/`에 있다.
+> **최초 1회는 대화형 필수** — `--non-interactive`는 첫 배포 인증서를 만들지 못하고
+> `Distribution Certificate is not validated for non-interactive builds`로 실패한다.
+
 ```bash
-cd front/mobile
-# Apple 계정으로 로그인해서 인증서/프로파일을 EAS가 자동 관리하게 함
-EXPO_TOKEN=<robot-token> eas build --profile production --platform ios
+source ~/.nvm/nvm.sh                                   # eas·node가 PATH에 없음(nvm)
+cd /Users/kwanghwi/dev/define/front/mobile && pwd      # ← 절대경로. cd 빠지면 다른 프로젝트가 빌드된다
+export EXPO_ASC_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_LCS7467NY9.p8"
+export EXPO_ASC_KEY_ID=LCS7467NY9
+export EXPO_ASC_ISSUER_ID=22aef0ea-e975-4d7f-94f0-a137b0b01a17
+export EXPO_APPLE_TEAM_ID=4VYF6A725R
+export EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
+eas build --profile production --platform ios
 ```
 
-- 처음 실행 시 Apple 로그인 → EAS가 **배포 인증서 + 프로비저닝 프로파일 자동 생성**(직접 만들 필요 없음).
+- **시작 직후 eas가 찍는 프로젝트명이 `define (com.define.app)`인지 확인** — `studylog` 등 다른 이름이면 즉시 Ctrl+C.
+  (2026-09-20에 실제로 `cd` 누락으로 studylog가 빌드되고 친구 팀에 푸시 키가 잘못 생성됨. Apple은 팀당 푸시 키 2개 제한.)
+- 프롬프트 답: 배포 인증서 생성 **Yes** · 프로비저닝 프로파일 생성 **Yes** · **푸시 알림 설정은 No**(define은 푸시 미사용).
+- 빌드는 **Expo 클라우드의 맥**에서 돌아간다(내 맥에 Xcode 불필요). 무료 플랜이라 대기열이 있을 수 있음.
+- 인증서·프로파일 생성 후에는 EAS 서버에 보관되어 재사용 → **2회차부터는 비대화형 자동 실행 가능**.
 - `production` 프로필 = distribution 기본값 `store` → App Store Connect/TestFlight용 `.ipa` 산출.
 - 빌드 번호는 `eas.json`의 `autoIncrement`+`appVersionSource: remote`로 **EAS가 자동 증가** — 수동 관리 불필요.
 - 완료까지 EAS 클라우드에서 십수 분.

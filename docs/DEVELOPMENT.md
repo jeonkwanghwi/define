@@ -273,6 +273,20 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-09-20 — TestFlight 빌드 준비 완료(친구 Apple 계정 + ASC API 키) · 첫 빌드는 대화형 1회 남음 → 기능 개발로 전환
+- **Apple 계정 명의 변경(중요)**: Apple Developer Program 등록·결제가 **친구 명의**로 됐다 — **Team `TAE SAGONG` / Team ID `4VYF6A725R`**(개인 등록, Provider ID 129417712는 안 씀). 사용자는 App Store Connect에 **Admin으로 초대받아 본인 Apple ID로 작업**(친구 폰 2FA 의존 제거). 계정 소유자만 가능한 일 = 약관 수락·API 액세스 요청·유료 앱 계약(IAP).
+- **ASC API 팀 키 발급**: 이름 `eas-cli (define)`, 역할 **Admin**(첫 빌드에서 인증서·프로파일·번들ID를 만들어야 해서 App Manager로는 부족). Key ID `LCS7467NY9` / Issuer ID `22aef0ea-e975-4d7f-94f0-a137b0b01a17`. `.p8`은 **레포 밖** `~/.appstoreconnect/private_keys/AuthKey_LCS7467NY9.p8`(600), `.gitignore`에 `*.p8` 추가(사고 방지). 키는 **팀 소유**라 만든 사람과 무관하게 동작하고, 다운로드는 **1회뿐**.
+- **키 실동작 검증**: 직접 JWT(ES256) 만들어 ASC API 호출 — `/v1/apps` 200(앱 0개), `/v1/bundleIds?filter=com.define.app` 200(이 팀에 미등록). 즉 앱 레코드도 번들ID도 아직 없음이 **확정**. 백엔드 `/api/health` 200(AWS 살아있음).
+- **설정 변경 2개**: `app.json`에 `ios.config.usesNonExemptEncryption: false`(없으면 업로드마다 "수출 규정 누락"으로 ASC에서 멈춤 — 앱이 HTTPS만 쓰므로 면제) · `eas.json` `submit.production.ios`에 `appleTeamId`/`ascApiKeyPath`/`ascApiKeyIssuerId`/`ascApiKeyId` 채움(업로드가 비대화형으로 돌아감).
+- **🔴 함정(실제로 다 밟음)**:
+  ① **비대화형 빌드는 첫 배포 인증서를 못 만든다** — `--non-interactive`는 `Distribution Certificate is not validated for non-interactive builds`로 실패. **최초 1회는 사용자가 터미널에서 대화형 실행** 필요(그 뒤론 인증서 재사용이라 자동화 가능).
+  ② **`eas`·`node`가 PATH에 없음**(nvm) — `source ~/.nvm/nvm.sh` 선행 필수. `~/.nvm/.../bin/eas`만 직접 실행하면 `env: node: No such file or directory`.
+  ③ **`cd` 없이 실행해 엉뚱한 프로젝트가 빌드됨** — `@kwanghwi/studylog`가 빌드되고 **친구 Apple 팀에 푸시 키가 1개 생성**됨(Apple은 팀당 푸시 키 2개 제한). → 재실행 시 `pwd` 확인 + eas가 찍는 프로젝트명이 **`define (com.define.app)`** 인지 확인. 푸시 알림 프롬프트는 **No**(define은 푸시 미사용).
+- **남은 것**: 대화형 첫 빌드 → ASC 앱 레코드 생성(**이름 "define" 선점 여부가 여기서 판가름**, 번들ID 전역 선점 위험도 함께) → `eas submit` → 내부 테스터 초대. 복붙 명령은 [TESTFLIGHT-RUNBOOK.md](./TESTFLIGHT-RUNBOOK.md) STEP 2.
+- **정리 필요(소소)**: 친구 팀에 잘못 생긴 studylog용 푸시 키 폐기 여부 판단.
+- **기획 결정 대기**: 친구 명의로 정식 출시할지 — 판매자명·IAP 정산이 친구 명의가 되고, 나중에 옮기려면 앱 이전(App Transfer)인데 **Apple 로그인 붙은 뒤엔 사용자 식별자 이관이 따라붙는다**. → **Apple 로그인·IAP 착수 전에 결정**. [PLANNING.md](./PLANNING.md) §8.
+- **다음**: 사용자 요청으로 여기서 멈추고 **기능 개발로 전환**. TestFlight는 위 "남은 것"부터 재개.
+
 ### 2026-09-06 — AWS Phase 3 완료: 웹 프론트 배포 → 브라우저로 볼 수 있는 링크 생김
 - **계기(사용자 질문)**: "url이 나온 게 아님? 배포가 된 게 아닌가?" — Phase 2에서 준 주소를 브라우저로 열면 `{"message":"Cannot GET /api"}` 404가 떠서 배포 실패로 보였다. 실제로는 **API 서버 주소를 웹사이트로 착각**한 것(NestJS는 `/api/health` 같은 정해진 경로에만 응답). "사람이 보는 화면"이 없던 게 원인이라 Phase 3(웹 배포)를 바로 진행.
 - **한 도메인으로 합침**: 새 배포를 만들지 않고 **기존 CloudFront(E2CH8Q63FJ0LS0)에 S3 오리진을 추가**해서 `기본 경로 → S3(웹앱)`, `/api`·`/api/*` → ALB로 라우팅. 덕분에 ① **CORS가 아예 불필요**(같은 오리진) ② `eas.json`에 이미 박은 API 주소가 **그대로 유효** ③ 팀에 줄 링크가 하나. S3 버킷 `define-web-staging`은 퍼블릭 전면 차단 + **OAC로 이 배포만** 읽기 허용.
