@@ -38,6 +38,11 @@ const DOOR_RADIUS = 0.05;
 const EXIT_RADIUS = 0.035;
 /** 조이스틱을 이만큼은 기울여야 걷는다(손 떨림으로 스멀스멀 움직이지 않게). */
 const DEAD_ZONE = 0.08;
+/**
+ * 막혔을 때 시도해 볼 각도(라디안). 0 → ±20° → ±40° → ±60° → ±80°.
+ * 길 경계가 격자라 계단처럼 각진다. 정면이 막히면 벽을 따라 흘러가도록 틀어서 시도한다.
+ */
+const SLIDE_ANGLES = [0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4];
 
 export default function VillageScreen() {
   return (
@@ -126,7 +131,6 @@ function VillageMap() {
     if (switching) return;
     // 세로는 그림이 길쭉해서 같은 비율이라도 실제 거리가 더 길다 → 칸 수로 보정.
     const aspect = grid.cols / grid.rows;
-    const speedY = SPEED_X * aspect;
     let raf = 0;
     let last = Date.now();
 
@@ -140,20 +144,30 @@ function VillageMap() {
 
       if (walking) {
         const p = posRef.current;
-        let { x, y } = p;
-        const nx = x + d.x * SPEED_X * dt;
-        const ny = y + d.y * speedY * dt;
-        if (isWalkable(grid, { x: nx, y })) x = nx;
-        if (isWalkable(grid, { x, y: ny })) y = ny;
-        if (x !== p.x || y !== p.y) {
-          posRef.current = { x, y };
-          pos.setValue({ x, y });
+        const step = SPEED_X * dt;
+        // 막히면 방향을 조금씩 틀어 가며 갈 수 있는 쪽으로 흘려보낸다.
+        // x·y를 따로 시도하는 것만으로는 오목한 모서리에서 둘 다 막혀 아예 안 움직인다(낑김).
+        let next: Point | null = null;
+        for (const a of SLIDE_ANGLES) {
+          const ux = d.x * Math.cos(a) - d.y * Math.sin(a);
+          const uy = d.x * Math.sin(a) + d.y * Math.cos(a);
+          const cand = { x: p.x + ux * step, y: p.y + uy * aspect * step };
+          if (isWalkable(grid, cand)) {
+            next = cand;
+            break;
+          }
+        }
+
+        if (next) {
+          posRef.current = next;
+          pos.setValue(next);
           if (Math.abs(d.x) > 0.15) facing.setValue(d.x < 0 ? -1 : 1);
         }
 
+        const { x, y } = posRef.current;
         // 거리 비교는 세로를 가로 기준으로 환산해서 — 안 그러면 위아래로만 판정이 후해진다.
         const dist = (a: Point) => Math.hypot(a.x - x, (a.y - y) * aspect);
-        const near = zone.slots.find((s) => dist(s.door) <= DOOR_RADIUS);
+        const near = zone.slots.find((sl) => dist(sl.door) <= DOOR_RADIUS);
         setNearSlot((prev) => (prev === (near?.id ?? null) ? prev : (near?.id ?? null)));
         const exit = zone.exits.find((e) => dist(e.at) <= EXIT_RADIUS);
         if (exit) switchZone(exit.to);

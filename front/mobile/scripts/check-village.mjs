@@ -65,7 +65,13 @@ for (const zoneId of ZONE_ORDER) {
   }
   const pairs = (marks.length * (marks.length - 1)) / 2;
   ok(`[${zoneId}] ${pairs}쌍 전부 걸어서 도달`, unreachable === 0, `실패 ${unreachable}쌍`);
-  ok(`[${zoneId}] 경로 ${segments}구간이 길 위`, worstOff <= 1.2, `길에서 최대 ${worstOff.toFixed(2)}칸`);
+  // 허용치는 원본 그림 기준 약 10px — 칸이 잘아질수록 칸 수로는 커지므로 px로 환산해 잰다.
+  const allow = (10 * grid.cols) / 848;
+  ok(
+    `[${zoneId}] 경로 ${segments}구간이 길 위`,
+    worstOff <= allow,
+    `길에서 최대 ${worstOff.toFixed(2)}칸(허용 ${allow.toFixed(1)})`,
+  );
 }
 
 // 4) 맵 전환으로 들어간 자리가 길 위인가

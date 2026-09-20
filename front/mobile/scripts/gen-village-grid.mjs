@@ -16,8 +16,8 @@ const ASSETS = new URL('../assets/village/', import.meta.url).pathname;
 const OUT = new URL('../src/data/village-grid.ts', import.meta.url).pathname;
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'village-grid-'));
 
-/** 가로 칸 수. 848px 그림 기준 한 칸 8px — 길 폭이 3~4칸이라 걷기엔 충분하고 데이터도 작다. */
-const COLS = 106;
+/** 가로 칸 수. 848px 그림 기준 한 칸 4px — 낮으면 경계가 계단처럼 각져 대각선 이동이 낀다. */
+const COLS = 212;
 
 const MAPS = [
   { zone: 'center', file: 'bg-center.png', rule: 'sand' },

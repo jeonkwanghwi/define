@@ -28,8 +28,13 @@ const AVATAR_RATIO = (() => {
   const s = assetSize(AVATAR);
   return s ? s.width / s.height : 108 / 156;
 })();
-/** 중앙 맵(avatarScale 1) 기준 아바타 높이(dp). 맵별 줌 차이는 zone.avatarScale이 보정. */
-const AVATAR_BASE_H = 52;
+/**
+ * 아바타 높이 — **배경 그림 높이 대비 비율**이다(dp 고정이 아니다).
+ * dp로 고정하면 화면이 작아져 그림이 줄어들 때 아바타만 그대로라 거인이 된다(실제로 그랬다).
+ * 원본 848×1264 그림 기준 75px — 보드 높이 500쯤인 화면에서 약 30dp로 보인다(사용자 조정값).
+ * 맵별 줌 차이는 zone.avatarScale이 보정.
+ */
+const AVATAR_H_RATIO = 75 / 1264;
 
 /** 걸을 때 들썩임 — 한 걸음 시간(ms)과 폭(px). 과하면 통통 튀어 보인다(톤 가드). */
 const BOB_MS = 170;
@@ -120,7 +125,7 @@ export function VillageScene({ zone, pos, facing, moving }: VillageSceneProps) {
     return () => clearTimeout(id);
   });
 
-  const avatarH = Math.round(AVATAR_BASE_H * zone.avatarScale);
+  const avatarH = Math.max(12, Math.round(fit.dispH * AVATAR_H_RATIO * zone.avatarScale));
   const avatarW = Math.round(avatarH * AVATAR_RATIO);
   const shadowW = Math.round(avatarW * 0.9);
   const shadowH = Math.max(4, Math.round(shadowW * 0.34));
