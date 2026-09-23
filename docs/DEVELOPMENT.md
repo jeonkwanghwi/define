@@ -274,6 +274,17 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-09-22 — AWS 스테이징 전체 정리(비용) — 데이터는 스냅샷 보존, 주소는 유지
+
+- **왜**: 배포(TestFlight) 준비가 안 된 채로 인프라만 2주 넘게 돌고 있었다. 실측해 보니 **월 $85** — 문서에 적어둔 $40은 ⒜ 공인 IPv4 요금(4개 ~$14, 2024년부터 과금) ⒝ 같은 계정에 올라온 studylog(월 ~$30)를 빼먹은 값이었다.
+- **지운 것(define)**: ALB `define-alb` · ECS 서비스 `define-api` · RDS `define-staging`. 최종 스냅샷 `define-staging-final-20260922` 보존. ALB가 사라지며 딸린 공인 IP도 정리됨.
+- **지운 것(studylog, 사용자 승인)**: RDS `studylog-db`(스냅샷 `studylog-db-final-20260922`), EC2 `studylog-api`는 **정지만**(디스크·설정 보존). EIP는 DNS가 걸려 있을 수 있어 유지.
+- **살려둔 것**: S3 `define-web-staging` + CloudFront `E2CH8Q63FJ0LS0`. **주소 `d2kejc3sjm91mt.cloudfront.net`가 `eas.json`에 박혀 있어** 지우면 앱을 재빌드해야 한다. 아이템 기능의 이미지 저장소로도 그대로 쓴다. ECR 이미지·SSM 시크릿·보안그룹·태스크 정의도 유지(복원이 빨라진다). → **월 약 $5.**
+- **🔴 복원 시 반드시 고칠 것**: `define-staging`이 `PubliclyAccessible: true`였다. 2026-09-06 기록의 "RDS를 인터넷에 열지 않는다"는 **보안그룹 얘기였고 인스턴스 자체는 퍼블릭**이었다. 복원은 `--no-publicly-accessible`로.
+- **복원 순서**: RDS 스냅샷 복원(10~20분) → ALB+타깃그룹 생성 → ECS 서비스 재생성(기존 태스크 정의) → **CloudFront 오리진을 새 ALB 주소로 교체** → `/api/health` 200 확인. 상세는 메모리 `aws-staging-infra`.
+- **로컬도 정리**: 3일째 떠 있던 Postgres 컨테이너·Expo·백엔드 종료, Docker Desktop 종료. 볼륨 `back_define-pgdata`는 보존이라 `./dev-web.sh` 한 줄로 그대로 돌아온다(로컬은 비용 0).
+- **다음**: 기능 개발은 로컬로 계속. **TestFlight 빌드 전에 AWS 복구가 선행**된다.
+
 ### 2026-09-20 — tab2 마을 v1 구현: 배경 5장 + 그림에서 뽑은 길 격자 + 조이스틱 자유 이동 ★
 
 - **배경**: 중앙 + 동(봄)·남(여름)·서(가을)·북(겨울) **5장**(848×1264, 세로 2:3). 사용자가 AI로 생성,
