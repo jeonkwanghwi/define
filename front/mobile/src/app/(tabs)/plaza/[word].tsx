@@ -3,26 +3,34 @@
  *
  * 동적 라우트: /plaza/{word}. useLocalSearchParams로 word 받음(journal [word] 패턴).
  * 서버에서 정의 목록을 받아 표시. 내 정의(isMine)는 맨 위 + 포인트 강조 + "내 정의" 배지.
+ *
+ * 비로그인 처리: 이 화면은 광장 리스트(AuthGate 적용)에서만 들어오지만, 딥링크·웹 새로고침으로
+ * 바로 열릴 수 있다. 그때 토큰이 없으면 요청을 못 보내 "불러오는 중…"에 갇히므로
+ * 가입 유도 화면을 대신 보여준다. AuthGate를 쓰지 않는 이유 = push된 화면이라
+ * 뒤로가기 헤더를 잃으면 빠져나갈 길이 없어진다(AuthGate는 탭 루트용).
  */
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { LikeButton } from '@/components/domain/like-button';
 import { ScreenHeader } from '@/components/domain/screen-header';
-import { FadeIn } from '@/components/primitives';
+import { Button, FadeIn } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/icons';
 import { formatRelativeLabel } from '@/lib/format-date';
 import { getPlazaWord, toggleEntryLike, type PlazaWordDetail } from '@/services/plaza-api';
-import { useAuthStore } from '@/store/auth-store';
+import { useAuthHydrated, useAuthStore } from '@/store/auth-store';
 import { controlPresets, useTheme } from '@/theme';
 
 export default function PlazaWordDetailScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const { word: rawWord } = useLocalSearchParams<{ word: string }>();
   const word = typeof rawWord === 'string' ? rawWord : '';
   const token = useAuthStore((s) => s.token);
+  const hydrated = useAuthHydrated();
 
   const [data, setData] = useState<PlazaWordDetail | null>(null);
   const [failed, setFailed] = useState(false);
@@ -87,6 +95,34 @@ export default function PlazaWordDetailScreen() {
             : prev,
         );
       });
+  }
+
+  // 비로그인 — 서버를 부를 수 없으니 로딩에 갇히지 않게 가입 유도로 대체(뒤로가기는 유지).
+  // hydrated 전에는 판단하지 않는다(저장된 토큰을 아직 못 읽은 것뿐인데 가입 화면이 깜빡인다).
+  if (hydrated && !token) {
+    return (
+      <ThemedView bg="paper" style={styles.root}>
+        <ScreenHeader title={word} />
+        <View style={styles.gate}>
+          <Icon name="plaza" size={48} color={theme.colors.point.p600} />
+          <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
+            광장은 가입한 분들에게 열려요
+          </ThemedText>
+          <ThemedText
+            variant="body"
+            tone="secondary"
+            style={{ marginTop: theme.spacing.s2, textAlign: 'center', lineHeight: 24 }}
+          >
+            “{word}”을 사람들이 어떻게 정의했는지 보려면 가입해 주세요.
+          </ThemedText>
+          <Button
+            label="가입하고 시작하기"
+            onPress={() => router.push('/auth')}
+            style={{ marginTop: theme.spacing.s5 }}
+          />
+        </View>
+      </ThemedView>
+    );
   }
 
   return (
@@ -159,6 +195,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32, gap: 12 },
   centerText: { textAlign: 'center', marginTop: 80 },
+  gate: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: { ...controlPresets.badge, borderRadius: 999 },

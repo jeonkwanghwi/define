@@ -48,8 +48,19 @@ export default function MyPageScreen() {
   const balance = useAuthStore((s) => s.user?.balance ?? 0);
   const accountEmail = useAuthStore((s) => s.user?.email ?? null);
   const lastSyncedAt = useAuthStore((s) => s.lastSyncedAt);
+  const syncFailedAt = useAuthStore((s) => s.syncFailedAt);
+  const retrySync = useAuthStore((s) => s.retrySync);
   const logout = useAuthStore((s) => s.logout);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  // 재시도 중 표시는 이 화면에서만 필요해 로컬 state로 둔다(store에 두면 영속돼 "동기화 중"이 박힌다).
+  const [retrying, setRetrying] = useState(false);
+
+  async function handleRetrySync() {
+    if (retrying) return;
+    setRetrying(true);
+    await retrySync(); // 성공/실패 표시는 store가 갱신 — 여기선 진행 중 표시만 담당
+    setRetrying(false);
+  }
 
   const hasNickname = nickname.length > 0;
   const avatarLetter = hasNickname ? nickname[0] : '';
@@ -133,8 +144,23 @@ export default function MyPageScreen() {
                 theme={theme}
                 icon="user"
                 label={accountEmail ?? '로그인됨'}
-                value={lastSyncedAt ? '동기화됨' : undefined}
+                value={
+                  retrying
+                    ? '동기화 중…'
+                    : syncFailedAt
+                      ? '동기화 안 됨 · 다시 시도'
+                      : lastSyncedAt
+                        ? '동기화됨'
+                        : undefined
+                }
+                valueColor={syncFailedAt && !retrying ? theme.colors.ruby.base : undefined}
+                onPress={syncFailedAt && !retrying ? handleRetrySync : undefined}
               />
+              {syncFailedAt ? (
+                <ThemedText variant="caption" tone="secondary" style={styles.syncNote}>
+                  기록은 이 폰에 안전하게 있어요. 서버 반영만 실패했어요.
+                </ThemedText>
+              ) : null}
               <Divider theme={theme} />
               <Row
                 theme={theme}
@@ -306,6 +332,7 @@ function Row({
   icon,
   label,
   value,
+  valueColor,
   onPress,
   disabled,
 }: {
@@ -313,6 +340,8 @@ function Row({
   icon: IconName;
   label: string;
   value?: string;
+  /** 값 글자색 지정(기본은 placeholder 톤). 경고를 색으로 구분할 때만 넘긴다. */
+  valueColor?: string;
   onPress?: () => void;
   disabled?: boolean;
 }) {
@@ -327,7 +356,11 @@ function Row({
         {label}
       </ThemedText>
       {value ? (
-        <ThemedText variant="sm" tone="placeholder" style={{ marginRight: 6 }}>
+        <ThemedText
+          variant="sm"
+          tone="placeholder"
+          style={[{ marginRight: 6 }, valueColor ? { color: valueColor, fontWeight: '700' } : null]}
+        >
           {value}
         </ThemedText>
       ) : null}
@@ -340,6 +373,7 @@ function Row({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  syncNote: { paddingHorizontal: 16, paddingBottom: 12, marginTop: -4 },
   scroll: {
     paddingHorizontal: 24,
     paddingTop: 12,

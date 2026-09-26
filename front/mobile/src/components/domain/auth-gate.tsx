@@ -19,7 +19,7 @@ import { Button } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
-import { useAuthStore } from '@/store/auth-store';
+import { useAuthHydrated, useAuthStore } from '@/store/auth-store';
 import { useTheme } from '@/theme';
 
 export type AuthGateProps = {
@@ -37,9 +37,12 @@ export function AuthGate({ icon, title, description, children }: AuthGateProps) 
   const theme = useTheme();
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
+  const hydrated = useAuthHydrated();
 
   // 로그인 상태면 실제 콘텐츠 그대로.
-  if (token) {
+  // 저장된 토큰을 아직 못 읽었으면(hydrated=false) 판단을 미룬다 — 안 그러면 앱 시작 직후
+  // 로그인 사용자에게도 가입 유도 화면이 한 프레임 번쩍인다.
+  if (token || !hydrated) {
     return <>{children}</>;
   }
 

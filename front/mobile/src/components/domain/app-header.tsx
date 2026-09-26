@@ -8,6 +8,10 @@
  * 비로그인 상태:
  *   - 신규 사용자  — 포인트색 "로그인하기" 칩만 (조용한 유도, 강요 아님)
  *   - 재방문 사용자(로그인 이력 있음) — 칩 아래에 리마인드 말풍선 1회 노출(앱 실행당)
+ *
+ * 로그인 상태의 신호등은 동기화 상태도 겸한다 — 서버 반영이 실패하면 초록불 대신
+ * 루비색 "동기화 안 됨"으로 바뀌고, 누르면 재시도할 수 있는 마이페이지로 보낸다.
+ * (실패를 숨기면 서버가 죽어도 사용자는 기록이 안전하다고 믿는다.)
  */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -32,6 +36,7 @@ export function AppHeader() {
   const inkBalance = useAuthStore((s) => (s.token ? (s.user?.balance ?? 0) : null));
   const isLoggedIn = useAuthStore((s) => s.token !== null);
   const hasLoggedInBefore = useAuthStore((s) => s.hasLoggedInBefore);
+  const syncFailed = useAuthStore((s) => s.syncFailedAt !== null);
 
   const [reminderDismissed, setReminderDismissed] = useState(reminderDismissedThisSession);
   const showReminder = !isLoggedIn && hasLoggedInBefore && !reminderDismissed;
@@ -48,17 +53,34 @@ export function AppHeader() {
           <ThemedText style={styles.wordmark}>define</ThemedText>
           {/* 로그인 상태 신호등 — 로그아웃이면 "로그인하기" CTA 칩, 로그인이면 초록불. */}
           {isLoggedIn ? (
-            <View style={styles.authPill}>
-              <View
-                style={[
-                  styles.authDot,
-                  { backgroundColor: theme.mode === 'dark' ? '#4ABF8A' : '#2E9E6B' },
-                ]}
-              />
-              <ThemedText variant="caption" tone="secondary">
-                로그인됨
-              </ThemedText>
-            </View>
+            syncFailed ? (
+              // 동기화 실패 — 마이페이지에서 재시도할 수 있으니 눌러서 갈 수 있게 한다.
+              <PressableScale
+                onPress={() => router.push('/mypage')}
+                hitSlop={6}
+                style={[styles.loginChip, { backgroundColor: theme.colors.ruby.soft }]}
+              >
+                <View style={[styles.authDot, { backgroundColor: theme.colors.ruby.base }]} />
+                <ThemedText
+                  variant="caption"
+                  style={{ color: theme.colors.ruby.base, fontWeight: '700' }}
+                >
+                  동기화 안 됨
+                </ThemedText>
+              </PressableScale>
+            ) : (
+              <View style={styles.authPill}>
+                <View
+                  style={[
+                    styles.authDot,
+                    { backgroundColor: theme.mode === 'dark' ? '#4ABF8A' : '#2E9E6B' },
+                  ]}
+                />
+                <ThemedText variant="caption" tone="secondary">
+                  로그인됨
+                </ThemedText>
+              </View>
+            )
           ) : (
             <PressableScale
               onPress={() => router.push('/auth')}

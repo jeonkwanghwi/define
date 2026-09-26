@@ -3,7 +3,9 @@
  *  - 삭제된 entry id → DELETE /journal/:clientId (즉시, best-effort)
  *  - 그 외 변경(추가/수정) → 디바운스 후 syncJournal(전체 멱등 import) 재호출
  * 익명(token 없음)이면 no-op. journal-store는 auth를 모르게 유지 — 여기가 매개.
- * 모든 동기화는 비치명적(실패는 console.warn, 다음 로그인 reconcile이 복구).
+ * 모든 동기화는 비치명적(실패해도 화면은 막지 않고, 다음 로그인 reconcile이 복구).
+ * 단, 실패는 auth-store에 표시해 헤더·마이페이지가 "동기화 안 됨"을 보여준다
+ * (조용히 삼키면 서버가 죽어도 사용자는 저장됐다고 믿는다).
  */
 import { syncJournal } from '@/lib/sync-journal';
 import { deleteJournalEntry } from '@/services/journal-api';
@@ -30,9 +32,10 @@ export function startAutoSync(): () => void {
 
     // 1) 삭제 즉시 반영
     for (const id of diffRemovedIds(prev.entries, state.entries)) {
-      deleteJournalEntry(token, id).catch((e) =>
-        console.warn('[auto-sync] 삭제 동기화 실패:', e),
-      );
+      deleteJournalEntry(token, id).catch((e) => {
+        console.warn('[auto-sync] 삭제 동기화 실패:', e);
+        useAuthStore.getState().markSyncFailed();
+      });
     }
 
     // 2) 추가/수정 → 디바운스 후 전체 재업로드(멱등)
@@ -46,8 +49,12 @@ export function startAutoSync(): () => void {
             if (res.recordBonus) {
               useAuthStore.getState().setBalance(res.recordBonus.balance);
             }
+            useAuthStore.getState().markSynced();
           })
-          .catch((e) => console.warn('[auto-sync] 업로드 실패:', e));
+          .catch((e) => {
+            console.warn('[auto-sync] 업로드 실패:', e);
+            useAuthStore.getState().markSyncFailed();
+          });
       }
     }, DEBOUNCE_MS);
   });
