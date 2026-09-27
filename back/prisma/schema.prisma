@@ -27,10 +27,15 @@ model Word {
 }
 
 /// 가입 사용자. 익명 모델 → 가입 시 닉네임 미설정 허용(nullable).
+///
+/// email·passwordHash가 nullable인 이유: 소셜 로그인(카카오) 사용자는 둘 다 없다.
+/// 카카오는 비즈 앱 전환 전엔 이메일 동의항목 권한 자체가 없고, 전환해도 사용자가
+/// 거부할 수 있다(Apple은 "이메일 가리기"가 있다). 그래서 이메일을 계정의
+/// 필수 식별자로 둘 수 없다 → 소셜 계정의 정체성은 AuthIdentity가 맡는다.
 model User {
   id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
+  email        String?  @unique
+  passwordHash String?
   /// 표시 이름. 익명 모델이라 미설정(null) 허용. 설정 시엔 전역 중복 방지(unique).
   nickname     String?  @unique
   createdAt    DateTime @default(now())
@@ -48,8 +53,34 @@ model User {
   // 회상 채팅 말투 프로필 — 사용자 발화에서 추출한 말투 특징 요약(대화 원문은 저장 안 함).
   // 대화가 쌓일수록 갱신 → "과거의 나"가 첫 마디부터 이 사람 말투로 말하게 하는 재료.
   speechProfile      String?
+  identities         AuthIdentity[]
 
   @@map("users")
+}
+
+/// 소셜 로그인 연결 — "이 제공자의 이 계정은 우리 유저 X다".
+///
+/// providerSub = 제공자가 준 고유 식별자. 카카오는 회원번호(OIDC id_token의 sub),
+/// Apple도 같은 자리의 sub다. 이름·이메일 같은 개인정보는 받지 않는다 —
+/// 로그인에 필요한 건 "같은 사람인지" 뿐이고, 그건 이 값 하나로 충분하다.
+///
+/// 카카오 회원번호는 **앱 단위**라 다른 서비스의 번호와 대조해도 같은 사람인지 알 수 없다
+/// (그 역할을 하는 account_ci는 받지 않는다). 다만 특정 개인을 구별하는 식별자이므로
+/// 개인정보처리방침 수집 항목에 적고, 탈퇴 시 파기 + 제공자 연결 해제 대상이다.
+///
+/// 한 유저가 여러 제공자를 붙일 수 있게 User 1:N. 같은 제공자 계정이 두 유저에
+/// 붙는 것은 (provider, providerSub) 유니크로 막는다.
+model AuthIdentity {
+  id          String   @id @default(cuid())
+  provider    String   // 'kakao' | 'apple'
+  providerSub String
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([provider, providerSub])
+  @@index([userId])
+  @@map("auth_identities")
 }
 
 /// 사용자 정의 단어(entry) — 로컬 SavedEntry의 서버 쌍둥이.

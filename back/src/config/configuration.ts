@@ -25,4 +25,14 @@ export default () => ({
     expiresIn: process.env.JWT_EXPIRES_IN ?? '90d',
   },
   openai: { apiKey: process.env.OPENAI_API_KEY ?? '' },
+  /**
+   * 카카오 로그인. 없으면 부팅은 되고 카카오 엔드포인트만 503 — 이메일 로그인은 계속 된다.
+   * clientSecret은 콘솔에서 기본 활성화되어 있어 토큰 교환에 필수다.
+   */
+  kakao: {
+    restApiKey: process.env.KAKAO_REST_API_KEY ?? '',
+    clientSecret: process.env.KAKAO_CLIENT_SECRET ?? '',
+  },
+  /** 소셜 로그인 후 앱으로 돌아올 커스텀 스킴(define://oauth). app.json의 scheme과 같아야 한다. */
+  app: { scheme: process.env.APP_SCHEME ?? 'define' },
 });

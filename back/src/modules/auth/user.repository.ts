@@ -26,4 +26,18 @@ export abstract class UserRepository {
 
   /** 닉네임 설정/변경. null = 미설정으로 되돌리기. 갱신된 사용자 반환. */
   abstract updateNickname(userId: string, nickname: string | null): Promise<UserEntity>;
+
+  /** 소셜 연결로 1명 조회. 없으면 null. (provider, providerSub) 쌍이 계정의 정체성. */
+  abstract findBySocial(provider: string, providerSub: string): Promise<UserEntity | null>;
+
+  /**
+   * 소셜 전용 사용자 생성 — 이메일·비밀번호 없이 만든다.
+   * 유저와 연결(AuthIdentity)을 한 트랜잭션으로 만들어, 유저만 남고 연결이 없는
+   * 고아 계정이 생기지 않게 한다(그런 계정은 다시는 로그인할 수 없다).
+   */
+  abstract createSocial(input: {
+    provider: string;
+    providerSub: string;
+    nickname?: string;
+  }): Promise<UserEntity>;
 }

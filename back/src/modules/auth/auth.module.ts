@@ -13,6 +13,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { KakaoClient } from './kakao.client';
 import { PrismaUserRepository } from './user.repository.prisma';
 import { UserRepository } from './user.repository';
 
@@ -34,6 +35,7 @@ import { UserRepository } from './user.repository';
   providers: [
     AuthService,
     JwtStrategy,
+    KakaoClient,
     { provide: UserRepository, useClass: PrismaUserRepository },
   ],
 })

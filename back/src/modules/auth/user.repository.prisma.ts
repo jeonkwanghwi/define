@@ -11,8 +11,8 @@ import { UserRepository } from './user.repository';
 // Prisma row(+interests 관계 포함)를 도메인 UserEntity로.
 type Row = {
   id: string;
-  email: string;
-  passwordHash: string;
+  email: string | null;
+  passwordHash: string | null;
   nickname: string | null;
   birthYear: number | null;
   gender: string | null;
@@ -99,6 +99,32 @@ export class PrismaUserRepository extends UserRepository {
     const row = await this.prisma.user.update({
       where: { id: userId },
       data: { nickname },
+      include: { interests: true },
+    });
+    return toEntity(row);
+  }
+
+  async findBySocial(provider: string, providerSub: string): Promise<UserEntity | null> {
+    const identity = await this.prisma.authIdentity.findUnique({
+      where: { provider_providerSub: { provider, providerSub } },
+      include: { user: { include: { interests: true } } },
+    });
+    return identity ? toEntity(identity.user) : null;
+  }
+
+  async createSocial(input: {
+    provider: string;
+    providerSub: string;
+    nickname?: string;
+  }): Promise<UserEntity> {
+    // 중첩 create = 한 트랜잭션. 연결 생성이 실패하면 유저도 안 생긴다.
+    const row = await this.prisma.user.create({
+      data: {
+        nickname: input.nickname ?? null,
+        identities: {
+          create: { provider: input.provider, providerSub: input.providerSub },
+        },
+      },
       include: { interests: true },
     });
     return toEntity(row);
