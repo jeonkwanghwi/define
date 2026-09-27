@@ -6,7 +6,8 @@ import { apiRequest } from './api-client';
 
 export type AuthUser = {
   id: string;
-  email: string;
+  /** 소셜 로그인으로만 가입한 사용자는 이메일이 없다(카카오는 이메일을 주지 않는다). */
+  email: string | null;
   nickname: string | null;
   birthYear: number | null;
   gender: 'male' | 'female' | null;
@@ -35,6 +36,23 @@ export function login(email: string, password: string): Promise<AuthResult> {
     method: 'POST',
     body: { email, password },
   });
+}
+
+/**
+ * POST /api/auth/kakao — 카카오 인가 코드를 우리 토큰으로 교환.
+ *
+ * 코드→토큰 교환은 **서버가** 한다(클라이언트 시크릿이 필요한데 앱에 두면 유출된다).
+ * 앱은 PKCE의 code_verifier만 넘긴다 — 코드가 새도 이것 없이는 토큰이 안 나온다.
+ * redirectUri는 인가 요청에 쓴 값과 한 글자도 같아야 한다(카카오가 대조한다).
+ *
+ * 401 = 코드 만료/위조, 503 = 서버에 카카오 키 미설정.
+ */
+export function kakaoLogin(input: {
+  code: string;
+  codeVerifier: string;
+  redirectUri: string;
+}): Promise<AuthResult> {
+  return apiRequest<AuthResult>('/auth/kakao', { method: 'POST', body: input });
 }
 
 /** PATCH /api/auth/profile — 프로필 완성/수정. */

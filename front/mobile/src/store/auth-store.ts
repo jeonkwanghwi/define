@@ -19,6 +19,7 @@ import {
   syncJournal,
 } from '@/lib/sync-journal';
 import {
+  kakaoLogin as kakaoLoginApi,
   login as loginApi,
   signup as signupApi,
   updateNickname as updateNicknameApi,
@@ -44,6 +45,15 @@ type AuthState = {
   /** 실패 시 throw(화면이 인라인 에러로 표시). 성공 시에만 상태 갱신. */
   signup: (email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  /**
+   * 카카오 인가 코드로 로그인/가입. 서버가 처음 보는 회원번호면 그 자리에서 가입까지 끝낸다.
+   * 이메일 로그인과 동일하게 단어장 reconcile을 탄다(새 기기에서도 단어장이 복원된다).
+   */
+  loginWithKakao: (input: {
+    code: string;
+    codeVerifier: string;
+    redirectUri: string;
+  }) => Promise<void>;
   /** 프로필 완성/수정. 성공 시 user 갱신. 실패 시 throw(화면이 인라인 에러). */
   updateProfile: (input: {
     birthYear: number;
@@ -90,6 +100,11 @@ export const useAuthStore = create<AuthState>()(
       },
       login: async (email, password) => {
         const { token, user } = await loginApi(email, password);
+        set({ token, user, hasLoggedInBefore: true });
+        await reconcileForUser(user.id, token, set);
+      },
+      loginWithKakao: async (input) => {
+        const { token, user } = await kakaoLoginApi(input);
         set({ token, user, hasLoggedInBefore: true });
         await reconcileForUser(user.id, token, set);
       },

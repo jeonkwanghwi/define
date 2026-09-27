@@ -16,6 +16,7 @@ import { VerifyIdentityMock } from '@/components/domain/verify-identity-mock';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
+import { KakaoCanceled, useKakaoAuth } from '@/lib/kakao-auth';
 import type { ApiError } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { motion, useTheme } from '@/theme';
@@ -28,6 +29,8 @@ export default function AuthScreen() {
   const router = useRouter();
   const signup = useAuthStore((s) => s.signup);
   const login = useAuthStore((s) => s.login);
+  const loginWithKakao = useAuthStore((s) => s.loginWithKakao);
+  const kakao = useKakaoAuth();
 
   const [mode, setMode] = useState<Mode>('login');
   const [step, setStep] = useState<Step>('chooser');
@@ -90,6 +93,34 @@ export default function AuthScreen() {
       else router.replace('/profile-setup');
     } catch (e) {
       setError(mapAuthError(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  /**
+   * 카카오 로그인 — 인가 코드를 받아 서버에 넘기면 로그인/가입이 한 번에 끝난다.
+   * 도착지는 이메일 로그인과 동일(프로필 미완성이면 /profile-setup).
+   * 취소는 에러가 아니므로 아무 메시지도 남기지 않는다.
+   */
+  async function handleKakao() {
+    setSocialNotice(null);
+    setError(null);
+    // 웹에서는 끝까지 못 간다: 인증 후 앱으로 돌아오는 주소가 커스텀 스킴(define://)이라
+    // 브라우저가 가로챌 수 없다. 팝업만 뜨고 아무 일도 안 일어나면 고장으로 보이므로 먼저 막는다.
+    if (Platform.OS === 'web') {
+      setSocialNotice('카카오 로그인은 앱에서만 돼요 (웹은 지원하지 않아요)');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const result = await kakao.getAuthCode();
+      await loginWithKakao(result);
+      const completed = useAuthStore.getState().user?.profileCompleted ?? false;
+      router.replace(completed ? '/' : '/profile-setup');
+    } catch (e) {
+      if (e instanceof KakaoCanceled) return; // 사용자가 그만둔 것 — 조용히 돌아간다
+      setError(mapKakaoError(e));
     } finally {
       setSubmitting(false);
     }
@@ -162,10 +193,20 @@ export default function AuthScreen() {
               <Button label="이메일로 로그인" fullWidth onPress={() => goEmail('login')} />
 
               <PressableScale
-                onPress={() => setSocialNotice('카카오 로그인은 준비 중이에요 · 곧 만나요')}
+                onPress={
+                  kakao.configured
+                    ? handleKakao
+                    : () => setSocialNotice('카카오 로그인은 준비 중이에요 · 곧 만나요')
+                }
+                disabled={submitting}
                 style={[
                   styles.socialBtn,
-                  { backgroundColor: '#FEE500', borderRadius: theme.radii.pill, marginTop: theme.spacing.s4 },
+                  {
+                    backgroundColor: '#FEE500',
+                    borderRadius: theme.radii.pill,
+                    marginTop: theme.spacing.s4,
+                  },
+                  submitting && { opacity: 0.6 },
                 ]}
               >
                 <ThemedText variant="bodyMd" style={{ color: '#191600', fontWeight: '700' }}>
@@ -387,6 +428,15 @@ export default function AuthScreen() {
 }
 
 /** 서버/네트워크 에러 → 우리 톤 인라인 문구. */
+/** 카카오 경로 전용 — 401을 "비밀번호를 확인하세요"로 보여주면 안 된다(비밀번호가 없다). */
+function mapKakaoError(e: unknown): string {
+  const err = e as Partial<ApiError>;
+  if (err?.status === 503) return '카카오 로그인은 조금 뒤에 다시 시도해 주세요.';
+  if (err?.status === 401) return '카카오 로그인에 실패했어요. 다시 시도해 주세요.';
+  if (err?.message) return err.message;
+  return '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
+}
+
 function mapAuthError(e: unknown): string {
   const err = e as Partial<ApiError>;
   if (err?.status === 409) return '이미 가입된 이메일이에요.';
