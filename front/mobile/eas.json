@@ -17,15 +17,5 @@
         "EXPO_PUBLIC_API_URL": "https://d2kejc3sjm91mt.cloudfront.net/api"
       }
     }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleTeamId": "4VYF6A725R",
-        "ascApiKeyPath": "/Users/kwanghwi/.appstoreconnect/private_keys/AuthKey_LCS7467NY9.p8",
-        "ascApiKeyIssuerId": "22aef0ea-e975-4d7f-94f0-a137b0b01a17",
-        "ascApiKeyId": "LCS7467NY9"
-      }
-    }
   }
 }

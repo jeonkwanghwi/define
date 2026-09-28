@@ -275,6 +275,17 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-09-28 — Apple 계정을 본인 명의로 전환 + 카카오 로그인 앱 연결·스테이징 주입
+
+- **Apple 계정 전환(결정)**: 타인 명의 계정을 버리고 **본인 명의**(개인 등록, Team ID `M9N2HYP83K`)로 확정. **지금이 전환 비용 0인 유일한 시점** — Apple 로그인이 붙는 순간 사용자 식별자(`sub`)가 팀에 묶여, 나중에 옮기면 기존 사용자가 전부 로그인 불가가 된다. 현재 사용자 0명.
+- **옛 계정 정리(완료)**: ASC API 키 **무효화** · Expo 푸시 키 **삭제** · iOS Distribution 인증서 **폐기** · 로컬 `~/.appstoreconnect/` **삭제** · 레포·문서·메모리에서 팀명/Team ID/키 ID **전부 제거** · `eas.json`의 `submit` 블록 **제거**(남겨두면 실수로 엉뚱한 팀에 제출된다).
+- **다행인 것**: 옛 팀의 App ID가 **0개**여서 `com.define.app`이 선점돼 있지 않았다. 명시적 App ID는 Apple 전체에서 유일해, 선점됐다면 지우기 전엔 새 팀에서 못 만든다. 9/20 오빌드 때 만들어진 건 푸시 키·인증서뿐이었다.
+- **덤**: 공개 레포에 노출돼 있던 **제3자 개인정보**(팀원 이메일)도 같이 제거. 과거 커밋엔 남는다.
+- **카카오 앱 연결**(커밋 `829ec33`): `expo-auth-session`으로 인가 코드를 받아 `POST /api/auth/kakao`로 넘긴다. `app.json` scheme을 **`mobile` → `define`**으로 교정(서버가 `define://oauth`로 302 돌려보낸다 — 안 고쳤으면 복귀가 통째로 실패). 웹은 커스텀 스킴 복귀가 불가해 안내로 막음.
+- **스테이징 주입**: SSM SecureString 2개(`kakao-rest-api-key`·`kakao-client-secret`) + 태스크 정의 `define-api:2`(+`APP_SCHEME=define`). **함정**: ECR `latest`가 9/6 이미지여서 시크릿만 넣으면 `POST /api/auth/kakao`가 404였다 — 이미지 재빌드·푸시(`829ec33`, `--platform linux/amd64`)까지 해야 했다.
+- **검증**: 스테이징이 로컬과 동일하게 `KOE320`(코드만 가짜, 나머지 정상)까지 도달. `/api/words` 200·무토큰 광장 401로 회귀 없음 확인.
+- **다음**: 새 계정에서 App ID 생성 → ASC 키 재발급 → `eas.json` 재작성 → Apple 로그인 코드 → 대화형 첫 iOS 빌드.
+
 ### 2026-09-26 — AWS 스테이징 복구 (9/22에 내린 것 되살리기)
 
 - **왜**: TestFlight 빌드의 선행 조건. 테스터 폰이 붙을 서버가 없으면 로그인·동기화가 전멸한다.
@@ -352,9 +363,10 @@
 - **남은 것**: 걷는 모션(다리 프레임 — 지금은 미끄러지며 들썩임만) · 배경 5장 10MB 최적화 ·
   내 집/꾸미기·필터(v1 제외분) · 아바타 최종 확정.
 
-### 2026-09-20 — TestFlight 빌드 준비 완료(친구 Apple 계정 + ASC API 키) · 첫 빌드는 대화형 1회 남음 → 기능 개발로 전환
-- **Apple 계정 명의 변경(중요)**: Apple Developer Program 등록·결제가 **친구 명의**로 됐다 — **Team `TAE SAGONG` / Team ID `4VYF6A725R`**(개인 등록, Provider ID 129417712는 안 씀). 사용자는 App Store Connect에 **Admin으로 초대받아 본인 Apple ID로 작업**(친구 폰 2FA 의존 제거). 계정 소유자만 가능한 일 = 약관 수락·API 액세스 요청·유료 앱 계약(IAP).
-- **ASC API 팀 키 발급**: 이름 `eas-cli (define)`, 역할 **Admin**(첫 빌드에서 인증서·프로파일·번들ID를 만들어야 해서 App Manager로는 부족). Key ID `LCS7467NY9` / Issuer ID `22aef0ea-e975-4d7f-94f0-a137b0b01a17`. `.p8`은 **레포 밖** `~/.appstoreconnect/private_keys/AuthKey_LCS7467NY9.p8`(600), `.gitignore`에 `*.p8` 추가(사고 방지). 키는 **팀 소유**라 만든 사람과 무관하게 동작하고, 다운로드는 **1회뿐**.
+### 2026-09-20 — TestFlight 빌드 준비 완료(타인 명의 Apple 계정 + ASC API 키) · 첫 빌드는 대화형 1회 남음 → 기능 개발로 전환
+> ⚠️ 2026-09-28에 **본인 명의 계정(`M9N2HYP83K`)으로 전환**했다. 아래 계정 관련 값은 모두 폐기됨.
+- **Apple 계정 명의 변경(중요)**: Apple Developer Program 등록·결제가 **친구 명의**로 됐다 — (타인 명의 개인 등록 — 계정 식별자는 폐기되어 기록하지 않는다). 사용자는 App Store Connect에 **Admin으로 초대받아 본인 Apple ID로 작업**(친구 폰 2FA 의존 제거). 계정 소유자만 가능한 일 = 약관 수락·API 액세스 요청·유료 앱 계약(IAP).
+- **ASC API 팀 키 발급**: 이름 `eas-cli (define)`, 역할 **Admin**(첫 빌드에서 인증서·프로파일·번들ID를 만들어야 해서 App Manager로는 부족). (키 ID·Issuer는 2026-09-28 무효화되어 기록하지 않는다). `.p8`은 **레포 밖** `~/.appstoreconnect/private_keys/`(600), `.gitignore`에 `*.p8` 추가(사고 방지). 키는 **팀 소유**라 만든 사람과 무관하게 동작하고, 다운로드는 **1회뿐**.
 - **키 실동작 검증**: 직접 JWT(ES256) 만들어 ASC API 호출 — `/v1/apps` 200(앱 0개), `/v1/bundleIds?filter=com.define.app` 200(이 팀에 미등록). 즉 앱 레코드도 번들ID도 아직 없음이 **확정**. 백엔드 `/api/health` 200(AWS 살아있음).
 - **설정 변경 2개**: `app.json`에 `ios.config.usesNonExemptEncryption: false`(없으면 업로드마다 "수출 규정 누락"으로 ASC에서 멈춤 — 앱이 HTTPS만 쓰므로 면제) · `eas.json` `submit.production.ios`에 `appleTeamId`/`ascApiKeyPath`/`ascApiKeyIssuerId`/`ascApiKeyId` 채움(업로드가 비대화형으로 돌아감).
 - **🔴 함정(실제로 다 밟음)**:
@@ -412,7 +424,7 @@
 - **다음**: Phase 0(AWS 계정·IAM·CLI)부터. 1(RDS+Postgres 전환)·2(Docker→ECR→App Runner)가 핵심 산.
 
 ### 2026-08-17 — 🔴 기기 간 단어장 동기화 버그 수정 (앱 시작·포그라운드 다운로드)
-- **증상(팀원 제보, 8/1 메모)**: 같은 계정(iamtony99@hanmail.net)을 노트북에서 쓰면 31개, 데탑에서 보면 24개 그대로. 광장 왕복·새로고침해도 24개.
+- **증상(팀원 제보, 8/1 메모)**: 같은 계정(팀원 A)을 노트북에서 쓰면 31개, 데탑에서 보면 24개 그대로. 광장 왕복·새로고침해도 24개.
 - **root cause(코드로 확정)**: `downloadJournal`(서버→로컬)이 **오직 `reconcileForUser` 안에서만** 호출되고, 그건 **`login`/`signup`에서만** 불림 → **이미 로그인된 기기는 서버의 새 단어를 영영 안 받음**(다운로드가 "로그인 순간"에만). 웹 새로고침은 재하이드레이션만 하지 다운로드를 트리거 안 함 → "새로고침해도 24개"의 정체. 로그아웃했다 재로그인해야만 반영됐을 것.
 - **데이터 유실 없음**: 업로드는 멱등 upsert(추가만)라 데탑이 24개 올려도 서버 31개 안 깎임. 데탑이 못 보고 있었을 뿐.
 - **수정**: `auth-store.pullRemoteJournal`(다운로드만, 비치명적) 신설 + `lib/foreground-sync.ts`(웹 focus/visibilitychange·네이티브 AppState 'active' 리스너) + `_layout`에서 앱 시작(토큰 하이드레이션 후 1회, pulledRef)·포그라운드 복귀 시 pull. 업로드는 기존 auto-sync가 계속 담당(다운로드만 보강). 범위 결정=사용자("앱 시작 + 화면 포커스").
