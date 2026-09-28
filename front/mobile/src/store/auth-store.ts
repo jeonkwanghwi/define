@@ -19,6 +19,7 @@ import {
   syncJournal,
 } from '@/lib/sync-journal';
 import {
+  appleLogin as appleLoginApi,
   kakaoLogin as kakaoLoginApi,
   login as loginApi,
   signup as signupApi,
@@ -54,6 +55,8 @@ type AuthState = {
     codeVerifier: string;
     redirectUri: string;
   }) => Promise<void>;
+  /** Apple identityToken으로 로그인/가입. 카카오와 동일하게 reconcile을 탄다. */
+  loginWithApple: (identityToken: string) => Promise<void>;
   /** 프로필 완성/수정. 성공 시 user 갱신. 실패 시 throw(화면이 인라인 에러). */
   updateProfile: (input: {
     birthYear: number;
@@ -105,6 +108,11 @@ export const useAuthStore = create<AuthState>()(
       },
       loginWithKakao: async (input) => {
         const { token, user } = await kakaoLoginApi(input);
+        set({ token, user, hasLoggedInBefore: true });
+        await reconcileForUser(user.id, token, set);
+      },
+      loginWithApple: async (identityToken) => {
+        const { token, user } = await appleLoginApi(identityToken);
         set({ token, user, hasLoggedInBefore: true });
         await reconcileForUser(user.id, token, set);
       },

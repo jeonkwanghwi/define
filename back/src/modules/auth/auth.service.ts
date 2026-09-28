@@ -3,6 +3,7 @@
  *   - signup: 이메일 중복 검사 → bcrypt 해싱 → 디폴트 닉네임 배정 → 생성 → 토큰 발급
  *   - login:  이메일 조회 → bcrypt 비교 → 토큰 발급
  *   - kakaoLogin: 인가 코드 → (카카오) 회원번호 → 기존 연결 조회 or 신규 생성 → 토큰 발급
+ *   - appleLogin: identityToken 검증 → (Apple) sub → 같은 흐름
  * 토큰 payload: { sub: userId, email }. (sub = JWT 표준 "subject" 클레임)
  *
  * 소셜 사용자는 email·passwordHash가 없다. 그래서 이메일 로그인 경로는
@@ -17,6 +18,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 
+import { AppleAuthError, AppleClient } from './apple.client';
+import { AppleLoginDto } from './dto/apple-login.dto';
 import { AuthResponse } from './dto/auth.response';
 import { KakaoAuthError, KakaoClient } from './kakao.client';
 import { KakaoLoginDto } from './dto/kakao-login.dto';
@@ -34,6 +37,7 @@ export class AuthService {
     private readonly users: UserRepository,
     private readonly jwt: JwtService,
     private readonly kakao: KakaoClient,
+    private readonly apple: AppleClient,
   ) {}
 
   async signup(dto: SignupDto): Promise<AuthResponse> {
@@ -86,15 +90,35 @@ export class AuthService {
       throw e;
     }
 
-    const existing = await this.users.findBySocial('kakao', sub);
+    return this.findOrCreateSocial('kakao', sub);
+  }
+
+  /**
+   * Apple 로그인 — 카카오와 같은 자리(AuthIdentity)에 provider만 다르게 얹는다.
+   * 이름·이메일은 받지 않는다. Apple은 첫 로그인 때만 주고 "이메일 가리기"면
+   * 릴레이 주소라, 계정 식별자로 쓸 수 없다.
+   */
+  async appleLogin(dto: AppleLoginDto): Promise<AuthResponse> {
+    if (!this.apple.configured) {
+      throw new ServiceUnavailableException('Apple 로그인이 아직 준비되지 않았어요.');
+    }
+    let sub: string;
+    try {
+      sub = await this.apple.verifyIdentityToken(dto.identityToken);
+    } catch (e) {
+      if (e instanceof AppleAuthError) throw new UnauthorizedException(e.message);
+      throw e;
+    }
+    return this.findOrCreateSocial('apple', sub);
+  }
+
+  /** 소셜 공통 — 이미 연결된 계정이면 로그인, 처음이면 그 자리에서 가입시킨다. */
+  private async findOrCreateSocial(provider: string, sub: string): Promise<AuthResponse> {
+    const existing = await this.users.findBySocial(provider, sub);
     if (existing) return this.buildAuthResponse(existing);
 
     const nickname = await this.pickDefaultNickname();
-    const user = await this.users.createSocial({
-      provider: 'kakao',
-      providerSub: sub,
-      nickname,
-    });
+    const user = await this.users.createSocial({ provider, providerSub: sub, nickname });
     return this.buildAuthResponse(user);
   }
 

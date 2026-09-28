@@ -55,6 +55,15 @@ export function kakaoLogin(input: {
   return apiRequest<AuthResult>('/auth/kakao', { method: 'POST', body: input });
 }
 
+/**
+ * POST /api/auth/apple — Apple identityToken을 우리 토큰으로 교환.
+ * 서버가 Apple JWKS로 서명을 검증하고 sub만 꺼내 계정을 찾거나 만든다.
+ * 401 = 토큰 위조/만료, 503 = 서버에 번들 ID 미설정.
+ */
+export function appleLogin(identityToken: string): Promise<AuthResult> {
+  return apiRequest<AuthResult>('/auth/apple', { method: 'POST', body: { identityToken } });
+}
+
 /** PATCH /api/auth/profile — 프로필 완성/수정. */
 export function updateProfile(
   token: string,

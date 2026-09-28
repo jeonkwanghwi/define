@@ -33,6 +33,11 @@ export default () => ({
     restApiKey: process.env.KAKAO_REST_API_KEY ?? '',
     clientSecret: process.env.KAKAO_CLIENT_SECRET ?? '',
   },
+  /**
+   * Apple 로그인. identityToken의 audience 검증에 쓰는 번들 ID —
+   * app.json의 ios.bundleIdentifier와 **반드시 같아야** 한다(다르면 전부 401).
+   */
+  apple: { bundleId: process.env.APPLE_BUNDLE_ID ?? '' },
   /** 소셜 로그인 후 앱으로 돌아올 커스텀 스킴(define://oauth). app.json의 scheme과 같아야 한다. */
   app: { scheme: process.env.APP_SCHEME ?? 'define' },
 });

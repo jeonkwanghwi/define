@@ -16,6 +16,7 @@ import { VerifyIdentityMock } from '@/components/domain/verify-identity-mock';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
+import { AppleCanceled, getAppleIdentityToken, isAppleAuthAvailable } from '@/lib/apple-auth';
 import { KakaoCanceled, useKakaoAuth } from '@/lib/kakao-auth';
 import type { ApiError } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth-store';
@@ -30,7 +31,20 @@ export default function AuthScreen() {
   const signup = useAuthStore((s) => s.signup);
   const login = useAuthStore((s) => s.login);
   const loginWithKakao = useAuthStore((s) => s.loginWithKakao);
+  const loginWithApple = useAuthStore((s) => s.loginWithApple);
   const kakao = useKakaoAuth();
+  // Apple 로그인은 iOS 13+ 에서만 존재한다. 없는 기기에서 버튼이 살아 있으면
+  // 눌러도 아무 일이 안 일어나 고장으로 보인다 → 가용 여부를 물어 잠근다.
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    isAppleAuthAvailable()
+      .then((ok) => alive && setAppleAvailable(ok))
+      .catch(() => alive && setAppleAvailable(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const [mode, setMode] = useState<Mode>('login');
   const [step, setStep] = useState<Step>('chooser');
@@ -120,7 +134,25 @@ export default function AuthScreen() {
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
       if (e instanceof KakaoCanceled) return; // 사용자가 그만둔 것 — 조용히 돌아간다
-      setError(mapKakaoError(e));
+      setError(mapSocialError(e, '카카오'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  /** Apple 로그인 — 시트에서 받은 identityToken을 서버에 넘기면 로그인/가입이 끝난다. */
+  async function handleApple() {
+    setSocialNotice(null);
+    setError(null);
+    setSubmitting(true);
+    try {
+      const identityToken = await getAppleIdentityToken();
+      await loginWithApple(identityToken);
+      const completed = useAuthStore.getState().user?.profileCompleted ?? false;
+      router.replace(completed ? '/' : '/profile-setup');
+    } catch (e) {
+      if (e instanceof AppleCanceled) return; // 사용자가 그만둔 것 — 조용히 돌아간다
+      setError(mapSocialError(e, 'Apple'));
     } finally {
       setSubmitting(false);
     }
@@ -215,7 +247,12 @@ export default function AuthScreen() {
               </PressableScale>
 
               <PressableScale
-                onPress={() => setSocialNotice('Apple 로그인은 준비 중이에요 · 곧 만나요')}
+                onPress={
+                  appleAvailable
+                    ? handleApple
+                    : () => setSocialNotice('Apple 로그인은 아이폰에서만 돼요')
+                }
+                disabled={submitting}
                 style={[
                   styles.socialBtn,
                   {
@@ -428,11 +465,11 @@ export default function AuthScreen() {
 }
 
 /** 서버/네트워크 에러 → 우리 톤 인라인 문구. */
-/** 카카오 경로 전용 — 401을 "비밀번호를 확인하세요"로 보여주면 안 된다(비밀번호가 없다). */
-function mapKakaoError(e: unknown): string {
+/** 소셜 경로 전용 — 401을 "비밀번호를 확인하세요"로 보여주면 안 된다(비밀번호가 없다). */
+function mapSocialError(e: unknown, provider: '카카오' | 'Apple'): string {
   const err = e as Partial<ApiError>;
-  if (err?.status === 503) return '카카오 로그인은 조금 뒤에 다시 시도해 주세요.';
-  if (err?.status === 401) return '카카오 로그인에 실패했어요. 다시 시도해 주세요.';
+  if (err?.status === 503) return `${provider} 로그인은 조금 뒤에 다시 시도해 주세요.`;
+  if (err?.status === 401) return `${provider} 로그인에 실패했어요. 다시 시도해 주세요.`;
   if (err?.message) return err.message;
   return '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 }

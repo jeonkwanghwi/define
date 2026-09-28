@@ -1,6 +1,6 @@
 /**
  * AuthController — /api/auth/* 매핑. 로직 없음, service 호출만.
- * signup/login/kakao는 공개, profile은 JwtAuthGuard로 보호.
+ * signup/login/kakao/apple은 공개, profile은 JwtAuthGuard로 보호.
  */
 import {
   Body,
@@ -18,6 +18,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
+import { AppleLoginDto } from './dto/apple-login.dto';
 import { AuthResponse } from './dto/auth.response';
 import { KakaoLoginDto } from './dto/kakao-login.dto';
 import { LoginDto } from './dto/login.dto';
@@ -74,6 +75,16 @@ export class AuthController {
   @HttpCode(200)
   kakaoLogin(@Body() dto: KakaoLoginDto): Promise<AuthResponse> {
     return this.auth.kakaoLogin(dto);
+  }
+
+  /**
+   * POST /api/auth/apple — Apple identityToken을 우리 토큰으로 교환.
+   * 카카오와 달리 콜백 엔드포인트가 없다(네이티브 시트가 토큰을 바로 준다).
+   */
+  @Post('apple')
+  @HttpCode(200)
+  appleLogin(@Body() dto: AppleLoginDto): Promise<AuthResponse> {
+    return this.auth.appleLogin(dto);
   }
 
   /** PATCH /api/auth/profile — 프로필 완성/수정(토큰 필수). */
