@@ -279,7 +279,9 @@
 
 - **Apple 계정 전환(결정)**: 타인 명의 계정을 버리고 **본인 명의**(개인 등록, Team ID `M9N2HYP83K`)로 확정. **지금이 전환 비용 0인 유일한 시점** — Apple 로그인이 붙는 순간 사용자 식별자(`sub`)가 팀에 묶여, 나중에 옮기면 기존 사용자가 전부 로그인 불가가 된다. 현재 사용자 0명.
 - **옛 계정 정리(완료)**: ASC API 키 **무효화** · Expo 푸시 키 **삭제** · iOS Distribution 인증서 **폐기** · 로컬 `~/.appstoreconnect/` **삭제** · 레포·문서·메모리에서 팀명/Team ID/키 ID **전부 제거** · `eas.json`의 `submit` 블록 **제거**(남겨두면 실수로 엉뚱한 팀에 제출된다).
-- **다행인 것**: 옛 팀의 App ID가 **0개**여서 `com.define.app`이 선점돼 있지 않았다. 명시적 App ID는 Apple 전체에서 유일해, 선점됐다면 지우기 전엔 새 팀에서 못 만든다. 9/20 오빌드 때 만들어진 건 푸시 키·인증서뿐이었다.
+- **번들 ID를 바꿔야 했다 — `com.define.app` → `com.kwanghwi.define`**: 옛 팀의 App ID가 0개라 안심했는데, 새 계정에서 등록하니 Apple이 **`is not available`**로 거부했다. 명시적 App ID는 **Apple 전체에서 유일**해서, 우리와 무관한 제3자가 이미 선점한 것이다(`define`은 흔한 단어다). → `com.kwanghwi.define`으로 확정(기존 `com.kwanghwi.studylog`와 같은 규칙). `app.json`의 iOS·Android를 **둘 다** 교체했다 — Android는 네임스페이스가 달라 유지해도 되지만, 양쪽이 어긋나면 나중에 반드시 헷갈린다.
+  - **교훈**: 번들 ID는 "우리 팀에 없으면 쓸 수 있다"가 아니다. **등록을 시도해봐야 안다.** 9/20에 ASC API로 `filter=com.define.app` 200(미등록)을 받고 "확정"이라 적어둔 것도 그 팀 기준이었을 뿐이다.
+- **App ID 등록 완료**: `define` / `com.kwanghwi.define`, **Sign In with Apple** capability 활성(+ In-App Purchase는 Apple 기본 포함, 로드맵에 있어 그대로 둠).
 - **덤**: 공개 레포에 노출돼 있던 **제3자 개인정보**(팀원 이메일)도 같이 제거. 과거 커밋엔 남는다.
 - **카카오 앱 연결**(커밋 `829ec33`): `expo-auth-session`으로 인가 코드를 받아 `POST /api/auth/kakao`로 넘긴다. `app.json` scheme을 **`mobile` → `define`**으로 교정(서버가 `define://oauth`로 302 돌려보낸다 — 안 고쳤으면 복귀가 통째로 실패). 웹은 커스텀 스킴 복귀가 불가해 안내로 막음.
 - **스테이징 주입**: SSM SecureString 2개(`kakao-rest-api-key`·`kakao-client-secret`) + 태스크 정의 `define-api:2`(+`APP_SCHEME=define`). **함정**: ECR `latest`가 9/6 이미지여서 시크릿만 넣으면 `POST /api/auth/kakao`가 404였다 — 이미지 재빌드·푸시(`829ec33`, `--platform linux/amd64`)까지 해야 했다.

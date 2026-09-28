@@ -12,7 +12,7 @@
 
 | 항목 | 상태 |
 |------|------|
-| EAS 프로젝트 연결 (projectId·owner·slug=define·번들ID `com.define.app`) | ✅ 완료 |
+| EAS 프로젝트 연결 (projectId·owner·slug=define·번들ID `com.kwanghwi.define`) | ✅ 완료 |
 | `eas.json` `production` 프로필 (store 배포 빌드) | ✅ 준비됨 (손댈 것 없음) |
 | 앱 아이콘 알파 채널 제거 (iOS 리젝 방지) | ✅ 처리함 (`define.png` RGBA→RGB, 겉모습 동일) |
 | 권한 문구(infoPlist) 필요 네이티브 모듈 | ✅ 현재 없음 (카메라/위치/알림/추적 등 미사용) |
@@ -56,7 +56,7 @@
    - Platform: **iOS**
    - Name: **define** (스토어 표시명 — 중복 시 다른 이름 필요)
    - Primary Language: **Korean**
-   - Bundle ID: **com.define.app** (드롭다운에 없으면 [Certificates, IDs & Profiles]에서 먼저 등록되어야 함 — EAS가 자동 생성하기도 함. STEP 2 빌드를 먼저 돌리면 EAS가 만들어줌)
+   - Bundle ID: **com.kwanghwi.define** (드롭다운에 없으면 [Certificates, IDs & Profiles]에서 먼저 등록되어야 함 — EAS가 자동 생성하기도 함. STEP 2 빌드를 먼저 돌리면 EAS가 만들어줌)
    - SKU: 아무 고유 문자열 (예: `define-ios-001`)
 3. 생성하면 **ascAppId**(숫자)가 생김 → STEP 3에서 씀.
 
@@ -82,7 +82,7 @@ export EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
 eas build --profile production --platform ios
 ```
 
-- **시작 직후 eas가 찍는 프로젝트명이 `define (com.define.app)`인지 확인** — `studylog` 등 다른 이름이면 즉시 Ctrl+C.
+- **시작 직후 eas가 찍는 프로젝트명이 `define (com.kwanghwi.define)`인지 확인** — `studylog` 등 다른 이름이면 즉시 Ctrl+C.
   (2026-09-20에 실제로 `cd` 누락으로 다른 프로젝트가 빌드되며 엉뚱한 팀에 푸시 키가 잘못 생성된 적이 있다. Apple은 팀당 푸시 키 2개 제한.)
 - 프롬프트 답: 배포 인증서 생성 **Yes** · 프로비저닝 프로파일 생성 **Yes** · **푸시 알림 설정은 No**(define은 푸시 미사용).
 - 빌드는 **Expo 클라우드의 맥**에서 돌아간다(내 맥에 Xcode 불필요). 무료 플랜이라 대기열이 있을 수 있음.
@@ -140,4 +140,4 @@ EXPO_TOKEN=<robot-token> eas submit --profile production --platform ios --latest
 ## 트러블슈팅
 
 - **아이콘 리젝(ITMS-90717 "Invalid App Store Icon ... alpha channel")**: 소스 아이콘에 투명도가 있으면 발생. → `define.png`는 이미 알파 제거함(2026-08-15). 아이콘을 **재수출할 때 알파 다시 들어가지 않게** 주의(디자인 툴은 기본 RGBA로 저장하는 경우 많음).
-- **번들 ID 불일치**: `app.json`(`com.define.app`)과 App Store Connect 앱 레코드의 Bundle ID가 같아야 함.
+- **번들 ID 불일치**: `app.json`(`com.kwanghwi.define`)과 App Store Connect 앱 레코드의 Bundle ID가 같아야 함.
