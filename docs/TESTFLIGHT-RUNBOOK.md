@@ -17,7 +17,7 @@
 | 앱 아이콘 알파 채널 제거 (iOS 리젝 방지) | ✅ 처리함 (`define.png` RGBA→RGB, 겉모습 동일) |
 | 권한 문구(infoPlist) 필요 네이티브 모듈 | ✅ 현재 없음 (카메라/위치/알림/추적 등 미사용) |
 | **Apple Developer $99 계정** | ✅ **결제 완료** — **본인 명의**(개인 등록, Team ID `M9N2HYP83K`) |
-| **ASC API 팀 키** (2FA 없이 빌드/업로드) | ⏳ **재발급 필요** — 새 계정에서 새로 만들어야 한다(2026-09-28 계정 전환) |
+| **ASC API 팀 키** (2FA 없이 빌드/업로드) | ✅ 발급·**실동작 검증 완료** — Key `4F32CY2ZJK`(관리자). `.p8`은 레포 밖 `~/.appstoreconnect/private_keys/`(600) |
 | **살아있는 백엔드 API + `eas.json`에 API 주소 주입** | ✅ **완료 (2026-09-06)** — 아래 참조 |
 
 > ✅ **2026-09-06 해소 — 백엔드가 AWS에서 살아있고 앱이 그 주소를 본다.**
@@ -67,16 +67,16 @@
 ## STEP 2 — iOS 빌드 (EAS)
 
 > **2026-09-28 갱신 — 계정이 본인 명의로 바뀌었다.** Team ID **`M9N2HYP83K`**(개인 등록).
-> ASC API 키는 **새 계정에서 재발급해야** 한다(아래 `<KEY_ID>`/`<ISSUER_ID>` 자리를 채울 것).
+> ASC API 키는 새 계정에서 재발급했다(Key `4F32CY2ZJK`).
 > **최초 1회는 대화형 필수** — `--non-interactive`는 첫 배포 인증서를 만들지 못하고
 > `Distribution Certificate is not validated for non-interactive builds`로 실패한다.
 
 ```bash
 source ~/.nvm/nvm.sh                                   # eas·node가 PATH에 없음(nvm)
 cd /Users/kwanghwi/dev/define/front/mobile && pwd      # ← 절대경로. cd 빠지면 다른 프로젝트가 빌드된다
-export EXPO_ASC_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8"
-export EXPO_ASC_KEY_ID=<KEY_ID>
-export EXPO_ASC_ISSUER_ID=<ISSUER_ID>
+export EXPO_ASC_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_4F32CY2ZJK.p8"
+export EXPO_ASC_KEY_ID=4F32CY2ZJK
+export EXPO_ASC_ISSUER_ID=d2b4fcfa-a47c-4617-9ed1-d8c0a70277b9
 export EXPO_APPLE_TEAM_ID=M9N2HYP83K
 export EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
 eas build --profile production --platform ios
