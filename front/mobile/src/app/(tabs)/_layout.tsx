@@ -20,7 +20,7 @@ import { Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/icons';
-import { useTheme } from '@/theme';
+import { fontFamily, useTheme } from '@/theme';
 
 // 한 곳에서 탭 설정 관리. 5개 탭 모두 동일 규칙 — 선택 시 진한 알약, 비선택 시 아이콘만.
 const TAB_ORDER: { name: string; label: string; icon: IconName }[] = [
@@ -63,7 +63,7 @@ export default function TabsLayout() {
           paddingBottom: 14 + insets.bottom,
         },
         tabBarLabelStyle: {
-          fontFamily: 'PretendardVariable',
+          fontFamily: fontFamily.sans,
           fontSize: 11,
           fontWeight: '500',
           marginTop: 4,

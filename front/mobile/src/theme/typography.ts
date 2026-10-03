@@ -25,6 +25,18 @@ export const typography = {
     letterSpacing: -0.5,
   } satisfies TextStyle,
 
+  /**
+   * display와 같은 크기의 **보조** 글자 — 메인의 "…이란" 접미사처럼
+   * 톤을 한 단계 낮춰 쓰는 자리. 두께로 낮추면 iOS가 가짜 굵게를 덧씌우므로
+   * Regular 패밀리로 낸다. 화면이 글꼴 이름을 직접 알지 않게 하는 역할도 한다.
+   */
+  displaySub: {
+    fontFamily: fontFamily.serif,
+    fontSize: 44,
+    lineHeight: 58,
+    letterSpacing: -0.5,
+  } satisfies TextStyle,
+
   h1: {
     fontFamily: fontFamily.serifBold,
     fontSize: 30,

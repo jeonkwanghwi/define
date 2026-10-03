@@ -53,7 +53,11 @@ export default function RecordScreen() {
   // display 토큰을 52로 키워 쓴다. **lineHeight를 같이 올리지 않으면** 줄 높이가
   // 글자 크기보다 작아져 한글 윗부분이 잘린다(실기기에서 발견). 명조는 글자 상자를
   // 더 꽉 채우므로 1.35배로 잡는다. 크기와 줄높이를 한 곳에 묶어 다시 어긋나지 않게.
-  const heroText = { ...theme.typography.display, fontSize: 52, lineHeight: 70 };
+  // 크기·줄높이는 한 곳에서. 글꼴은 토큰이 들고 있어 화면은 글꼴 이름을 모른다
+  // (유료 글꼴로 바꿀 때 theme/만 고치면 되게).
+  const heroSize = { fontSize: 52, lineHeight: 70 } as const;
+  const heroText = { ...theme.typography.display, ...heroSize };
+  const heroSuffix = { ...theme.typography.displaySub, ...heroSize };
   const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
 
@@ -237,11 +241,7 @@ export default function RecordScreen() {
               <ThemedText style={[heroText, { letterSpacing: -1.5 }]}>{word}</ThemedText>
               {/* "이란" suffix — 흐린 톤 + 살짝 가벼운 weight */}
               <ThemedText
-                style={[
-                  heroText,
-                  // 두께로 흐리게 하면 iOS가 가짜 굵게를 덧씌운다 → Regular 패밀리로 바꿔 낸다.
-                  { color: theme.colors.ink.placeholder, fontFamily: fontFamily.serif },
-                ]}
+                style={[heroSuffix, { color: theme.colors.ink.placeholder }]}
               >
                 {topicSuffix(word)}
               </ThemedText>
@@ -275,7 +275,7 @@ export default function RecordScreen() {
                   styles.definitionInput,
                   {
                     color: theme.colors.ink.primary,
-                    fontFamily: 'PretendardVariable',
+                    fontFamily: fontFamily.sans,
                   },
                 ]}
               />

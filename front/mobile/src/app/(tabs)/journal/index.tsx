@@ -20,7 +20,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
 import { useGroupedByWord, useJournalStats, useJournalStreak } from '@/store/journal-store';
-import { useTheme } from '@/theme';
+import { useTheme, fontFamily } from '@/theme';
 
 export default function JournalListScreen() {
   const theme = useTheme();
@@ -170,7 +170,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
     >
       <ThemedText
         style={{
-          fontFamily: 'PretendardVariable',
+          fontFamily: fontFamily.sans,
           fontWeight: '800',
           fontSize: 22,
           color: theme.colors.point.p600,
