@@ -50,6 +50,10 @@ const INPUT_HEIGHT = 200;
 
 export default function RecordScreen() {
   const theme = useTheme();
+  // display 토큰(44/49)을 52로 키워 쓴다. **lineHeight를 같이 올리지 않으면**
+  // 줄 높이가 글자 크기보다 작아져 한글 윗부분이 잘린다(실기기에서 발견).
+  // 크기와 줄높이를 한 곳에 묶어 다시 어긋나지 않게 한다.
+  const heroText = { ...theme.typography.display, fontSize: 52, lineHeight: 64 };
   const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
 
@@ -229,24 +233,11 @@ export default function RecordScreen() {
                 },
               ]}
             >
-              {/* 단어 자체 — 가장 큰 폰트로 강조. display 토큰을 약간 키워 사용 */}
-              <ThemedText
-                style={{
-                  ...theme.typography.display,
-                  fontSize: 52,
-                  letterSpacing: -1.5,
-                }}
-              >
-                {word}
-              </ThemedText>
+              {/* 단어 자체 — 가장 큰 폰트로 강조. heroText가 크기·줄높이를 함께 들고 있다 */}
+              <ThemedText style={[heroText, { letterSpacing: -1.5 }]}>{word}</ThemedText>
               {/* "이란" suffix — 흐린 톤 + 살짝 가벼운 weight */}
               <ThemedText
-                style={{
-                  ...theme.typography.display,
-                  fontSize: 52,
-                  color: theme.colors.ink.placeholder,
-                  fontWeight: '600',
-                }}
+                style={[heroText, { color: theme.colors.ink.placeholder, fontWeight: '600' }]}
               >
                 {topicSuffix(word)}
               </ThemedText>

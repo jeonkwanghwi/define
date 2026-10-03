@@ -17,6 +17,7 @@
 import { Tabs } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/icons';
 import { useTheme } from '@/theme';
@@ -32,6 +33,9 @@ const TAB_ORDER: { name: string; label: string; icon: IconName }[] = [
 
 export default function TabsLayout() {
   const theme = useTheme();
+  // 홈 인디케이터가 있는 기기(인셋 > 0)에서는 탭바가 그 위에 깔려 라벨이 가려진다.
+  // 높이와 하단 패딩에 인셋을 더해 바를 그만큼 올린다(인셋 0인 기기·웹은 그대로).
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -54,9 +58,9 @@ export default function TabsLayout() {
           backgroundColor: theme.colors.surface.base,
           borderTopColor: theme.colors.line.base,
           borderTopWidth: 1,
-          height: 76,
+          height: 76 + insets.bottom,
           paddingTop: 8,
-          paddingBottom: 14,
+          paddingBottom: 14 + insets.bottom,
         },
         tabBarLabelStyle: {
           fontFamily: 'PretendardVariable',

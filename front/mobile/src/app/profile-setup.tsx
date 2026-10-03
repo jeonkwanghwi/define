@@ -6,6 +6,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { YearPickerSheet } from '@/components/domain/year-picker-sheet';
 import { Button, PressableScale } from '@/components/primitives';
@@ -18,6 +19,8 @@ import { useAuthStore } from '@/store/auth-store';
 import { useTheme } from '@/theme';
 
 export default function ProfileSetupScreen() {
+  // 자체 헤더가 없는 화면이라 상태표시줄 인셋을 직접 더한다(ScreenHeader·AppHeader가 없음).
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const router = useRouter();
   const updateProfile = useAuthStore((s) => s.updateProfile);
@@ -65,7 +68,7 @@ export default function ProfileSetupScreen() {
 
   return (
     <ThemedView bg="paper" style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: styles.scroll.paddingTop + insets.top }]} showsVerticalScrollIndicator={false}>
         <ThemedText variant="h1">조금만 더{'\n'}알려주세요</ThemedText>
         <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
           이웃을 추천하고 마을을 채우는 데 쓰여요.

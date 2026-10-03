@@ -3,7 +3,9 @@
  *
  * 어느 탭에서든 잉크 잔액·마이페이지에 접근할 수 있게 각 탭 루트 화면 최상단에 렌더한다.
  * (단어 상세 등 push된 깊은 화면엔 넣지 않음 — 그쪽은 자체 뒤로가기 헤더만.)
- * 스크롤 콘텐츠의 첫 요소로 두는 방식이라 별도 안전영역 처리는 화면의 상단 패딩이 담당.
+ * 스크롤 콘텐츠의 첫 요소로 두는 방식이라, **상태표시줄 인셋을 여기서 직접 더한다.**
+ * (화면의 고정 패딩 24만 믿었다가 실기기에서 헤더가 시계·배터리에 깔리고
+ *  우상단 아바타가 아예 안 눌렸다 — 웹·시뮬레이터는 인셋이 0이라 안 보였다.)
  *
  * 비로그인 상태:
  *   - 신규 사용자  — 포인트색 "로그인하기" 칩만 (조용한 유도, 강요 아님)
@@ -17,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { PressableScale } from '@/components/primitives';
@@ -32,6 +35,7 @@ let reminderDismissedThisSession = false;
 export function AppHeader() {
   const theme = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const nickname = useAuthStore((s) => s.user?.nickname ?? '');
   const inkBalance = useAuthStore((s) => (s.token ? (s.user?.balance ?? 0) : null));
   const isLoggedIn = useAuthStore((s) => s.token !== null);
@@ -47,7 +51,7 @@ export function AppHeader() {
   }
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { paddingTop: insets.top }]}>
       <View style={styles.appHeader}>
         <View style={styles.headerLeft}>
           <ThemedText style={styles.wordmark}>define</ThemedText>

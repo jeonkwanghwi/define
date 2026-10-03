@@ -134,6 +134,7 @@ export default function AuthScreen() {
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
       if (e instanceof KakaoCanceled) return; // 사용자가 그만둔 것 — 조용히 돌아간다
+      console.warn('[auth] 카카오 로그인 실패:', e);
       setError(mapSocialError(e, '카카오'));
     } finally {
       setSubmitting(false);
@@ -152,6 +153,7 @@ export default function AuthScreen() {
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
       if (e instanceof AppleCanceled) return; // 사용자가 그만둔 것 — 조용히 돌아간다
+      console.warn('[auth] Apple 로그인 실패:', e);
       setError(mapSocialError(e, 'Apple'));
     } finally {
       setSubmitting(false);
@@ -268,6 +270,21 @@ export default function AuthScreen() {
                   Apple로 로그인
                 </ThemedText>
               </PressableScale>
+
+              {error ? (
+                <FadeIn>
+                  <ThemedText
+                    variant="sm"
+                    style={{
+                      color: theme.colors.ruby.base,
+                      marginTop: theme.spacing.s4,
+                      textAlign: 'center',
+                    }}
+                  >
+                    {error}
+                  </ThemedText>
+                </FadeIn>
+              ) : null}
 
               {socialNotice ? (
                 <FadeIn>

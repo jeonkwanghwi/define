@@ -11,6 +11,7 @@
  */
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
@@ -88,8 +89,12 @@ export default function RootLayout() {
 
   // 모든 화면이 자체 헤더(또는 탭바)를 렌더하므로 네이티브 Stack 헤더는 끔.
   return (
-    <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
-    </View>
+    // SafeAreaProvider: 노치·홈 인디케이터 인셋의 공급자. 이게 없으면 useSafeAreaInsets가
+    // 0을 돌려줘, 시뮬레이터·웹에서는 멀쩡해 보이고 실기기에서만 헤더가 상태표시줄에 깔린다.
+    <SafeAreaProvider>
+      <View style={{ flex: 1 }}>
+        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
+      </View>
+    </SafeAreaProvider>
   );
 }
