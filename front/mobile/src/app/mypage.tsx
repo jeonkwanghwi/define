@@ -51,7 +51,35 @@ export default function MyPageScreen() {
   const syncFailedAt = useAuthStore((s) => s.syncFailedAt);
   const retrySync = useAuthStore((s) => s.retrySync);
   const logout = useAuthStore((s) => s.logout);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  // 탈퇴 실패는 조용히 넘기면 안 된다 — 사용자는 지워진 줄 안다.
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleDeleteAccount() {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const { failed } = await deleteAccount();
+      setDeleteOpen(false);
+      // 제공자 연결을 못 끊었으면 사용자가 직접 끊도록 알려야 한다(조용히 삼키면 연결이 남는다).
+      if (failed.length > 0) {
+        setDeleteError(
+          `계정은 삭제했지만 ${failed.join('·')} 연결 해제에 실패했어요. ` +
+            `해당 서비스 설정에서 직접 해제해 주세요.`,
+        );
+      } else {
+        router.replace('/');
+      }
+    } catch {
+      setDeleteError('탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setDeleting(false);
+    }
+  }
   // 재시도 중 표시는 이 화면에서만 필요해 로컬 state로 둔다(store에 두면 영속돼 "동기화 중"이 박힌다).
   const [retrying, setRetrying] = useState(false);
 
@@ -168,6 +196,21 @@ export default function MyPageScreen() {
                 label="로그아웃"
                 onPress={() => setLogoutOpen(true)}
               />
+              <Divider theme={theme} />
+              <Row
+                theme={theme}
+                icon="trash"
+                label="회원 탈퇴"
+                value={deleting ? '탈퇴하는 중…' : undefined}
+                valueColor={theme.colors.ruby.base}
+                onPress={() => setDeleteOpen(true)}
+                disabled={deleting}
+              />
+              {deleteError ? (
+                <ThemedText variant="caption" style={[styles.syncNote, { color: theme.colors.ruby.base }]}>
+                  {deleteError}
+                </ThemedText>
+              ) : null}
             </>
           ) : (
             <Row
@@ -272,6 +315,18 @@ export default function MyPageScreen() {
       />
 
       {/* 로그아웃 확인 (시스템 Alert X) */}
+      <ConfirmDialog
+        visible={deleteOpen}
+        title="정말 탈퇴할까요?"
+        message={
+          '기록한 단어와 정의가 모두 삭제돼요.\n' +
+          '이 기기에 저장된 것도 함께 지워지고, 되돌릴 수 없어요.'
+        }
+        confirmLabel={deleting ? '탈퇴하는 중…' : '탈퇴하기'}
+        onConfirm={handleDeleteAccount}
+        onClose={() => setDeleteOpen(false)}
+      />
+
       <ConfirmDialog
         visible={logoutOpen}
         title="로그아웃할까요?"

@@ -13,6 +13,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import {
   claimLocalOwner,
+  clearLocalJournal,
   downloadJournal,
   getLocalOwner,
   resetLocalForAccount,
@@ -20,6 +21,7 @@ import {
 } from '@/lib/sync-journal';
 import {
   appleLogin as appleLoginApi,
+  deleteAccount as deleteAccountApi,
   kakaoLogin as kakaoLoginApi,
   login as loginApi,
   signup as signupApi,
@@ -86,6 +88,13 @@ type AuthState = {
   setRecallConsented: () => void;
   /** 인증만 해제. 로컬 단어장은 보존. */
   logout: () => void;
+  /**
+   * 회원 탈퇴 — 서버 데이터를 지우고, **로컬 단어장도 함께 비운다.**
+   * 로그아웃과 다르다: 로그아웃은 로컬을 보존하지만, 탈퇴는 "내 데이터를 지운다"는
+   * 약속이라 기기에 남겨두면 안 된다(남기면 다음 가입 때 되살아나기도 한다).
+   * 실패 시 throw — 화면이 에러를 보여주고 상태는 그대로 둔다.
+   */
+  deleteAccount: () => Promise<{ unlinked: string[]; failed: string[] }>;
 };
 
 export const useAuthStore = create<AuthState>()(
@@ -161,6 +170,15 @@ export const useAuthStore = create<AuthState>()(
       setRecallConsented: () => {
         const user = get().user;
         if (user) set({ user: { ...user, recallConsented: true } });
+      },
+      deleteAccount: async () => {
+        const token = get().token;
+        if (!token) throw new Error('로그인이 필요합니다.');
+        const result = await deleteAccountApi(token);
+        // 서버 삭제가 성공한 뒤에만 로컬을 비운다(실패했는데 기기만 비면 데이터만 잃는다).
+        clearLocalJournal();
+        set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null });
+        return result;
       },
       logout: () => set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null }),
     }),

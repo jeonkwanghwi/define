@@ -5,6 +5,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Patch,
@@ -85,6 +86,21 @@ export class AuthController {
   @HttpCode(200)
   appleLogin(@Body() dto: AppleLoginDto): Promise<AuthResponse> {
     return this.auth.appleLogin(dto);
+  }
+
+  /**
+   * DELETE /api/auth/me — 회원 탈퇴(토큰 필수).
+   *
+   * 앱스토어 심사 요건이다(계정을 만들 수 있으면 지울 수도 있어야 한다).
+   * 소셜 연결은 제공자 쪽에서도 끊고, 끊지 못한 제공자는 응답에 담아 앱이 안내할 수 있게 한다.
+   */
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  deleteAccount(
+    @Req() req: { user: { userId: string } },
+  ): Promise<{ unlinked: string[]; failed: string[] }> {
+    return this.auth.deleteAccount(req.user.userId);
   }
 
   /** PATCH /api/auth/profile — 프로필 완성/수정(토큰 필수). */

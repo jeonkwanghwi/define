@@ -4,6 +4,7 @@
  *   - login:  이메일 조회 → bcrypt 비교 → 토큰 발급
  *   - kakaoLogin: 인가 코드 → (카카오) 회원번호 → 기존 연결 조회 or 신규 생성 → 토큰 발급
  *   - appleLogin: identityToken 검증 → (Apple) sub → 같은 흐름
+ *   - deleteAccount: 제공자 연결 해제(best-effort) → 우리 데이터 삭제
  * 토큰 payload: { sub: userId, email }. (sub = JWT 표준 "subject" 클레임)
  *
  * 소셜 사용자는 email·passwordHash가 없다. 그래서 이메일 로그인 경로는
@@ -110,6 +111,29 @@ export class AuthService {
       throw e;
     }
     return this.findOrCreateSocial('apple', sub);
+  }
+
+  /**
+   * 회원 탈퇴 — 우리 데이터를 지우고, 소셜 연결도 제공자 쪽에서 끊는다.
+   *
+   * 순서가 중요하다: **연결 해제를 먼저** 시도한다. 사용자를 지운 뒤에는 어떤 제공자의
+   * 어떤 계정이었는지 알 방법이 없어, 끊지 못한 연결이 영영 남는다.
+   * 연결 해제 실패는 탈퇴를 막지 않는다 — 사용자 데이터 삭제가 더 중요하고,
+   * 사용자가 제공자 설정에서 직접 끊을 수도 있다. 대신 결과를 응답에 담아 알린다.
+   */
+  async deleteAccount(userId: string): Promise<{ unlinked: string[]; failed: string[] }> {
+    const identities = await this.users.findIdentities(userId);
+    const unlinked: string[] = [];
+    const failed: string[] = [];
+
+    for (const { provider, providerSub } of identities) {
+      // Apple은 연결 해제(revoke)에 Sign in with Apple 전용 키가 필요해 아직 미구현.
+      const ok = provider === 'kakao' ? await this.kakao.unlink(providerSub) : false;
+      (ok ? unlinked : failed).push(provider);
+    }
+
+    await this.users.deleteUser(userId);
+    return { unlinked, failed };
   }
 
   /** 소셜 공통 — 이미 연결된 계정이면 로그인, 처음이면 그 자리에서 가입시킨다. */

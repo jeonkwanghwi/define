@@ -64,6 +64,17 @@ export function appleLogin(identityToken: string): Promise<AuthResult> {
   return apiRequest<AuthResult>('/auth/apple', { method: 'POST', body: { identityToken } });
 }
 
+/**
+ * DELETE /api/auth/me — 회원 탈퇴. 서버 데이터 삭제 + 소셜 연결 해제.
+ * 끊지 못한 제공자는 failed로 돌아온다(사용자에게 직접 해제를 안내하기 위해).
+ */
+export function deleteAccount(token: string): Promise<{ unlinked: string[]; failed: string[] }> {
+  return apiRequest<{ unlinked: string[]; failed: string[] }>('/auth/me', {
+    method: 'DELETE',
+    token,
+  });
+}
+
 /** PATCH /api/auth/profile — 프로필 완성/수정. */
 export function updateProfile(
   token: string,

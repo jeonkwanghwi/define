@@ -47,6 +47,16 @@ export function resetLocalForAccount(userId: string): void {
   journal.setOwner(userId);
 }
 
+/**
+ * 탈퇴 시: 로컬 단어장을 비우고 주인도 익명으로 되돌린다.
+ * resetLocalForAccount와 달리 **새 주인을 지정하지 않는다** — 계정이 사라졌기 때문이다.
+ */
+export function clearLocalJournal(): void {
+  const journal = useJournalStore.getState();
+  journal.clearAll();
+  journal.setOwner(null);
+}
+
 /** 업로드: 로컬 → 서버 (멱등 import). 검증 통과 항목만, 0개면 호출 생략. */
 export async function syncJournal(token: string): Promise<ImportResult> {
   const { entries } = useJournalStore.getState();

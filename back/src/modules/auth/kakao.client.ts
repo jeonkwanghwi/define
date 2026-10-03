@@ -25,6 +25,7 @@ import { ConfigService } from '@nestjs/config';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 const TOKEN_ENDPOINT = 'https://kauth.kakao.com/oauth/token';
+const UNLINK_ENDPOINT = 'https://kapi.kakao.com/v1/user/unlink';
 const JWKS_URL = new URL('https://kauth.kakao.com/.well-known/jwks.json');
 const ISSUER = 'https://kauth.kakao.com';
 
@@ -50,6 +51,44 @@ export class KakaoClient {
 
   private get clientSecret(): string {
     return this.config.get<string>('kakao.clientSecret') ?? '';
+  }
+
+  private get adminKey(): string {
+    return this.config.get<string>('kakao.adminKey') ?? '';
+  }
+
+  /**
+   * 회원 탈퇴 시 카카오 쪽 연결도 끊는다(우리 DB만 지우면 카카오에는 연결이 남는다).
+   *
+   * 사용자 액세스 토큰을 저장하지 않으므로 **어드민 키**로 회원번호를 지목하는 경로뿐이다.
+   * 실패해도 탈퇴 자체는 진행한다 — 사용자 데이터 삭제가 더 중요하고,
+   * 연결은 사용자가 카카오 설정에서 직접 끊을 수도 있다. 대신 반드시 로그로 남긴다.
+   *
+   * @returns 끊었으면 true, 키 미설정·실패면 false
+   */
+  async unlink(providerSub: string): Promise<boolean> {
+    if (!this.adminKey) {
+      this.logger.warn('KAKAO_ADMIN_KEY가 없어 연결 해제를 건너뜁니다.');
+      return false;
+    }
+    try {
+      const res = await fetch(UNLINK_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `KakaoAK ${this.adminKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+        },
+        body: new URLSearchParams({ target_id_type: 'user_id', target_id: providerSub }),
+      });
+      if (!res.ok) {
+        this.logger.warn(`카카오 연결 해제 실패(${res.status}): ${await res.text()}`);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      this.logger.warn(`카카오 연결 해제 요청 실패: ${String(e)}`);
+      return false;
+    }
   }
 
   /**

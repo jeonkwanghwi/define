@@ -37,6 +37,7 @@ export type IconName =
   | 'chevronD'
   | 'back' // chevronL의 의미적 별칭
   | 'close'
+  | 'trash' // 회원 탈퇴 등 되돌릴 수 없는 삭제
   // 상태/액션
   | 'lock' // 광장 비공개
   | 'send'
@@ -176,6 +177,15 @@ function renderIcon(name: IconName, p: StrokeProps) {
       return <Path d="M5 9l7 7 7-7" {...p} />;
     case 'close':
       return <Path d="M6 6l12 12M18 6L6 18" {...p} />;
+    case 'trash':
+      return (
+        <>
+          <Path d="M4 7h16" {...p} />
+          <Path d="M9 7V5.5A1.5 1.5 0 0110.5 4h3A1.5 1.5 0 0115 5.5V7" {...p} />
+          <Path d="M6.5 7l.8 11.2A2 2 0 009.3 20h5.4a2 2 0 002-1.8L17.5 7" {...p} />
+          <Path d="M10.5 11v5M13.5 11v5" {...p} />
+        </>
+      );
     case 'lock':
       return (
         <>

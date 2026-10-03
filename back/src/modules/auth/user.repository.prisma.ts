@@ -51,6 +51,12 @@ export class PrismaUserRepository extends UserRepository {
     return row ? toEntity(row) : null;
   }
 
+  async existsById(userId: string): Promise<boolean> {
+    // 존재 여부만 필요하니 id 한 칸만 가져온다(관계 include 없음).
+    const row = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    return row !== null;
+  }
+
   async create(input: {
     email: string;
     passwordHash: string;
@@ -102,6 +108,21 @@ export class PrismaUserRepository extends UserRepository {
       include: { interests: true },
     });
     return toEntity(row);
+  }
+
+  async findIdentities(userId: string): Promise<{ provider: string; providerSub: string }[]> {
+    return this.prisma.authIdentity.findMany({
+      where: { userId },
+      select: { provider: true, providerSub: true },
+    });
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    // 원장 익명화와 삭제를 한 트랜잭션으로 — 중간에 끊겨 "지워졌는데 원장엔 남는" 상태를 막는다.
+    await this.prisma.$transaction([
+      this.prisma.llmUsage.updateMany({ where: { userId }, data: { userId: 'deleted' } }),
+      this.prisma.user.delete({ where: { id: userId } }),
+    ]);
   }
 
   async findBySocial(provider: string, providerSub: string): Promise<UserEntity | null> {

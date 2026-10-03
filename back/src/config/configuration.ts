@@ -32,6 +32,8 @@ export default () => ({
   kakao: {
     restApiKey: process.env.KAKAO_REST_API_KEY ?? '',
     clientSecret: process.env.KAKAO_CLIENT_SECRET ?? '',
+    // 탈퇴 시 연결 해제용. 서버 전용 — 없으면 탈퇴는 되고 카카오 연결만 남는다.
+    adminKey: process.env.KAKAO_ADMIN_KEY ?? '',
   },
   /**
    * Apple 로그인. identityToken의 audience 검증에 쓰는 번들 ID —

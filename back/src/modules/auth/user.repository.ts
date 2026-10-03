@@ -8,6 +8,9 @@ export abstract class UserRepository {
   /** 이메일로 1명 조회. 없으면 null. (가입 중복 검사·로그인에 사용) */
   abstract findByEmail(email: string): Promise<UserEntity | null>;
 
+  /** id로 존재 여부만 확인. 토큰이 가리키는 계정이 아직 있는지 보는 용도. */
+  abstract existsById(userId: string): Promise<boolean>;
+
   /** 새 사용자 생성. (해싱된 비밀번호를 받는다 — 해싱은 service 책임. nickname은 가입 시 자동 배정값) */
   abstract create(input: {
     email: string;
@@ -40,4 +43,15 @@ export abstract class UserRepository {
     providerSub: string;
     nickname?: string;
   }): Promise<UserEntity>;
+
+  /** 이 사용자의 소셜 연결 목록. 탈퇴 시 제공자 쪽 연결도 끊어야 해서 필요하다. */
+  abstract findIdentities(userId: string): Promise<{ provider: string; providerSub: string }[]>;
+
+  /**
+   * 회원 탈퇴 — 사용자와 딸린 데이터를 지운다.
+   * entries·likes·interests·identities는 스키마의 onDelete: Cascade가 함께 지운다.
+   * LlmUsage는 FK가 없는 비용 원장이라 **userId만 지워 익명화**한다
+   * (집계는 남기되 사람과의 연결은 끊는다).
+   */
+  abstract deleteUser(userId: string): Promise<void>;
 }
