@@ -58,6 +58,8 @@ function RecallHome() {
   const setRecallConsented = useAuthStore((s) => s.setRecallConsented);
 
   const [consentOpen, setConsentOpen] = useState(false);
+  const [consentSubmitting, setConsentSubmitting] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const [convoMode, setConvoMode] = useState<'free' | 'question'>('free');
   const [mode, setMode] = useState<'age' | 'year'>('age');
   const [selAge, setSelAge] = useState<number | null>(null);
@@ -97,17 +99,24 @@ function RecallHome() {
   }
 
   const handleConsent = async () => {
-    setConsentOpen(false);
-    if (!token) return;
+    if (!token || consentSubmitting) return;
+    // 시트를 **먼저 닫지 않는다.** 닫고 나서 서버를 부르면, 실패했을 때
+    // 사용자에겐 "눌렀는데 아무 일도 안 일어난" 화면만 남는다.
+    setConsentSubmitting(true);
+    setConsentError(null);
     try {
       await recallConsent(token);
       setRecallConsented();
+      setConsentOpen(false);
       // 동의는 "시작하기"를 누른 흐름의 중간 관문 — 기록됐으면 원래 의도(대화 시작)로 이어간다.
       // (기존엔 시트만 닫혀 시작 버튼을 한 번 더 눌러야 했음.)
       if (convoMode === 'question') startQuestion();
       else startChat();
     } catch (e) {
       console.warn('[recall] 동의 기록 실패:', e);
+      setConsentError('잠시 후 다시 시도해 주세요.');
+    } finally {
+      setConsentSubmitting(false);
     }
   };
 
@@ -307,7 +316,13 @@ function RecallHome() {
       <RecallConsentSheet
         visible={consentOpen}
         onConsent={handleConsent}
-        onClose={() => setConsentOpen(false)}
+        submitting={consentSubmitting}
+        error={consentError}
+        onClose={() => {
+          if (consentSubmitting) return; // 전송 중엔 닫히지 않게
+          setConsentError(null);
+          setConsentOpen(false);
+        }}
       />
     </ThemedView>
   );

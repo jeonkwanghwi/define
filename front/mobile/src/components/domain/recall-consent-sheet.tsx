@@ -19,9 +19,19 @@ export type RecallConsentSheetProps = {
   visible: boolean;
   onConsent: () => void;
   onClose: () => void;
+  /** 동의 기록이 서버로 가는 중 — 버튼을 잠그고 스피너를 보여준다. */
+  submitting?: boolean;
+  /** 실패 사유. 조용히 닫히면 사용자는 "눌렀는데 아무 일도 없다"로 받아들인다. */
+  error?: string | null;
 };
 
-export function RecallConsentSheet({ visible, onConsent, onClose }: RecallConsentSheetProps) {
+export function RecallConsentSheet({
+  visible,
+  onConsent,
+  onClose,
+  submitting = false,
+  error,
+}: RecallConsentSheetProps) {
   const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -48,9 +58,22 @@ export function RecallConsentSheet({ visible, onConsent, onClose }: RecallConsen
             >
               이 기능은 생성형 AI를 활용해, 그동안 적어온 정의로 그 시절의 나를 되살려요.
             </ThemedText>
+            {error ? (
+              <ThemedText
+                variant="sm"
+                style={{
+                  color: theme.colors.ruby.base,
+                  marginTop: theme.spacing.s3,
+                  textAlign: 'center',
+                }}
+              >
+                {error}
+              </ThemedText>
+            ) : null}
             <Button
               label="시작하기"
               onPress={onConsent}
+              loading={submitting}
               style={{ marginTop: theme.spacing.s5, alignSelf: 'stretch' }}
             />
           </Pressable>
