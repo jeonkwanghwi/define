@@ -41,7 +41,7 @@ import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { formatKoreanDate } from '@/lib/format-date';
 import { topicSuffix } from '@/lib/korean';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
-import { controlPresets, useTheme } from '@/theme';
+import { controlPresets, fontFamily, useTheme } from '@/theme';
 
 // 입력창 고정 높이(px). 처음부터 이 크기로 고정 — 타이핑에 따라 박스가 커지지 않아
 // 화면이 출렁이지 않는다. 내용이 넘치면 입력창 내부에서 스크롤(캐럿=마지막 줄 따라감).
@@ -50,10 +50,10 @@ const INPUT_HEIGHT = 200;
 
 export default function RecordScreen() {
   const theme = useTheme();
-  // display 토큰(44/49)을 52로 키워 쓴다. **lineHeight를 같이 올리지 않으면**
-  // 줄 높이가 글자 크기보다 작아져 한글 윗부분이 잘린다(실기기에서 발견).
-  // 크기와 줄높이를 한 곳에 묶어 다시 어긋나지 않게 한다.
-  const heroText = { ...theme.typography.display, fontSize: 52, lineHeight: 64 };
+  // display 토큰을 52로 키워 쓴다. **lineHeight를 같이 올리지 않으면** 줄 높이가
+  // 글자 크기보다 작아져 한글 윗부분이 잘린다(실기기에서 발견). 명조는 글자 상자를
+  // 더 꽉 채우므로 1.35배로 잡는다. 크기와 줄높이를 한 곳에 묶어 다시 어긋나지 않게.
+  const heroText = { ...theme.typography.display, fontSize: 52, lineHeight: 70 };
   const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
 
@@ -237,7 +237,11 @@ export default function RecordScreen() {
               <ThemedText style={[heroText, { letterSpacing: -1.5 }]}>{word}</ThemedText>
               {/* "이란" suffix — 흐린 톤 + 살짝 가벼운 weight */}
               <ThemedText
-                style={[heroText, { color: theme.colors.ink.placeholder, fontWeight: '600' }]}
+                style={[
+                  heroText,
+                  // 두께로 흐리게 하면 iOS가 가짜 굵게를 덧씌운다 → Regular 패밀리로 바꿔 낸다.
+                  { color: theme.colors.ink.placeholder, fontFamily: fontFamily.serif },
+                ]}
               >
                 {topicSuffix(word)}
               </ThemedText>
@@ -286,7 +290,7 @@ export default function RecordScreen() {
                 ]}
               >
                 <ThemedText variant="caption" tone="placeholder">
-                  나만의 정의를 찬찬히 적어보세요 · {MIN_DEFINITION_LENGTH}자 이상
+                  나만의 정의를 적어보세요 · {MIN_DEFINITION_LENGTH}자 이상
                 </ThemedText>
                 <ThemedText variant="caption" tone="placeholder">
                   {canSubmit

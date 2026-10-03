@@ -26,6 +26,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSettingsStore } from '@/store/settings-store';
 
 import { darkColors, lightColors, type Colors } from './colors';
+import { fontFamily } from './fonts';
 import { motion } from './motion';
 import { radii } from './radii';
 import { darkShadows, lightShadows, type Shadows } from './shadows';
@@ -83,6 +84,7 @@ export function useTheme(): Theme {
 
 // 개별 토큰 모듈을 직접 import 하고 싶을 때 (드물지만 유틸성 코드에서)
 export {
+  fontFamily,
   lightColors,
   darkColors,
   lightShadows,

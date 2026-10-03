@@ -6,6 +6,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@expo-google-fonts/nanum-myeongjo": "^0.4.1",
     "@expo/ui": "~56.0.15",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~56.0.8",

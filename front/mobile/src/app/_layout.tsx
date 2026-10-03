@@ -28,6 +28,9 @@ export default function RootLayout() {
   // require의 상대 경로: src/app/_layout.tsx → ../../assets/fonts/...
   const [loaded, error] = useFonts({
     PretendardVariable: require('../../assets/fonts/PretendardVariable.ttf'),
+    // 나눔명조 — 제목·본문용. 정적 폰트라 두께마다 별도 파일(각 ~3MB)이다.
+    NanumMyeongjo_400Regular: require('@expo-google-fonts/nanum-myeongjo/400Regular/NanumMyeongjo_400Regular.ttf'),
+    NanumMyeongjo_700Bold: require('@expo-google-fonts/nanum-myeongjo/700Bold/NanumMyeongjo_700Bold.ttf'),
   });
 
   const token = useAuthStore((s) => s.token);
