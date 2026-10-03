@@ -72,7 +72,10 @@
 > `Distribution Certificate is not validated for non-interactive builds`로 실패한다.
 
 ```bash
-source ~/.nvm/nvm.sh                                   # eas·node가 PATH에 없음(nvm)
+# nvm은 .zshrc가 이미 로드한다. 그래도 `command not found: npx`가 나면
+# nvm의 default 별칭이 설치 안 된 버전을 가리키는 것이다(2026-10-03에 겪음).
+#   고치기: nvm alias default 24.16.0      /  즉시 우회: 아래 export 한 줄
+export PATH="$HOME/.nvm/versions/node/v24.16.0/bin:$PATH"
 cd /Users/kwanghwi/dev/define/front/mobile && pwd      # ← 절대경로. cd 빠지면 다른 프로젝트가 빌드된다
 export EXPO_ASC_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_4F32CY2ZJK.p8"
 export EXPO_ASC_KEY_ID=4F32CY2ZJK
