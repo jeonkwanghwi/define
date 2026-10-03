@@ -26,3 +26,6 @@ export type { PressableScaleProps } from './pressable-scale';
 
 export { FadeIn } from './fade-in';
 export type { FadeInProps } from './fade-in';
+
+export { Loading } from './loading';
+export type { LoadingProps } from './loading';

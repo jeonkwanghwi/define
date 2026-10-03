@@ -14,7 +14,7 @@ import { Animated, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
-import { FadeIn, PressableScale } from '@/components/primitives';
+import { FadeIn, Loading, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { NeighborSheet, type SheetNeighbor } from '@/components/village/neighbor-sheet';
@@ -65,6 +65,8 @@ function VillageMap() {
   const grid = WALK_GRIDS[zoneId];
 
   const [bySlot, setBySlot] = useState<Record<string, VillageNeighbor>>({});
+  // 이웃을 받는 동안의 표시. 화면을 막지 않는다 — 마을은 그 사이에도 걸어다닐 수 있어야 한다.
+  const [loadingNeighbors, setLoadingNeighbors] = useState(false);
   const [sheet, setSheet] = useState<SheetNeighbor | null>(null);
   const [nearSlot, setNearSlot] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
@@ -80,11 +82,13 @@ function VillageMap() {
 
   const load = useCallback(() => {
     if (!token) return;
+    setLoadingNeighbors(true);
     getNeighbors(token, TOTAL_SLOTS)
       .then((list) => setBySlot(assign(list)))
       .catch(() => {
         /* 비치명적 — 이웃을 못 받아도 마을은 걸어다닐 수 있어야 한다. */
-      });
+      })
+      .finally(() => setLoadingNeighbors(false));
   }, [token]);
 
   useEffect(() => {
@@ -197,18 +201,24 @@ function VillageMap() {
           <ThemedText variant="bodyMd" tone="strong">
             {zone.title}
           </ThemedText>
-          <PressableScale
-            onPress={load}
-            hitSlop={10}
-            style={styles.refresh}
-            accessibilityRole="button"
-            accessibilityLabel="이웃 새로고침"
-          >
-            <Icon name="shuffle" size={17} color={theme.colors.ink.secondary} />
-            <ThemedText variant="caption" tone="secondary">
-              새로고침
-            </ThemedText>
-          </PressableScale>
+          {loadingNeighbors ? (
+            <View style={styles.refresh}>
+              <Loading message="이웃을 부르는 중" inline />
+            </View>
+          ) : (
+            <PressableScale
+              onPress={load}
+              hitSlop={10}
+              style={styles.refresh}
+              accessibilityRole="button"
+              accessibilityLabel="이웃 새로고침"
+            >
+              <Icon name="shuffle" size={17} color={theme.colors.ink.secondary} />
+              <ThemedText variant="caption" tone="secondary">
+                새로고침
+              </ThemedText>
+            </PressableScale>
+          )}
         </View>
       </View>
 

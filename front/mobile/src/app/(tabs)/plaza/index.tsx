@@ -13,7 +13,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
-import { FadeIn, PressableScale } from '@/components/primitives';
+import { FadeIn, Loading, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
@@ -83,7 +83,7 @@ function PlazaWordList() {
     router.push({ pathname: '/plaza/[word]', params: { word } });
 
   if (failed) return <CenterMessage text="광장을 불러오지 못했어요." />;
-  if (words === null) return <CenterMessage text="불러오는 중…" />;
+  if (words === null) return <CenterMessage loading="광장을 불러오고 있어요" />;
 
   return (
     <ThemedView bg="paper" style={styles.root}>
@@ -297,18 +297,25 @@ function WordCard({ word, onPress }: { word: PlazaWord; onPress: () => void }) {
   );
 }
 
-/** 로딩/에러 상태 — 헤더는 유지해 잉크·마이페이지 접근을 잃지 않게. */
-function CenterMessage({ text }: { text: string }) {
+/**
+ * 로딩/에러 상태 — 헤더는 유지해 잉크·마이페이지 접근을 잃지 않게.
+ * loading을 주면 공통 Loading(스피너+문구), text를 주면 정적 메시지.
+ */
+function CenterMessage({ text, loading }: { text?: string; loading?: string }) {
   return (
     <ThemedView bg="paper" style={styles.root}>
       <View style={styles.headerWrap}>
         <AppHeader />
       </View>
-      <View style={styles.center}>
-        <ThemedText variant="body" tone="secondary">
-          {text}
-        </ThemedText>
-      </View>
+      {loading ? (
+        <Loading message={loading} />
+      ) : (
+        <View style={styles.center}>
+          <ThemedText variant="body" tone="secondary">
+            {text}
+          </ThemedText>
+        </View>
+      )}
     </ThemedView>
   );
 }

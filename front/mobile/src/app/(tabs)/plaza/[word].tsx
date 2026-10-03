@@ -15,7 +15,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { LikeButton } from '@/components/domain/like-button';
 import { ScreenHeader } from '@/components/domain/screen-header';
-import { Button, FadeIn } from '@/components/primitives';
+import { Button, FadeIn, Loading } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
@@ -160,9 +160,9 @@ export default function PlazaWordDetailScreen() {
             정의를 불러오지 못했어요.
           </ThemedText>
         ) : data === null ? (
-          <ThemedText variant="body" tone="secondary" style={styles.centerText}>
-            불러오는 중…
-          </ThemedText>
+          <View style={styles.loadingWrap}>
+            <Loading message="정의를 불러오고 있어요" />
+          </View>
         ) : data.definitions.length === 0 ? (
           <ThemedText variant="body" tone="secondary" style={styles.centerText}>
             아직 정의가 없어요.
@@ -220,6 +220,8 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32, gap: 12 },
   centerText: { textAlign: 'center', marginTop: 80 },
+  // ScrollView 안이라 flex:1이 안 먹는다 → 높이를 줘 Loading이 중앙에 오게.
+  loadingWrap: { height: 200, justifyContent: 'center' },
   gate: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },

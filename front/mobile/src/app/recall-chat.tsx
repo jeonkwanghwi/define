@@ -6,7 +6,6 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -19,7 +18,7 @@ import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { ConfirmDialog } from '@/components/primitives/confirm-dialog';
 import { RedefineSheet } from '@/components/domain/redefine-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
-import { FadeIn, PressableScale } from '@/components/primitives';
+import { FadeIn, Loading, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
@@ -216,10 +215,7 @@ export default function RecallChatScreen() {
 
         {sending && (
           <View style={styles.sendingRow}>
-            <ActivityIndicator color={theme.colors.point.p600} />
-            <ThemedText variant="caption" tone="placeholder" style={{ marginLeft: 8 }}>
-              과거의 내가 생각하는 중…
-            </ThemedText>
+            <Loading message="과거의 내가 생각하는 중…" inline />
           </View>
         )}
         {error && (
