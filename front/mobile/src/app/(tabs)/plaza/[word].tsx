@@ -10,8 +10,8 @@
  * 뒤로가기 헤더를 잃으면 빠져나갈 길이 없어진다(AuthGate는 탭 루트용).
  */
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { LikeButton } from '@/components/domain/like-button';
 import { ScreenHeader } from '@/components/domain/screen-header';
@@ -34,6 +34,21 @@ export default function PlazaWordDetailScreen() {
 
   const [data, setData] = useState<PlazaWordDetail | null>(null);
   const [failed, setFailed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  /** 당겨서 새로고침 — 남이 방금 쓴 정의·좋아요를 보려면 다시 받을 수단이 있어야 한다. */
+  const onRefresh = useCallback(async () => {
+    if (!token || !word) return;
+    setRefreshing(true);
+    try {
+      setData(await getPlazaWord(token, word));
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [token, word]);
 
   useEffect(() => {
     if (!token || !word) return;
@@ -129,7 +144,17 @@ export default function PlazaWordDetailScreen() {
     <ThemedView bg="paper" style={styles.root}>
       <ScreenHeader title={word} />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.point.p500}
+          />
+        }
+      >
         {failed ? (
           <ThemedText variant="body" tone="secondary" style={styles.centerText}>
             정의를 불러오지 못했어요.

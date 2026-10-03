@@ -7,9 +7,9 @@
  *   - 주목 단어 타일 2개(가장 공감받은 / 가장 의견이 많은) — 별도 박스(가운데정렬), 클릭 시 상세.
  * 단어 목록은 활동순(백엔드). 가입 필요 탭 — AuthGate가 로그아웃 사용자에게 가입 유도.
  */
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
@@ -46,24 +46,38 @@ function PlazaWordList() {
   const [words, setWords] = useState<PlazaWord[] | null>(null);
   const [stats, setStats] = useState<PlazaStats | null>(null);
   const [failed, setFailed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  /**
+   * 광장 데이터를 받아온다. 광장은 남들이 계속 쓰는 화면이라 한 번 받고 끝내면 안 된다.
+   * 단어 목록은 필수(실패 시 에러 화면), 통계는 부가(실패해도 리스트는 보여줌).
+   */
+  const load = useCallback(async () => {
     if (!token) return;
-    let alive = true;
     setFailed(false);
-    // 단어 목록은 필수(실패 시 에러 화면), 통계는 부가(실패해도 리스트는 보여줌).
-    getPlazaWords(token)
-      .then((w) => alive && setWords(w))
-      .catch(() => alive && setFailed(true));
-    getPlazaStats(token)
-      .then((s) => alive && setStats(s))
-      .catch(() => {
-        /* 통계는 부가 정보 — 실패해도 무시 */
-      });
-    return () => {
-      alive = false;
-    };
+    const [w, st] = await Promise.allSettled([getPlazaWords(token), getPlazaStats(token)]);
+    if (w.status === 'fulfilled') setWords(w.value);
+    else setFailed(true);
+    if (st.status === 'fulfilled') setStats(st.value);
   }, [token]);
+
+  /**
+   * 화면에 들어올 때마다 다시 받는다 — 상세에서 좋아요를 누르고 돌아오면
+   * 리스트의 숫자가 옛것이면 안 된다. 이미 받아둔 데이터는 지우지 않으므로
+   * "불러오는 중…"이 다시 번쩍이지 않는다(첫 진입에만 보인다).
+   */
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  /** 당겨서 새로고침 — 남이 방금 쓴 정의를 보려면 사용자가 직접 당길 수 있어야 한다. */
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   const openWord = (word: string) =>
     router.push({ pathname: '/plaza/[word]', params: { word } });
@@ -73,7 +87,17 @@ function PlazaWordList() {
 
   return (
     <ThemedView bg="paper" style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.point.p500}
+          />
+        }
+      >
         <AppHeader />
         <ThemedText variant="h1">광장</ThemedText>
         <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
