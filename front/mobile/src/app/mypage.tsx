@@ -19,7 +19,7 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
@@ -28,11 +28,18 @@ import { ConfirmDialog, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
+import { API_BASE } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStreak } from '@/store/journal-store';
 import { useTheme } from '@/theme';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
+
+/**
+ * 방침 페이지가 올라가는 웹 주소 — API_BASE에서 '/api'를 떼어 만든다.
+ * 둘이 같은 CloudFront 배포라 주소가 갈라질 일이 없다.
+ */
+const WEB_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
 
 export default function MyPageScreen() {
   const theme = useTheme();
@@ -276,6 +283,15 @@ export default function MyPageScreen() {
             label="버그 제보 · 문의"
             value="준비 중"
             disabled
+          />
+          <Divider theme={theme} />
+          {/* 수집 항목·공개 범위를 사용자가 확인할 수 있어야 한다(스토어 심사 요건이기도 하다).
+              웹 빌드와 함께 배포되는 정적 페이지라 앱 업데이트 없이 갱신할 수 있다. */}
+          <Row
+            theme={theme}
+            icon="lock"
+            label="개인정보처리방침"
+            onPress={() => Linking.openURL(`${WEB_ORIGIN}/privacy.html`)}
           />
         </Group>
 
