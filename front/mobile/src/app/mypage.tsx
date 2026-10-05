@@ -7,7 +7,7 @@
  * 범위 (P0+P1):
  *   - 프로필: 닉네임(서버 저장·중복 방지, 로그인 필요) + 실제 기록 통계. 탭하면 닉네임 시트.
  *   - 화면: ThemeModeToggle (라이트/다크/시스템) — 다크 모드 복원 입구.
- *   - 설정: 닉네임 변경 / 알림(준비 중)
+ *   - 설정: 닉네임 변경 / 진동 피드백 on-off / 알림(준비 중)
  *   - 지원: 버그 제보·문의 (준비 중 — 위치는 헤더 아닌 마이페이지로 결정)
  *   - 곧 만나요: 프리미엄 테마·폰트 (BM 로드맵, 비활성). PDF 내보내기는 단어장 탭으로 이동함
  *   - 버전 정보
@@ -31,6 +31,7 @@ import { Icon, type IconName } from '@/icons';
 import { API_BASE } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStreak } from '@/store/journal-store';
+import { useSettingsStore } from '@/store/settings-store';
 import { useTheme } from '@/theme';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
@@ -49,6 +50,9 @@ export default function MyPageScreen() {
   const updateNickname = useAuthStore((s) => s.updateNickname);
   const stats = useJournalStats();
   const streak = useJournalStreak();
+
+  const haptics = useSettingsStore((s) => s.haptics);
+  const setHaptics = useSettingsStore((s) => s.setHaptics);
 
   const [nicknameSheetOpen, setNicknameSheetOpen] = useState(false);
   const token = useAuthStore((s) => s.token);
@@ -251,6 +255,16 @@ export default function MyPageScreen() {
             label="닉네임 변경"
             value={token ? (hasNickname ? nickname : '미설정') : '로그인 필요'}
             onPress={openNicknameEditor}
+          />
+          <Divider theme={theme} />
+          {/* 진동 피드백 on/off — 진동에 민감한 사람이 끌 수 있어야 한다(접근성).
+              별도 스위치 UI를 들이지 않고 옆줄과 같은 Row로 값만 보여준다(탭하면 토글). */}
+          <Row
+            theme={theme}
+            icon="settings"
+            label="진동 피드백"
+            value={haptics ? '켬' : '끔'}
+            onPress={() => setHaptics(!haptics)}
           />
           <Divider theme={theme} />
           <Row
