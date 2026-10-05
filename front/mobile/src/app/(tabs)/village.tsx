@@ -23,7 +23,7 @@ import { VillageScene } from '@/components/village/village-scene';
 import { WALK_GRIDS } from '@/data/village-grid';
 import { entryPoint, ZONES, ZONE_ORDER, type Point, type ZoneId } from '@/data/village-zones';
 import { Icon } from '@/icons';
-import { isWalkable, snapToPath } from '@/lib/village-path';
+import { snapToPath, stepAlongPath } from '@/lib/village-path';
 import { getNeighbors, type VillageNeighbor } from '@/services/village-api';
 import { useAuthStore } from '@/store/auth-store';
 import { motion, useTheme } from '@/theme';
@@ -38,11 +38,6 @@ const DOOR_RADIUS = 0.05;
 const EXIT_RADIUS = 0.035;
 /** 조이스틱을 이만큼은 기울여야 걷는다(손 떨림으로 스멀스멀 움직이지 않게). */
 const DEAD_ZONE = 0.08;
-/**
- * 막혔을 때 시도해 볼 각도(라디안). 0 → ±20° → ±40° → ±60° → ±80°.
- * 길 경계가 격자라 계단처럼 각진다. 정면이 막히면 벽을 따라 흘러가도록 틀어서 시도한다.
- */
-const SLIDE_ANGLES = [0, 0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4];
 
 export default function VillageScreen() {
   return (
@@ -79,6 +74,13 @@ function VillageMap() {
   const dir = useRef({ x: 0, y: 0 });
   const fade = useRef(new Animated.Value(1)).current;
   const switchingRef = useRef(false);
+  /**
+   * 방금 전환으로 들어와 서 있는 자리. **여기서 벗어나기 전까지 출구 판정을 쉰다.**
+   * 전환하면 들어온 문 자리(= 되돌아가는 출구)에 서는데, 그 자리는 당연히 EXIT_RADIUS 안이다.
+   * 잠그지 않으면 한 발짝 떼는 순간 되돌아가고, 그 맵에서도 같은 일이 벌어져
+   * 중앙 ↔ 동쪽이 끝없이 반복된다(실제로 그랬다).
+   */
+  const landedAt = useRef<Point | null>(null);
 
   const load = useCallback(() => {
     if (!token) return;
@@ -115,6 +117,7 @@ function VillageMap() {
         const landing = snapToPath(WALK_GRIDS[to], entry) ?? entry;
         posRef.current = landing;
         pos.setValue(landing);
+        landedAt.current = landing;
         setNearSlot(null);
         setZoneId(to);
         step(1).start(() => {
@@ -149,18 +152,8 @@ function VillageMap() {
       if (walking) {
         const p = posRef.current;
         const step = SPEED_X * dt;
-        // 막히면 방향을 조금씩 틀어 가며 갈 수 있는 쪽으로 흘려보낸다.
-        // x·y를 따로 시도하는 것만으로는 오목한 모서리에서 둘 다 막혀 아예 안 움직인다(낑김).
-        let next: Point | null = null;
-        for (const a of SLIDE_ANGLES) {
-          const ux = d.x * Math.cos(a) - d.y * Math.sin(a);
-          const uy = d.x * Math.sin(a) + d.y * Math.cos(a);
-          const cand = { x: p.x + ux * step, y: p.y + uy * aspect * step };
-          if (isWalkable(grid, cand)) {
-            next = cand;
-            break;
-          }
-        }
+        // 막히면 벽을 따라 미끄러진다 — 규칙은 stepAlongPath 한 곳에 있다(노드에서 검증 가능).
+        const next = stepAlongPath(grid, p, d, step, aspect);
 
         if (next) {
           posRef.current = next;
@@ -173,8 +166,13 @@ function VillageMap() {
         const dist = (a: Point) => Math.hypot(a.x - x, (a.y - y) * aspect);
         const near = zone.slots.find((sl) => dist(sl.door) <= DOOR_RADIUS);
         setNearSlot((prev) => (prev === (near?.id ?? null) ? prev : (near?.id ?? null)));
-        const exit = zone.exits.find((e) => dist(e.at) <= EXIT_RADIUS);
-        if (exit) switchZone(exit.to);
+        // 들어온 자리를 벗어나야 출구가 다시 살아난다(위 landedAt 주석 참고).
+        if (landedAt.current) {
+          if (dist(landedAt.current) > EXIT_RADIUS) landedAt.current = null;
+        } else {
+          const exit = zone.exits.find((e) => dist(e.at) <= EXIT_RADIUS);
+          if (exit) switchZone(exit.to);
+        }
       }
 
       setMoving((prev) => (prev === walking ? prev : walking));

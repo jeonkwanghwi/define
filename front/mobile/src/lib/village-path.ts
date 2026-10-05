@@ -170,3 +170,78 @@ export function findWalkRoute(grid: WalkGrid, from: Point, to: Point): Point[] {
   out.push(toPoint(grid, cells[cells.length - 1].cx, cells[cells.length - 1].cy));
   return out;
 }
+
+/**
+ * 막혔을 때 틀어 볼 각도(라디안). ±10°씩 ±90°까지 — 촘촘해야 벽을 부드럽게 탄다.
+ * 성기면(±20°·±40°…) 매 프레임 다른 후보가 뽑혀 지그재그로 끌린다.
+ */
+const SLIDE_ANGLES = (() => {
+  const out: number[] = [];
+  for (let deg = 10; deg <= 90; deg += 10) {
+    out.push((deg * Math.PI) / 180, (-deg * Math.PI) / 180);
+  }
+  return out;
+})();
+
+/**
+ * 한 걸음 — 가려는 방향으로 나아가되, 막히면 **벽을 따라 미끄러진다**. 갈 곳이 없으면 null.
+ *
+ * 두 가지가 핵심이다.
+ *
+ * **① 통과하는 후보 중 "가장 많이 전진하는 것"을 고른다.** 먼저 통과한 걸 그냥 쓰면
+ * 후보 순서가 곧 품질이 되어, 같은 벽을 타는 동안에도 프레임마다 다른 각도가 뽑힌다.
+ * 그게 뾰족한 데 걸려 덜컹대는 느낌의 정체다. 전부 재보고 최선을 고르면 매 프레임 일관된다
+ * (후보는 20개 남짓이라 비용은 무시할 수준).
+ *
+ * **② 축을 통째로 버리는 후보를 함께 둔다.** 길 격자는 그림에서 뽑아낸 칸이라 가장자리가
+ * 계단처럼 수직·수평으로 각져 있다. 그런 벽 앞에서는 "막힌 축을 버리고 나머지 축으로만 간다"가
+ * 정확히 맞는 답인데, 각도를 틀어 보는 후보만으로는 그 답에 닿지 못한다.
+ * 남은 축의 크기는 len으로 되돌려 **속도를 보존한다** — 안 그러면 벽에 닿을 때마다 느려진다.
+ *
+ * @param dir   조이스틱 방향(각 성분 -1~1, 길이가 곧 세기)
+ * @param step  이번 프레임에 갈 거리(가로 기준 비율)
+ * @param aspect 세로 보정(grid.cols / grid.rows) — 그림이 길쭉해 같은 비율이라도 실제 거리가 다르다
+ */
+export function stepAlongPath(
+  grid: WalkGrid,
+  from: Point,
+  dir: Point,
+  step: number,
+  aspect: number,
+): Point | null {
+  const len = Math.hypot(dir.x, dir.y);
+  if (len === 0) return null;
+
+  const at = (ux: number, uy: number): Point => ({
+    x: from.x + ux * step,
+    y: from.y + uy * aspect * step,
+  });
+
+  // 가려던 그대로 갈 수 있으면 그게 언제나 최선이다 — 나머지를 재볼 것도 없다.
+  const straight = at(dir.x, dir.y);
+  if (isWalkable(grid, straight)) return straight;
+
+  // 후보: 조금씩 튼 방향들 + 축을 버린 둘.
+  const moves: Point[] = SLIDE_ANGLES.map((a) => ({
+    x: dir.x * Math.cos(a) - dir.y * Math.sin(a),
+    y: dir.x * Math.sin(a) + dir.y * Math.cos(a),
+  }));
+  if (dir.x !== 0) moves.push({ x: Math.sign(dir.x) * len, y: 0 });
+  if (dir.y !== 0) moves.push({ x: 0, y: Math.sign(dir.y) * len });
+
+  let best: Point | null = null;
+  let bestScore = 0; // 0 이하(옆걸음·뒷걸음)는 아예 쓰지 않는다 — 가려던 쪽으로 가야 걸음이다.
+  for (const m of moves) {
+    const cand = at(m.x, m.y);
+    if (!isWalkable(grid, cand)) continue;
+    // 가려던 방향으로 얼마나 나아갔나(내적). 세로는 가로 기준으로 환산해 비교한다.
+    const ml = Math.hypot(m.x, m.y);
+    if (ml === 0) continue;
+    const score = (m.x * dir.x + m.y * dir.y) / (ml * len);
+    if (score > bestScore) {
+      bestScore = score;
+      best = cand;
+    }
+  }
+  return best;
+}

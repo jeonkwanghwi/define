@@ -151,6 +151,43 @@ function downsample(mask, w, h, cols, rows, thresh = 0.35) {
   return g;
 }
 
+/**
+ * 경계 다듬기 — 3x3 이웃의 **과반을 따른다**(셀룰러 오토마타 스무딩).
+ *
+ * 왜 필요한가: 그림에서 픽셀 단위로 떠온 격자는 길 가장자리에 1칸짜리 돌기와 오목이 수없이 생긴다.
+ * 사람 눈에는 안 보이지만 아바타는 그 요철에 매번 걸려, 대각선으로 걸을 때
+ * **뾰족한 데 찍힌 것처럼 덜컹댄다.** 미끄러짐 로직을 아무리 손봐도 벽 자체가 울퉁불퉁하면 한계가 있다.
+ *
+ * 과반 규칙은 튀어나온 1칸은 깎고 파인 1칸은 메워서, 계단을 매끈한 대각선으로 바꾼다.
+ * 길 가장자리가 그림과 한두 칸(=4~8px) 달라지지만 **화면에서는 분간되지 않는다** —
+ * 보이는 건 "아바타가 길 위를 자연스럽게 걷는가"뿐이다.
+ *
+ * 폭이 1칸뿐인 길은 과반을 못 채워 사라질 수 있다. 그래서 다듬은 뒤 반드시
+ * scripts/check-village.mjs로 집·출구가 길 위에 남아 있고 서로 오갈 수 있는지 확인한다.
+ */
+function smoothEdges(g, cols, rows, passes = 2) {
+  let cur = g;
+  for (let p = 0; p < passes; p += 1) {
+    const next = new Uint8Array(cur.length);
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        let on = 0, tot = 0;
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+            tot += 1;
+            on += cur[ny * cols + nx];
+          }
+        }
+        next[y * cols + x] = on * 2 > tot ? 1 : 0;
+      }
+    }
+    cur = next;
+  }
+  return cur;
+}
+
 /** 런렝스 압축: "시작값:길이,길이,..."(36진수). 2천 자 남짓이라 소스에 그대로 둔다. */
 function encode(g) {
   const runs = [];
@@ -179,9 +216,12 @@ for (const m of MAPS) {
   const closed = close(tight, w, h, dr, er);
   paintConnectors(closed, w, h, m.connectors ?? []);
   const road = keepLargestBlob(closed, w, h);
-  const cells = keepLargestBlob(downsample(road, w, h, COLS, gridRows), COLS, gridRows);
+  const raw = downsample(road, w, h, COLS, gridRows);
+  // 격자로 만든 **직후** 다듬는다 — 큰 덩어리만 남기는 건 그 뒤라야 다듬다 끊긴 조각이 정리된다.
+  const cells = keepLargestBlob(smoothEdges(raw, COLS, gridRows), COLS, gridRows);
+  const rough = raw.reduce((a, b) => a + b, 0);
   const walk = cells.reduce((a, b) => a + b, 0);
-  console.log(`${m.zone}: ${COLS}x${gridRows}, 걸을 수 있는 칸 ${walk} (${((walk / cells.length) * 100).toFixed(0)}%)`);
+  console.log(`${m.zone}: ${COLS}x${gridRows}, 걸을 수 있는 칸 ${walk} (${((walk / cells.length) * 100).toFixed(0)}%) — 다듬기 전 ${rough}`);
   rows.push({ zone: m.zone, cols: COLS, rows: gridRows, enc: encode(cells) });
 }
 
