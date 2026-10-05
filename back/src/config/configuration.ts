@@ -42,4 +42,12 @@ export default () => ({
   apple: { bundleId: process.env.APPLE_BUNDLE_ID ?? '' },
   /** 소셜 로그인 후 앱으로 돌아올 커스텀 스킴(define://oauth). app.json의 scheme과 같아야 한다. */
   app: { scheme: process.env.APP_SCHEME ?? 'define' },
+  /**
+   * 메일 발송. from이 비면 콘솔 어댑터로 떨어진다(개발 중 코드가 서버 로그에 찍힌다).
+   * 운영에서는 SES로 검증한 발신 주소를 반드시 넣는다 — 안 넣으면 코드가 로그에만 남고 아무도 못 받는다.
+   */
+  mail: {
+    from: process.env.MAIL_FROM ?? '',
+    region: process.env.AWS_REGION ?? 'ap-northeast-2',
+  },
 });
