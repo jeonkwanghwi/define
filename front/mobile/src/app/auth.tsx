@@ -487,6 +487,20 @@ export default function AuthScreen() {
                 </ThemedText>
               ) : null}
 
+              {/* 비밀번호 재설정 진입점 — 로그인 모드만. 가입에는 "잊은 비밀번호"가 없다.
+                  에러 문구 아래에 둔다: 에러는 비밀번호 칸에 붙어 있어야 뭐가 틀렸는지 읽힌다. */}
+              {!isSignup ? (
+                <PressableScale
+                  onPress={() => router.push('/password-reset')}
+                  hitSlop={8}
+                  style={{ marginTop: theme.spacing.s3, alignSelf: 'flex-end' }}
+                >
+                  <ThemedText variant="sm" tone="secondary">
+                    비밀번호를 잊으셨나요?
+                  </ThemedText>
+                </PressableScale>
+              ) : null}
+
               <Button
                 label={isSignup ? '다음' : '로그인'}
                 onPress={handleFormSubmit}
