@@ -23,6 +23,7 @@ import { VillageScene } from '@/components/village/village-scene';
 import { WALK_GRIDS } from '@/data/village-grid';
 import { entryPoint, ZONES, ZONE_ORDER, type Point, type ZoneId } from '@/data/village-zones';
 import { Icon } from '@/icons';
+import { hapticTap } from '@/lib/haptics';
 import { snapToPath, stepAlongPath } from '@/lib/village-path';
 import { getNeighbors, type VillageNeighbor } from '@/services/village-api';
 import { useAuthStore } from '@/store/auth-store';
@@ -102,6 +103,7 @@ function VillageMap() {
     (to: ZoneId) => {
       if (switchingRef.current) return;
       switchingRef.current = true;
+      hapticTap(); // 페이드가 시작되는 순간 한 번만 — 맵이 갈리는 걸 손끝으로 안다
       setSwitching(true);
       dir.current = { x: 0, y: 0 };
       const step = (toValue: number) =>
@@ -186,7 +188,10 @@ function VillageMap() {
   function enterHouse() {
     if (!nearSlot) return;
     const neighbor = bySlot[nearSlot];
-    if (neighbor) setSheet({ nickname: neighbor.nickname, words: neighbor.words });
+    if (neighbor) {
+      hapticTap(); // 문이 열리는 감각
+      setSheet({ nickname: neighbor.nickname, words: neighbor.words });
+    }
   }
 
   const nearNeighbor = nearSlot ? bySlot[nearSlot] : undefined;

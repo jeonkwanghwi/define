@@ -20,6 +20,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
 import { formatRelativeLabel } from '@/lib/format-date';
+import { hapticTap } from '@/lib/haptics';
 import { getPlazaWord, toggleEntryLike, type PlazaWordDetail } from '@/services/plaza-api';
 import { useAuthHydrated, useAuthStore } from '@/store/auth-store';
 import { controlPresets, useTheme } from '@/theme';
@@ -68,6 +69,8 @@ export default function PlazaWordDetailScreen() {
 
   function handleToggleLike(entryId: string) {
     if (!token) return;
+    // 서버 응답을 기다리지 않고 지금 울린다 — 낙관적 반영과 손끝의 신호가 어긋나면 안 된다.
+    hapticTap();
     // optimistic: 즉시 반영(정렬은 재정렬 안 함 — 손가락 밑에서 카드가 튀지 않게)
     setData((prev) =>
       prev

@@ -6,13 +6,14 @@
  *  2) Stack 네비게이션
  *  3) 앱 세션당 1회 출석 적립 + 단어장 자동 동기화 시작
  *
- * 적립 연출은 토스트가 아니라 메인 헤더의 InkBalanceChip이 담당
- * (잔액 변화를 구독해 펄스+카운트업 — 날짜 칩을 가리던 토스트 대체).
+ * 적립 연출은 둘이 나눠 맡는다: 잔액 변화는 메인 헤더의 InkBalanceChip(펄스+카운트업),
+ * "쌓였다"는 한 줄은 하단 토스트(아래 AttendanceClaim). 옛 토스트를 걷어낸 이유는
+ * 화면 위에서 날짜 칩을 가렸기 때문이고, 지금 토스트는 탭바 위 하단이라 가리는 것이 없다.
  */
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ToastProvider } from '@/components/primitives';
+import { ToastProvider, useToast } from '@/components/primitives';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
@@ -36,7 +37,6 @@ export default function RootLayout() {
 
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
-  const claimedRef = useRef(false);
   const pulledRef = useRef(false);
 
   // 마이그레이션·안전망: 이미 로그인된 상태인데 로컬 단어장 주인이 미지정(null)이면
@@ -47,15 +47,6 @@ export default function RootLayout() {
       claimLocalOwner(user.id);
     }
   }, [token, user]);
-
-  // 토큰이 (하이드레이션 후) 준비되면 앱 세션당 1회 출석 적립 시도.
-  // 잔액 갱신은 runAttendanceClaim 내부의 setBalance가 담당 → 칩이 반응.
-  useEffect(() => {
-    if (token && !claimedRef.current) {
-      claimedRef.current = true;
-      runAttendanceClaim();
-    }
-  }, [token]);
 
   // 앱 시작 시(토큰 하이드레이션 후) 1회 서버 단어장 당겨오기.
   // 이미 로그인된 기기가 다른 기기의 새 단어를 받도록(로그인 순간에만 하던 다운로드를 시작에도).
@@ -98,10 +89,37 @@ export default function RootLayout() {
     <SafeAreaProvider>
       {/* ToastProvider는 SafeAreaProvider 안쪽 — 토스트가 하단 인셋을 읽어 탭바 위에 떠야 한다. */}
       <ToastProvider>
+        {/* 출석 적립은 Provider 안쪽에서 — 이 컴포넌트가 ToastProvider를 렌더하므로
+            여기서는 자기 Context를 읽을 수 없다(useToast가 터진다). 자식으로 내린다. */}
+        <AttendanceClaim />
         <View style={{ flex: 1 }}>
           <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
         </View>
       </ToastProvider>
     </SafeAreaProvider>
   );
+}
+
+/**
+ * 앱 세션당 1회 출석 적립. 화면을 그리지 않고 결과만 알린다.
+ *
+ * 왜 별도 컴포넌트인가: 토스트를 띄우려면 useToast()가 필요하고, 그건 ToastProvider
+ * **안쪽**에서만 쓸 수 있다. RootLayout은 Provider를 렌더하는 쪽이라 자기 Context를
+ * 읽지 못한다. 진동은 적립 여부를 아는 lib/attendance.ts가 직접 담당한다.
+ */
+function AttendanceClaim() {
+  const token = useAuthStore((s) => s.token);
+  const { show } = useToast();
+  const claimedRef = useRef(false);
+
+  useEffect(() => {
+    if (!token || claimedRef.current) return;
+    claimedRef.current = true;
+    // 잔액 갱신은 runAttendanceClaim 내부의 setBalance가 담당 → 칩이 반응.
+    runAttendanceClaim().then((res) => {
+      if (res?.claimed) show(`잉크 ${res.amount}개가 쌓였어요`);
+    });
+  }, [token, show]);
+
+  return null;
 }

@@ -9,7 +9,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { YearPickerSheet } from '@/components/domain/year-picker-sheet';
-import { Button, PressableScale } from '@/components/primitives';
+import { Button, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { INTERESTS } from '@/constants/interests';
@@ -24,6 +24,7 @@ export default function ProfileSetupScreen() {
   const theme = useTheme();
   const router = useRouter();
   const updateProfile = useAuthStore((s) => s.updateProfile);
+  const { show } = useToast();
 
   const [year, setYear] = useState<number | null>(null);
   const [yearSheetOpen, setYearSheetOpen] = useState(false);
@@ -56,6 +57,8 @@ export default function ProfileSetupScreen() {
     setSubmitting(true);
     try {
       await updateProfile({ birthYear: year!, gender: gender!, interests: selected });
+      // 토스트는 루트 Provider에 떠 있어 화면이 바뀐 뒤에도 남는다 — 홈에서 보인다.
+      show('프로필을 저장했어요');
       // 가입 → 프로필 완성 후에도 로그인과 동일하게 기록 탭(홈)으로.
       router.replace('/');
     } catch (e) {

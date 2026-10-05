@@ -16,11 +16,12 @@ import {
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
 import { RecallConsentSheet } from '@/components/domain/recall-consent-sheet';
-import { Button, Card, PressableScale } from '@/components/primitives';
+import { Button, Card, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
 import { Icon } from '@/icons';
+import { hapticSuccess } from '@/lib/haptics';
 import {
   availableAges,
   availableYears,
@@ -56,6 +57,7 @@ function RecallHome() {
   const birthYear = useAuthStore((s) => s.user?.birthYear ?? null);
   const recallConsented = useAuthStore((s) => s.user?.recallConsented ?? false);
   const setRecallConsented = useAuthStore((s) => s.setRecallConsented);
+  const { show } = useToast();
 
   const [consentOpen, setConsentOpen] = useState(false);
   const [consentSubmitting, setConsentSubmitting] = useState(false);
@@ -108,6 +110,9 @@ function RecallHome() {
       await recallConsent(token);
       setRecallConsented();
       setConsentOpen(false);
+      // 한 번만 하는 동의라 "됐다"를 분명히 알린다(실패는 위 catch가 인라인으로 맡는다).
+      hapticSuccess();
+      show('이제 과거의 나와 이야기할 수 있어요');
       // 동의는 "시작하기"를 누른 흐름의 중간 관문 — 기록됐으면 원래 의도(대화 시작)로 이어간다.
       // (기존엔 시트만 닫혀 시작 버튼을 한 번 더 눌러야 했음.)
       if (convoMode === 'question') startQuestion();

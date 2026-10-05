@@ -2,6 +2,7 @@
  * 출석 적립 — 앱 열 때 1회 시도. 로그인 상태에서만, 비치명적(실패해도 throw X).
  * '오늘' 판정은 기기 로컬 날짜로 → 서버에 'YYYY-MM-DD' 전송.
  */
+import { hapticSuccess } from '@/lib/haptics';
 import { claimAttendance } from '@/services/currency-api';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -23,6 +24,9 @@ export async function runAttendanceClaim(): Promise<{ claimed: boolean; amount: 
   try {
     const res = await claimAttendance(token, localDateString(new Date()));
     setBalance(res.balance);
+    // 적립이 **실제로 일어난** 날에만 울린다 — 이미 받은 날에도 울리면 신호가 값싸진다.
+    // 토스트는 React 밖인 여기서 띄울 수 없어 호출 측(_layout.tsx)이 맡는다.
+    if (res.claimed) hapticSuccess();
     return { claimed: res.claimed, amount: res.amount };
   } catch (e) {
     console.warn('[attendance] 적립 실패(다음 오픈에 재시도):', e);

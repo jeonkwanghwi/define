@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
 import { AppleCanceled, getAppleIdentityToken, isAppleAuthAvailable } from '@/lib/apple-auth';
+import { hapticError } from '@/lib/haptics';
 import { KakaoCanceled, useKakaoAuth } from '@/lib/kakao-auth';
 import type { ApiError } from '@/services/api-client';
 import { requestEmailCode } from '@/services/auth-api';
@@ -151,6 +152,7 @@ export default function AuthScreen() {
     } catch (e) {
       if (e instanceof KakaoCanceled) return; // 사용자가 그만둔 것 — 조용히 돌아간다
       console.warn('[auth] 카카오 로그인 실패:', e);
+      hapticError();
       setError(mapSocialError(e, '카카오'));
     } finally {
       setSubmitting(false);
@@ -170,6 +172,7 @@ export default function AuthScreen() {
     } catch (e) {
       if (e instanceof AppleCanceled) return; // 사용자가 그만둔 것 — 조용히 돌아간다
       console.warn('[auth] Apple 로그인 실패:', e);
+      hapticError();
       setError(mapSocialError(e, 'Apple'));
     } finally {
       setSubmitting(false);
@@ -187,6 +190,7 @@ export default function AuthScreen() {
     } catch (e) {
       // 코드 단계에 머문다 — EmailCodeForm이 error를 입력칸 아래에 그린다.
       // (폼으로 되돌리면 방금 틀린 번호를 고칠 자리가 사라진다.)
+      hapticError();
       setError(mapAuthError(e));
     } finally {
       setSubmitting(false);

@@ -24,10 +24,11 @@ import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
-import { ConfirmDialog, PressableScale } from '@/components/primitives';
+import { ConfirmDialog, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
+import { hapticError, hapticSuccess, hapticWarning } from '@/lib/haptics';
 import { API_BASE } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStreak } from '@/store/journal-store';
@@ -48,6 +49,7 @@ export default function MyPageScreen() {
 
   const nickname = useAuthStore((s) => s.user?.nickname ?? '');
   const updateNickname = useAuthStore((s) => s.updateNickname);
+  const { show } = useToast();
   const stats = useJournalStats();
   const streak = useJournalStreak();
 
@@ -86,6 +88,8 @@ export default function MyPageScreen() {
         router.replace('/');
       }
     } catch {
+      // 이미 인라인으로 에러를 그리는 자리라 진동을 더한다(새 에러 UI를 만들지 않는다).
+      hapticError();
       setDeleteError('탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setDeleting(false);
@@ -99,6 +103,16 @@ export default function MyPageScreen() {
     setRetrying(true);
     await retrySync(); // 성공/실패 표시는 store가 갱신 — 여기선 진행 중 표시만 담당
     setRetrying(false);
+  }
+
+  /**
+   * 닉네임 저장 — 성공만 알린다. 실패(중복 등)는 시트가 인라인으로 그리므로
+   * 에러를 삼키지 않고 그대로 올려보낸다.
+   */
+  async function handleSaveNickname(name: string) {
+    await updateNickname(name);
+    hapticSuccess();
+    show('이름을 바꿨어요');
   }
 
   const hasNickname = nickname.length > 0;
@@ -214,7 +228,11 @@ export default function MyPageScreen() {
                 label="회원 탈퇴"
                 value={deleting ? '탈퇴하는 중…' : undefined}
                 valueColor={theme.colors.ruby.base}
-                onPress={() => setDeleteOpen(true)}
+                // 되돌릴 수 없는 행동 직전 — 확인 다이얼로그를 띄우는 순간에 한 번 경고한다.
+                onPress={() => {
+                  hapticWarning();
+                  setDeleteOpen(true);
+                }}
                 disabled={deleting}
               />
               {deleteError ? (
@@ -265,6 +283,7 @@ export default function MyPageScreen() {
             label="진동 피드백"
             value={haptics ? '켬' : '끔'}
             onPress={() => setHaptics(!haptics)}
+            showChevron={false}
           />
           <Divider theme={theme} />
           <Row
@@ -340,7 +359,7 @@ export default function MyPageScreen() {
       <NicknameSheet
         visible={nicknameSheetOpen}
         current={nickname}
-        onSave={updateNickname}
+        onSave={handleSaveNickname}
         onClose={() => setNicknameSheetOpen(false)}
       />
 
@@ -419,6 +438,7 @@ function Row({
   value,
   valueColor,
   onPress,
+  showChevron = true,
   disabled,
 }: {
   theme: Theme;
@@ -428,6 +448,8 @@ function Row({
   /** 값 글자색 지정(기본은 placeholder 톤). 경고를 색으로 구분할 때만 넘긴다. */
   valueColor?: string;
   onPress?: () => void;
+  /** >는 "눌러서 다음 화면으로 간다"는 뜻이다. 제자리에서 값만 바뀌는 토글 행에서는 끈다. */
+  showChevron?: boolean;
   disabled?: boolean;
 }) {
   return (
@@ -449,7 +471,7 @@ function Row({
           {value}
         </ThemedText>
       ) : null}
-      {onPress ? (
+      {onPress && showChevron ? (
         <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} />
       ) : null}
     </PressableScale>

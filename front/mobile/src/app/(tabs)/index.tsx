@@ -39,6 +39,7 @@ import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
 import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { formatKoreanDate } from '@/lib/format-date';
+import { hapticSuccess } from '@/lib/haptics';
 import { topicSuffix } from '@/lib/korean';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
 import { controlPresets, fontFamily, useTheme } from '@/theme';
@@ -152,6 +153,9 @@ export default function RecordScreen() {
     const savedAt = new Date();
     // 변화 노트는 쓰기 시점에 받지 않는다 — 타임라인에서 길게 눌러 사후 기록.
     addEntry(word, definition.trim(), savedAt);
+    // 저장이 끝났다는 손끝의 신호. 토스트는 **일부러 넣지 않는다** — 아래 SaveConfirmation이
+    // 이미 전용 완료 연출(재정의면 N번째 공개)을 맡고 있어 같은 말을 두 번 하는 꼴이 된다.
+    hapticSuccess();
     setConfirmedWord(word);
     setConfirmedCount(entryCount + 1);
     setConfirmVisible(true);
