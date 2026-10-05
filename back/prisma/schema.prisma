@@ -146,3 +146,22 @@ model LlmUsage {
   @@index([model])
   @@map("llm_usage")
 }
+
+/// 이메일 인증 코드. 가입(signup)과 비밀번호 재설정(reset)이 같은 표를 쓴다 —
+/// 발급·만료·시도 제한 규칙이 똑같아서 표를 나눌 이유가 없다.
+/// 코드는 **해시로** 저장한다: DB를 읽을 수 있는 사람이 남의 가입을 가로채지 못하게.
+model EmailCode {
+  id         String    @id @default(cuid())
+  email      String
+  purpose    String    // 'signup' | 'reset'
+  codeHash   String
+  expiresAt  DateTime
+  /// 확인 시도 횟수. 한도를 넘기면 코드를 폐기한다(무차별 대입 차단).
+  attempts   Int       @default(0)
+  /// 사용 완료 시각. null이 아니면 재사용 불가.
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, purpose])
+  @@map("email_codes")
+}
