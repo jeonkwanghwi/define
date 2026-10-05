@@ -1,7 +1,8 @@
 /**
  * /auth — 로그인 ↔ 회원가입 토글 풀스크린. 마이페이지/AuthGate에서 진입.
  *
- * 가입은 step으로 진행: 'form'(이메일+비번) → 'verify'(본인인증 목업) → 계정 생성.
+ * 가입은 step으로 진행: 'form'(이메일+비번) → 'verify'(메일로 받은 6자리) → 계정 생성.
+ * 코드가 맞아야 계정이 생긴다 — 그래서 "미인증 계정"이라는 상태가 없다.
  * 인증 후 프로필 미완성이면 /profile-setup으로 replace(설계: 단일 프로필 게이트).
  * 시스템 다이얼로그 X — 검증/서버 에러는 인라인 메시지.
  */
@@ -11,14 +12,15 @@ import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View }
 
 import { Button, FadeIn, PressableScale, TextField } from '@/components/primitives';
 import { EmailDomainDropdown } from '@/components/domain/email-domain-dropdown';
+import { EmailCodeForm } from '@/components/domain/email-code-form';
 import { ScreenHeader } from '@/components/domain/screen-header';
-import { VerifyIdentityMock } from '@/components/domain/verify-identity-mock';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
 import { AppleCanceled, getAppleIdentityToken, isAppleAuthAvailable } from '@/lib/apple-auth';
 import { KakaoCanceled, useKakaoAuth } from '@/lib/kakao-auth';
 import type { ApiError } from '@/services/api-client';
+import { requestEmailCode } from '@/services/auth-api';
 import { useAuthStore } from '@/store/auth-store';
 import { motion, useTheme } from '@/theme';
 
@@ -60,6 +62,10 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // 인증번호를 마지막으로 보낸 시각 — EmailCodeForm의 60초 카운트다운을 재시작시키는 신호.
+  const [cooldownFrom, setCooldownFrom] = useState(0);
+  // 재전송 발송 중. submitting(코드 확인 중)과 섞으면 확인 버튼이 멋대로 스피너가 된다.
+  const [resending, setResending] = useState(false);
 
   const isSignup = mode === 'signup';
   // 가입=아이디@도메인 조합, 로그인=단일 이메일 칸(자동완성 유지).
@@ -85,7 +91,7 @@ export default function AuthScreen() {
     return null;
   }
 
-  // 폼 제출: 로그인이면 바로 로그인, 가입이면 본인인증 step으로.
+  // 폼 제출: 로그인이면 바로 로그인, 가입이면 인증번호를 보내고 코드 step으로.
   async function handleFormSubmit() {
     const v = validate();
     if (v) {
@@ -94,7 +100,17 @@ export default function AuthScreen() {
     }
     setError(null);
     if (isSignup) {
-      setStep('verify');
+      // 발송이 성공해야 단계를 넘긴다 — 먼저 넘어가면 실패(409·429·네트워크)를 보여줄 자리가 없다.
+      setSubmitting(true);
+      try {
+        await requestEmailCode(effectiveEmail, 'signup');
+        setCooldownFrom(Date.now());
+        setStep('verify');
+      } catch (e) {
+        setError(mapAuthError(e));
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
     setSubmitting(true);
@@ -160,18 +176,34 @@ export default function AuthScreen() {
     }
   }
 
-  // 본인인증 완료 → 계정 생성 → 프로필 화면.
-  async function handleVerified() {
+  // 인증번호 확인 → 계정 생성 → 프로필 화면.
+  async function handleCodeSubmit(code: string) {
     setError(null);
     setSubmitting(true);
     try {
-      await signup(effectiveEmail, password);
-      router.replace('/profile-setup');
+      await signup(effectiveEmail, password, code);
+      const completed = useAuthStore.getState().user?.profileCompleted ?? false;
+      router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
+      // 코드 단계에 머문다 — EmailCodeForm이 error를 입력칸 아래에 그린다.
+      // (폼으로 되돌리면 방금 틀린 번호를 고칠 자리가 사라진다.)
       setError(mapAuthError(e));
-      setStep('form'); // 가입 실패 시 폼으로 되돌려 에러 노출
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  /** 인증번호 재전송. 성공하면 cooldownFrom을 갱신해 카운트다운을 60초로 되돌린다. */
+  async function handleResend() {
+    setError(null);
+    setResending(true);
+    try {
+      await requestEmailCode(effectiveEmail, 'signup');
+      setCooldownFrom(Date.now());
+    } catch (e) {
+      setError(mapAuthError(e)); // 429 '잠시 후에 다시 시도해 주세요.'도 그대로 보여준다
+    } finally {
+      setResending(false);
     }
   }
 
@@ -213,7 +245,15 @@ export default function AuthScreen() {
         />
 
         {step === 'verify' ? (
-          <VerifyIdentityMock onComplete={handleVerified} submitting={submitting} />
+          <EmailCodeForm
+            email={effectiveEmail}
+            onSubmit={handleCodeSubmit}
+            onResend={handleResend}
+            submitting={submitting}
+            resending={resending}
+            error={error}
+            cooldownFrom={cooldownFrom}
+          />
         ) : step === 'chooser' ? (
           <View style={styles.body}>
             {/* 헤딩은 상단 고정, 버튼 3개만 남은 공간에서 세로 중앙. */}

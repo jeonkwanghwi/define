@@ -22,11 +22,32 @@ export type AuthResult = {
   user: AuthUser;
 };
 
-/** POST /api/auth/signup */
-export function signup(email: string, password: string): Promise<AuthResult> {
+/**
+ * POST /api/auth/email/code — 가입·비밀번호 재설정용 인증번호 발송.
+ * 204(본문 없음)라 돌려줄 게 없다. 재설정은 계정이 없어도 204다 — 존재 여부를 숨기려는 설계.
+ * 429 = 쿨다운/일일 상한, 409 = (가입) 이미 가입된 이메일.
+ */
+export function requestEmailCode(email: string, purpose: 'signup' | 'reset'): Promise<void> {
+  return apiRequest<void>('/auth/email/code', { method: 'POST', body: { email, purpose } });
+}
+
+/** POST /api/auth/signup — 인증번호(code)가 맞아야 계정이 만들어진다. 400 = 번호 불일치/만료. */
+export function signup(email: string, password: string, code: string): Promise<AuthResult> {
   return apiRequest<AuthResult>('/auth/signup', {
     method: 'POST',
-    body: { email, password },
+    body: { email, password, code },
+  });
+}
+
+/** POST /api/auth/password/reset — 인증번호 확인 + 새 비밀번호. 성공하면 바로 로그인된다. */
+export function resetPassword(
+  email: string,
+  code: string,
+  password: string,
+): Promise<AuthResult> {
+  return apiRequest<AuthResult>('/auth/password/reset', {
+    method: 'POST',
+    body: { email, code, password },
   });
 }
 

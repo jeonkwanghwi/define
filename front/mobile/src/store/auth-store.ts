@@ -24,6 +24,7 @@ import {
   deleteAccount as deleteAccountApi,
   kakaoLogin as kakaoLoginApi,
   login as loginApi,
+  resetPassword as resetPasswordApi,
   signup as signupApi,
   updateNickname as updateNicknameApi,
   updateProfile as updateProfileApi,
@@ -46,8 +47,13 @@ type AuthState = {
    */
   hasLoggedInBefore: boolean;
   /** 실패 시 throw(화면이 인라인 에러로 표시). 성공 시에만 상태 갱신. */
-  signup: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, code: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  /**
+   * 이메일 인증번호로 비밀번호 재설정. 성공하면 서버가 토큰을 주므로 **그 자리에서 로그인된다** —
+   * 재설정하고 또 로그인시키면 마찰만 늘기 때문. 그래서 login과 똑같이 reconcile을 탄다.
+   */
+  resetPassword: (email: string, code: string, password: string) => Promise<void>;
   /**
    * 카카오 인가 코드로 로그인/가입. 서버가 처음 보는 회원번호면 그 자리에서 가입까지 끝낸다.
    * 이메일 로그인과 동일하게 단어장 reconcile을 탄다(새 기기에서도 단어장이 복원된다).
@@ -105,13 +111,18 @@ export const useAuthStore = create<AuthState>()(
       lastSyncedAt: null,
       syncFailedAt: null,
       hasLoggedInBefore: false,
-      signup: async (email, password) => {
-        const { token, user } = await signupApi(email, password);
+      signup: async (email, password, code) => {
+        const { token, user } = await signupApi(email, password, code);
         set({ token, user, hasLoggedInBefore: true });
         await reconcileForUser(user.id, token, set);
       },
       login: async (email, password) => {
         const { token, user } = await loginApi(email, password);
+        set({ token, user, hasLoggedInBefore: true });
+        await reconcileForUser(user.id, token, set);
+      },
+      resetPassword: async (email, code, password) => {
+        const { token, user } = await resetPasswordApi(email, code, password);
         set({ token, user, hasLoggedInBefore: true });
         await reconcileForUser(user.id, token, set);
       },
