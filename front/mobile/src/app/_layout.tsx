@@ -12,6 +12,7 @@
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ToastProvider } from '@/components/primitives';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
@@ -95,9 +96,12 @@ export default function RootLayout() {
     // SafeAreaProvider: 노치·홈 인디케이터 인셋의 공급자. 이게 없으면 useSafeAreaInsets가
     // 0을 돌려줘, 시뮬레이터·웹에서는 멀쩡해 보이고 실기기에서만 헤더가 상태표시줄에 깔린다.
     <SafeAreaProvider>
-      <View style={{ flex: 1 }}>
-        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
-      </View>
+      {/* ToastProvider는 SafeAreaProvider 안쪽 — 토스트가 하단 인셋을 읽어 탭바 위에 떠야 한다. */}
+      <ToastProvider>
+        <View style={{ flex: 1 }}>
+          <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
+        </View>
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }

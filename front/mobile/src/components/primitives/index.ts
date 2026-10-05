@@ -29,3 +29,6 @@ export type { FadeInProps } from './fade-in';
 
 export { Loading } from './loading';
 export type { LoadingProps } from './loading';
+
+export { ToastProvider, useToast } from './toast';
+export type { ToastApi, ToastProviderProps } from './toast';
