@@ -297,5 +297,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 18,
   },
-  stickWrap: { position: 'absolute', left: 18, bottom: 18 },
+  // 오른손 엄지로 쓰도록 오른쪽 아래에 둔다. 왼쪽이면 지도를 짚는 손과 겹친다.
+  stickWrap: { position: 'absolute', right: 18, bottom: 18 },
 });
