@@ -93,6 +93,10 @@ export class PrismaUserRepository extends UserRepository {
     return toEntity(row);
   }
 
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  }
+
   async findByNickname(nickname: string): Promise<UserEntity | null> {
     const row = await this.prisma.user.findUnique({
       where: { nickname },

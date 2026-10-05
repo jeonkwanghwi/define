@@ -1,6 +1,6 @@
 /**
  * AuthController — /api/auth/* 매핑. 로직 없음, service 호출만.
- * signup/login/kakao/apple은 공개, profile은 JwtAuthGuard로 보호.
+ * signup/login/email·code/password·reset/kakao/apple은 공개, profile은 JwtAuthGuard로 보호.
  */
 import {
   Body,
@@ -23,6 +23,8 @@ import { AppleLoginDto } from './dto/apple-login.dto';
 import { AuthResponse } from './dto/auth.response';
 import { KakaoLoginDto } from './dto/kakao-login.dto';
 import { LoginDto } from './dto/login.dto';
+import { RequestCodeDto } from './dto/request-code.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { UpdateNicknameDto } from './dto/update-nickname.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -34,7 +36,17 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
-  /** POST /api/auth/signup — 이메일+비밀번호 가입(프로필은 별도 PATCH). */
+  /**
+   * POST /api/auth/email/code — 가입·비밀번호 재설정용 인증번호 발송.
+   * 204(본문 없음)인 이유: 앱에 돌려줄 게 없고, 뭐라도 담으면 계정 존재 여부가 새어나간다.
+   */
+  @Post('email/code')
+  @HttpCode(204)
+  requestEmailCode(@Body() dto: RequestCodeDto): Promise<void> {
+    return this.auth.requestEmailCode(dto);
+  }
+
+  /** POST /api/auth/signup — 이메일+비밀번호 가입(프로필은 별도 PATCH). 인증번호가 맞아야 통과. */
   @Post('signup')
   @HttpCode(201)
   signup(@Body() dto: SignupDto): Promise<AuthResponse> {
@@ -46,6 +58,13 @@ export class AuthController {
   @HttpCode(200)
   login(@Body() dto: LoginDto): Promise<AuthResponse> {
     return this.auth.login(dto);
+  }
+
+  /** POST /api/auth/password/reset — 인증번호 확인 + 새 비밀번호. 성공하면 바로 로그인된 토큰을 준다. */
+  @Post('password/reset')
+  @HttpCode(200)
+  resetPassword(@Body() dto: ResetPasswordDto): Promise<AuthResponse> {
+    return this.auth.resetPassword(dto);
   }
 
   /**

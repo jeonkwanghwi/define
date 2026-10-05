@@ -1,7 +1,9 @@
 /**
  * AuthService — 인증 로직. controller(HTTP)와 repository(DB) 사이.
- *   - signup: 이메일 중복 검사 → bcrypt 해싱 → 디폴트 닉네임 배정 → 생성 → 토큰 발급
+ *   - requestEmailCode: 인증번호 발송(가입·비밀번호 재설정 공용)
+ *   - signup: 이메일 중복 검사 → 인증번호 확인 → bcrypt 해싱 → 디폴트 닉네임 배정 → 생성 → 토큰 발급
  *   - login:  이메일 조회 → bcrypt 비교 → 토큰 발급
+ *   - resetPassword: 인증번호 확인 → 새 비밀번호 저장 → 토큰 발급
  *   - kakaoLogin: 인가 코드 → (카카오) 회원번호 → 기존 연결 조회 or 신규 생성 → 토큰 발급
  *   - appleLogin: identityToken 검증 → (Apple) sub → 같은 흐름
  *   - deleteAccount: 제공자 연결 해제(best-effort) → 우리 데이터 삭제
@@ -11,6 +13,7 @@
  * "비밀번호가 없는 계정"을 반드시 걸러야 한다(안 하면 bcrypt.compare가 터진다).
  */
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   ServiceUnavailableException,
@@ -22,9 +25,12 @@ import * as bcrypt from 'bcryptjs';
 import { AppleAuthError, AppleClient } from './apple.client';
 import { AppleLoginDto } from './dto/apple-login.dto';
 import { AuthResponse } from './dto/auth.response';
+import { EmailCodeService } from './email-code.service';
 import { KakaoAuthError, KakaoClient } from './kakao.client';
 import { KakaoLoginDto } from './dto/kakao-login.dto';
 import { LoginDto } from './dto/login.dto';
+import { RequestCodeDto } from './dto/request-code.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { UpdateNicknameDto } from './dto/update-nickname.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -39,12 +45,30 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly kakao: KakaoClient,
     private readonly apple: AppleClient,
+    private readonly codes: EmailCodeService,
   ) {}
+
+  /** 인증번호 발송. 가입은 중복 이메일을 즉시 알리고, 재설정은 계정 존재를 숨긴다. */
+  async requestEmailCode(dto: RequestCodeDto): Promise<void> {
+    const user = await this.users.findByEmail(dto.email);
+    if (dto.purpose === 'signup') {
+      if (user) throw new ConflictException('이미 가입된 이메일입니다.');
+    } else {
+      // 계정이 없거나 소셜 전용(비밀번호 없음)이면 조용히 끝낸다 —
+      // 404를 주면 "이 이메일이 가입돼 있다"를 누구나 확인할 수 있다.
+      if (!user || !user.passwordHash) return;
+    }
+    await this.codes.issue(dto.email, dto.purpose);
+  }
 
   async signup(dto: SignupDto): Promise<AuthResponse> {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException('이미 가입된 이메일입니다.');
+    }
+    // 코드 확인이 통과해야 계정이 생긴다 — 그래서 미인증 계정이라는 상태가 존재하지 않는다.
+    if (!(await this.codes.verify(dto.email, 'signup', dto.code))) {
+      throw new BadRequestException('인증번호가 올바르지 않아요.');
     }
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const nickname = await this.pickDefaultNickname();
@@ -66,6 +90,25 @@ export class AuthService {
     if (!ok) {
       throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
     }
+    return this.buildAuthResponse(user);
+  }
+
+  /**
+   * 비밀번호 재설정 — 코드 확인 → 새 비밀번호 저장 → **바로 로그인시킨다**.
+   * 재설정 직후 로그인 화면으로 다시 보내면 마찰만 늘고, 이메일 소유는 코드로 이미 증명됐다.
+   */
+  async resetPassword(dto: ResetPasswordDto): Promise<AuthResponse> {
+    if (!(await this.codes.verify(dto.email, 'reset', dto.code))) {
+      throw new BadRequestException('인증번호가 올바르지 않아요.');
+    }
+    const user = await this.users.findByEmail(dto.email);
+    // 코드까지 맞았는데 계정이 없다/비밀번호가 없다 = 그 사이 탈퇴했거나 소셜 전용 계정.
+    // 사유를 따로 알려줄 이유가 없어 코드 불일치와 같은 응답으로 끊는다.
+    if (!user || !user.passwordHash) {
+      throw new BadRequestException('인증번호가 올바르지 않아요.');
+    }
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    await this.users.updatePassword(user.id, passwordHash);
     return this.buildAuthResponse(user);
   }
 

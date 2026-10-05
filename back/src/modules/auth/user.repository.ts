@@ -24,6 +24,12 @@ export abstract class UserRepository {
     input: { birthYear: number; gender: string; interests: string[] },
   ): Promise<UserEntity>;
 
+  /**
+   * 비밀번호 교체 — 비밀번호 재설정에 사용. 해싱된 값을 받는다(해싱은 service 책임).
+   * 갱신된 사용자를 돌려주지 않는다: 바뀌는 건 passwordHash 하나고, 그건 응답에 담을 값이 아니다.
+   */
+  abstract updatePassword(userId: string, passwordHash: string): Promise<void>;
+
   /** 닉네임으로 1명 조회. 없으면 null. (닉네임 중복 검사에 사용) */
   abstract findByNickname(nickname: string): Promise<UserEntity | null>;
 
