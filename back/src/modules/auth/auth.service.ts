@@ -15,6 +15,7 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -65,6 +66,16 @@ export class AuthService {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException('이미 가입된 이메일입니다.');
+    }
+    // 코드를 아예 안 보낸 요청 = 이미 배포된 구버전 앱(1.0.0(2))이다. 그 앱은 가입 화면에
+    // 인증번호 단계가 없어서 {email, password}만 보낸다. 여기서 400으로 끊으면 사용자는
+    // 영어 검증 메시지나 뭉뚱그린 400만 보고 왜 막혔는지 모른다 — 그래서 426으로,
+    // 할 수 있는 일(업데이트)을 한국어로 알려준다.
+    // 인증을 건너뛰게 해주는 분기가 아니다: 코드가 없으면 아래 verify에 가지도 않고 계정도 안 생긴다.
+    // 구버전 앱이 전부 업데이트되면 이 분기와 SignupDto의 @IsOptional()을 같이 제거한다.
+    if (!dto.code) {
+      // @nestjs/common v10의 HttpStatus에는 426이 없어 숫자를 직접 쓴다(429도 같은 사정).
+      throw new HttpException('앱을 최신 버전으로 업데이트해 주세요.', 426);
     }
     // 코드 확인이 통과해야 계정이 생긴다 — 그래서 미인증 계정이라는 상태가 존재하지 않는다.
     if (!(await this.codes.verify(dto.email, 'signup', dto.code))) {
