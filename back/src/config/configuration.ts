@@ -49,5 +49,11 @@ export default () => ({
   mail: {
     from: process.env.MAIL_FROM ?? '',
     region: process.env.AWS_REGION ?? 'ap-northeast-2',
+    /**
+     * SES configuration set. 발송마다 이 이름을 함께 넘겨야 반송·스팸신고 이벤트가
+     * SNS로 흘러 알림이 온다. 빠뜨리면 알림을 만들어 두고도 못 받고,
+     * 바운스율이 5%를 넘겨 AWS가 발송을 끊는 걸 뒤늦게 알게 된다.
+     */
+    configurationSet: process.env.MAIL_CONFIGURATION_SET ?? 'define-transactional',
   },
 });
