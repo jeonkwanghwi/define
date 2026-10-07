@@ -8,6 +8,15 @@ export type MailPurpose = 'signup' | 'reset';
 
 export abstract class MailService {
   abstract sendCode(to: string, code: string, purpose: MailPurpose): Promise<void>;
+
+  /**
+   * 운영자에게 보내는 메일(버그 제보 등). 받는 사람은 설정의 mail.supportTo.
+   *
+   * sendCode와 같은 자리에 두는 이유: 발송 수단이 하나뿐이다 —
+   * SES 클라이언트·자격증명·configuration set을 둘 다 똑같이 쓴다.
+   * 따로 서비스를 만들면 배선과 configuration set만 두 군데로 늘어난다.
+   */
+  abstract sendSupport(subject: string, text: string): Promise<void>;
 }
 
 /** 두 구현이 같은 문구를 쓰도록 본문을 한 곳에서 만든다. */

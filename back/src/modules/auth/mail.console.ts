@@ -19,4 +19,9 @@ export class ConsoleMailService extends MailService {
     // 한 줄로 찍는다 — 개발 중 `npm run start:dev` 로그에서 grep으로 찾기 쉽게.
     this.logger.log(`[MAIL] to=${to} purpose=${purpose} code=${code}`);
   }
+
+  async sendSupport(subject: string, text: string): Promise<void> {
+    // 제보는 본문까지 눈으로 봐야 한다(메타가 제대로 붙었는지 확인) — 그래서 여러 줄로 찍는다.
+    this.logger.log(`[SUPPORT] ${subject}\n${text}`);
+  }
 }

@@ -59,5 +59,8 @@ import { UserRepository } from './user.repository';
     },
     EmailCodeService,
   ],
+  // MailService만 내보낸다 — FeedbackModule이 제보 메일을 보내려고 쓴다.
+  // 발송 수단은 여기 useFactory 하나뿐이어야 한다(두 군데서 배선하면 configuration set을 한쪽만 빼먹는다).
+  exports: [MailService],
 })
 export class AuthModule {}

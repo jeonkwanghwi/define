@@ -55,5 +55,7 @@ export default () => ({
      * 바운스율이 5%를 넘겨 AWS가 발송을 끊는 걸 뒤늦게 알게 된다.
      */
     configurationSet: process.env.MAIL_CONFIGURATION_SET ?? 'define-transactional',
+    /** 제보를 받을 주소. 비면 from과 같은 주소로 보낸다(자기 자신에게). */
+    supportTo: process.env.MAIL_SUPPORT_TO ?? 'definepjt@gmail.com',
   },
 });

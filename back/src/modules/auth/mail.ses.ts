@@ -13,11 +13,13 @@ export class SesMailService extends MailService {
   private readonly client: SESv2Client;
   private readonly from: string;
   private readonly configurationSet: string;
+  private readonly supportTo: string;
 
   constructor(config: ConfigService) {
     super();
     this.from = config.get<string>('mail.from') as string;
     this.configurationSet = config.get<string>('mail.configurationSet') as string;
+    this.supportTo = config.get<string>('mail.supportTo') as string;
     this.client = new SESv2Client({ region: config.get<string>('mail.region') });
   }
 
@@ -30,6 +32,18 @@ export class SesMailService extends MailService {
         Content: { Simple: { Subject: { Data: subject }, Body: { Text: { Data: text } } } },
         // 이걸 빼면 반송·스팸신고 이벤트가 SNS로 가지 않는다 — 알림을 만들어 두고도 못 받는다.
         // 바운스율이 5%를 넘으면 AWS가 발송 자체를 끊어서 가입과 비번 찾기가 통째로 멈춘다.
+        ConfigurationSetName: this.configurationSet,
+      }),
+    );
+  }
+
+  async sendSupport(subject: string, text: string): Promise<void> {
+    await this.client.send(
+      new SendEmailCommand({
+        FromEmailAddress: this.from,
+        Destination: { ToAddresses: [this.supportTo] },
+        Content: { Simple: { Subject: { Data: subject }, Body: { Text: { Data: text } } } },
+        // sendCode와 같은 이유로 반드시 붙인다 — 빠뜨리면 반송 이벤트가 SNS로 가지 않는다.
         ConfigurationSetName: this.configurationSet,
       }),
     );
