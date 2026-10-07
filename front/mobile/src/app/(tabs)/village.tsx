@@ -17,6 +17,7 @@ import { AuthGate } from '@/components/domain/auth-gate';
 import { FadeIn, Loading, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ScreenPlaceholder } from '@/components/domain/screen-placeholder';
 import { NeighborSheet, type SheetNeighbor } from '@/components/village/neighbor-sheet';
 import { VillageJoystick } from '@/components/village/village-joystick';
 import { VillageScene } from '@/components/village/village-scene';
@@ -40,7 +41,30 @@ const EXIT_RADIUS = 0.035;
 /** 조이스틱을 이만큼은 기울여야 걷는다(손 떨림으로 스멀스멀 움직이지 않게). */
 const DEAD_ZONE = 0.08;
 
+/**
+ * 마을을 잠가 둔다 (2026-10-07).
+ *
+ * 돌아다닐 수는 있는데 **거기서 할 일이 없다** — 설계의 핵심인 "잉크로 아이템을 사서
+ * 집을 꾸미기"가 미구현이고, 이웃 필터(나이·성별·관심사)도 안 붙어 있다
+ * (`gender`·`interests` 컬럼이 죽은 채 남아 있는 게 그 증거다).
+ * 광장과도 "남이 쓴 정의를 구경한다"가 겹친다.
+ *
+ * 미완성인 채 열어두면 앱 전체 인상을 깎으므로, 아이템이 붙기 전까지 닫는다.
+ * **지우지 않고 플래그로 가린다** — 아래 VillageMap과 맵 데이터는 그대로 살아 있어서
+ * 이 상수만 true로 바꾸면 즉시 돌아온다.
+ */
+const VILLAGE_OPEN = false;
+
 export default function VillageScreen() {
+  if (!VILLAGE_OPEN) {
+    return (
+      <ScreenPlaceholder
+        iconName="village"
+        title="마을"
+        subtitle={'이웃의 집을 거닐며 그 사람의 정의를 만나는 공간이에요.\n조금 더 다듬어서 찾아올게요.'}
+      />
+    );
+  }
   return (
     <AuthGate
       icon="village"
