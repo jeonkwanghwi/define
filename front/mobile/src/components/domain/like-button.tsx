@@ -58,7 +58,9 @@ export function LikeButton({ liked, count, onToggle }: LikeButtonProps) {
 const styles = StyleSheet.create({
   btn: {
     marginTop: 12,
-    alignSelf: 'flex-start',
+    // 카드 오른쪽 아래에 둔다 — 오른손 엄지가 닿는 자리이고, 글은 왼쪽에서 읽기 시작해
+    // 오른쪽에서 끝나므로 다 읽은 지점에 버튼이 있다.
+    alignSelf: 'flex-end',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
