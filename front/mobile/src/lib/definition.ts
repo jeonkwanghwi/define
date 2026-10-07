@@ -4,4 +4,4 @@
  * 백엔드에는 일부러 강제하지 않음 — 이미 저장된 짧은 정의들의 동기화(journal.import)가
  * 깨지지 않도록, 신규 입력만 UI에서 막는다.
  */
-export const MIN_DEFINITION_LENGTH = 20;
+export const MIN_DEFINITION_LENGTH = 10;
