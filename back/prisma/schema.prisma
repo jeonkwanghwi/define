@@ -98,6 +98,10 @@ model Entry {
   likes      Like[]
 
   @@unique([userId, clientId])
+  /// 광장이 단어별로 묶어 세는 길. 이게 없으면 GROUP BY word가 전체를 훑는다.
+  @@index([word])
+  /// "이번 주" 통계 범위 검색.
+  @@index([createdAt])
   @@map("entries")
 }
 
@@ -124,6 +128,11 @@ model Like {
   entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@unique([userId, entryId])
+  /// 정의별 좋아요 집계·조인용. @@unique([userId, entryId])는 선두가 userId라
+  /// entryId만으로는 쓸 수 없다 — 그래서 따로 둔다.
+  @@index([entryId])
+  /// "이번 주 받은 좋아요" 범위 검색.
+  @@index([createdAt])
   @@map("likes")
 }
 

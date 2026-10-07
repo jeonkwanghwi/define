@@ -1,12 +1,15 @@
 /**
  * PrismaPlazaRepository — PlazaRepository의 Prisma 구현.
- * groupBy로 단어별 정의 수, findMany+user include로 정의·닉네임 조회.
+ * 단어별 집계는 SQL이 한다(GROUP BY + 윈도우 함수) — 전체 정의를 끌어와 JS에서 묶으면
+ * 데이터가 늘수록 선형으로 느려진다. 윈도우 함수는 Prisma가 지원하지 않아 그 부분만 $queryRaw다.
+ * 한 단어의 정의 목록·좋아요 토글은 그대로 Prisma 쿼리.
  */
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../../database/prisma.service';
 import {
   PlazaDefinitionRow,
+  PlazaPreviewRow,
   PlazaRepository,
   PlazaStatsRow,
   PlazaWordCount,
@@ -18,52 +21,66 @@ export class PrismaPlazaRepository extends PlazaRepository {
     super();
   }
 
-  async listWordsWithCounts(): Promise<PlazaWordCount[]> {
-    const entries = await this.prisma.entry.findMany({
-      select: {
-        id: true,
-        word: true,
-        text: true,
-        savedAt: true,
-        user: { select: { nickname: true } },
-        _count: { select: { likes: true } },
-      },
-    });
-    type Row = (typeof entries)[number];
+  async listWordsWithCounts(limit: number): Promise<PlazaWordCount[]> {
+    // ① 단어별 집계 → 활동순 상위 N. 정렬은 기존 JS와 같다: 마지막 정의 추가가 위로,
+    //    동률이면 정의 많은 순. 상한이 있어야 단어가 늘어도 전송량이 고정된다.
+    const words = await this.prisma.$queryRaw<
+      { word: string; count: number; lastActivityAt: Date }[]
+    >`
+      SELECT word, COUNT(*)::int AS count, MAX("savedAt") AS "lastActivityAt"
+      FROM entries
+      GROUP BY word
+      ORDER BY MAX("savedAt") DESC, COUNT(*) DESC
+      LIMIT ${limit}
+    `;
+    if (words.length === 0) return [];
 
-    const byWord = new Map<string, Row[]>();
-    for (const e of entries) {
-      const bucket = byWord.get(e.word);
-      if (bucket) bucket.push(e);
-      else byWord.set(e.word, [e]);
+    // ② ①이 고른 단어들의 미리보기만 뽑는다. 단어별 상위 2개를 한 번에 고르려면
+    //    ROW_NUMBER가 필요하고 Prisma가 윈도우 함수를 지원하지 않아 여기만 raw다.
+    //    순위는 기존과 같다: 좋아요 desc → 동률 최신순(savedAt desc).
+    //    word는 사용자 입력이라 문자열로 끼워 넣지 않고 배열 하나를 바인딩한다.
+    //    바깥의 ORDER BY rn은 previews[0]이 1위가 되도록 — 안 적으면 순서가 보장되지 않는다.
+    const wordList = words.map((w) => w.word);
+    const previewRows = await this.prisma.$queryRaw<
+      (PlazaPreviewRow & { word: string })[]
+    >`
+      SELECT id, word, nickname, text, "likeCount" FROM (
+        SELECT e.id, e.word, u.nickname, e.text,
+               COUNT(l.id)::int AS "likeCount",
+               ROW_NUMBER() OVER (
+                 PARTITION BY e.word
+                 ORDER BY COUNT(l.id) DESC, e."savedAt" DESC
+               ) AS rn
+        FROM entries e
+        JOIN users u ON u.id = e."userId"
+        LEFT JOIN likes l ON l."entryId" = e.id
+        WHERE e.word = ANY(${wordList})
+        GROUP BY e.id, e.word, u.nickname, e.text, e."savedAt"
+      ) t
+      WHERE rn <= 2
+      ORDER BY rn
+    `;
+
+    const previewsByWord = new Map<string, PlazaPreviewRow[]>();
+    for (const r of previewRows) {
+      const preview = {
+        id: r.id,
+        nickname: r.nickname,
+        text: r.text,
+        likeCount: r.likeCount,
+      };
+      const bucket = previewsByWord.get(r.word);
+      if (bucket) bucket.push(preview);
+      else previewsByWord.set(r.word, [preview]);
     }
 
-    const result: PlazaWordCount[] = [];
-    for (const [word, list] of byWord) {
-      // 추천순(좋아요 desc) → 동률 최신순(savedAt desc)
-      const ranked = [...list].sort(
-        (a, b) =>
-          b._count.likes - a._count.likes || b.savedAt.getTime() - a.savedAt.getTime(),
-      );
-      const previews = ranked.slice(0, 2).map((e) => ({
-        id: e.id,
-        nickname: e.user.nickname,
-        text: e.text,
-        likeCount: e._count.likes,
-      }));
-      const lastActivityAt = list.reduce(
-        (max, e) => (e.savedAt > max ? e.savedAt : max),
-        list[0].savedAt,
-      );
-      result.push({ word, count: list.length, previews, lastActivityAt });
-    }
-
-    // 활동순 — 최근 정의 추가가 위로, 동률이면 정의 많은 순.
-    result.sort(
-      (a, b) =>
-        b.lastActivityAt.getTime() - a.lastActivityAt.getTime() || b.count - a.count,
-    );
-    return result;
+    // 순서는 ①이 정한 그대로. ②의 반환 순서는 단어 간 순위와 무관하다.
+    return words.map((w) => ({
+      word: w.word,
+      count: w.count,
+      previews: previewsByWord.get(w.word) ?? [],
+      lastActivityAt: w.lastActivityAt,
+    }));
   }
 
   async getStats(userId: string, since: Date): Promise<PlazaStatsRow> {
@@ -81,30 +98,22 @@ export class PrismaPlazaRepository extends PlazaRepository {
       where: { createdAt: { gte: since }, entry: { userId } },
     });
 
-    // 단어별 총 좋아요 / 정의 수 집계.
-    const wordAgg = await this.prisma.entry.findMany({
-      select: { word: true, _count: { select: { likes: true } } },
-    });
-    const likeByWord = new Map<string, number>();
-    const countByWord = new Map<string, number>();
-    for (const e of wordAgg) {
-      likeByWord.set(e.word, (likeByWord.get(e.word) ?? 0) + e._count.likes);
-      countByWord.set(e.word, (countByWord.get(e.word) ?? 0) + 1);
-    }
-
-    let topLikedWord: { word: string; likeCount: number } | null = null;
-    for (const [word, likeCount] of likeByWord) {
-      if (likeCount > 0 && (topLikedWord === null || likeCount > topLikedWord.likeCount)) {
-        topLikedWord = { word, likeCount };
-      }
-    }
-
-    let mostDefinedWord: { word: string; count: number } | null = null;
-    for (const [word, count] of countByWord) {
-      if (mostDefinedWord === null || count > mostDefinedWord.count) {
-        mostDefinedWord = { word, count };
-      }
-    }
+    // 단어별 1위만 필요하니 DB가 집계해서 1행씩 준다. 전체 정의를 끌어와 JS에서 묶으면
+    // 광장 입장마다(words + stats 동시 호출) 테이블을 두 번 통째로 읽는다.
+    // 동률이면 어느 단어가 뽑히는지는 임의다 — 기존 JS 루프도 Map 순회 순서에 기댔다(표시용 통계).
+    //
+    // 좋아요 1위: INNER JOIN이라 좋아요 0인 단어는 애초에 빠진다(기존 likeCount > 0 조건과 같다).
+    const topLiked = await this.prisma.$queryRaw<{ word: string; likeCount: number }[]>`
+      SELECT e.word, COUNT(l.id)::int AS "likeCount"
+      FROM entries e JOIN likes l ON l."entryId" = e.id
+      GROUP BY e.word ORDER BY COUNT(l.id) DESC LIMIT 1
+    `;
+    const mostDefined = await this.prisma.$queryRaw<{ word: string; count: number }[]>`
+      SELECT word, COUNT(*)::int AS count
+      FROM entries GROUP BY word ORDER BY COUNT(*) DESC LIMIT 1
+    `;
+    const topLikedWord = topLiked[0] ?? null;
+    const mostDefinedWord = mostDefined[0] ?? null;
 
     return {
       weekDefinitions,

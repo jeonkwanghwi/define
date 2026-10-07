@@ -18,12 +18,18 @@ import { PlazaRepository } from './plaza.repository';
 /** 통계 "이번 주" = 최근 7일(롤링). */
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * 광장 첫 화면에 내려보낼 단어 수 상한. 활동순 상위 N개까지만 보인다.
+ * "더 보기"(페이지네이션)는 후속 — 지금은 상한을 두는 것만으로 충분하다.
+ */
+const PLAZA_WORD_LIMIT = 100;
+
 @Injectable()
 export class PlazaService {
   constructor(private readonly repo: PlazaRepository) {}
 
   async listWords(): Promise<PlazaWordResponse[]> {
-    const rows = await this.repo.listWordsWithCounts();
+    const rows = await this.repo.listWordsWithCounts(PLAZA_WORD_LIMIT);
     return rows.map((r) => ({
       word: r.word,
       count: r.count,

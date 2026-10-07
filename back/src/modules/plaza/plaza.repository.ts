@@ -37,8 +37,11 @@ export type PlazaDefinitionRow = {
 };
 
 export abstract class PlazaRepository {
-  /** 정의가 1개 이상인 단어 목록 + 정의 수 + 대표 정의 미리보기 + 마지막 활동시각. */
-  abstract listWordsWithCounts(): Promise<PlazaWordCount[]>;
+  /**
+   * 정의가 1개 이상인 단어 목록(활동순) + 정의 수 + 대표 정의 미리보기 2개.
+   * limit으로 상위 N개만 가져온다 — 전부 가져오면 데이터가 늘수록 선형으로 느려진다.
+   */
+  abstract listWordsWithCounts(limit: number): Promise<PlazaWordCount[]>;
   /** 광장 상단 통계. since = "최근 N일" 경계. userId = 내 정의 좋아요 집계용. */
   abstract getStats(userId: string, since: Date): Promise<PlazaStatsRow>;
   /** 한 단어의 모든 정의(닉네임·좋아요 집계 포함), savedAt 역순. userId로 likedByMe 판정. */

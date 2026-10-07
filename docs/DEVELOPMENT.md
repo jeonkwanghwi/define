@@ -275,6 +275,26 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### YYYY-MM-DD — 한 줄 요약` + 핵심 변경 + 회고가 있으면 회고.
 
+### 2026-10-07 — 광장 쿼리: 집계를 DB로 내리다
+
+- **무엇이 문제였나**: "광장 입장이 너무 오래 걸린다"(2026-10-06 사용자 보고). TestFlight QA로 데이터가 쌓이기 시작한 시점이다. 원인은 두 개였다.
+  - **전체 로드 ×2.** `listWordsWithCounts()`는 `where`도 `take`도 없이 `entries` 전부를 `_count: { likes: true }`와 함께 끌어와 JS `Map`으로 묶어 정렬했고, `getStats()`의 `wordAgg`가 **똑같은 전체 로드를 한 번 더** 했다. 광장 입장은 `/plaza/words`와 `/plaza/stats`를 동시에 부르므로 **테이블을 두 번 통째로** 읽었다. 정의가 N개면 N행 전송 + 좋아요 집계 N회.
+  - **인덱스가 하나도 없었다.** `Entry`에는 `@@unique([userId, clientId])`뿐, `Like`에는 `@@unique([userId, entryId])`뿐이었다.
+- **무엇을**: 집계를 SQL로 내리고 인덱스 4개를 추가했다(`20261006150735_plaza_indexes`).
+  - `listWordsWithCounts(limit)` — **두 단계**다. ① `GROUP BY word`로 단어별 `COUNT(*)`·`MAX(savedAt)`을 구해 활동순 상위 N개만 뽑고, ② 그 N개 단어의 **미리보기 2개만** `ROW_NUMBER() OVER (PARTITION BY word)`로 뽑는다. 그 뒤 ①이 정한 순서에 ②를 붙인다(②의 반환 순서는 단어 간 순위와 무관하다). Prisma가 윈도우 함수를 지원하지 않아 **이 두 쿼리만** `$queryRaw`다.
+  - `getStats()`의 `wordAgg` → `topLikedWord`/`mostDefinedWord`를 각각 **`LIMIT 1` 집계 쿼리 하나**로. `weekDefinitions`·`weekContributors`·`myWeekLikesReceived`는 이미 집계였어서 그대로 뒀다.
+- **🔴 `likes(entryId)` 인덱스가 왜 따로 필요한가** (다음 사람이 또 빠뜨리기 쉬운 자리): `@@unique([userId, entryId])`가 이미 있으니 됐다고 착각하기 쉽지만, **복합 인덱스는 선두 컬럼 없이 쓸 수 없다.** 그 인덱스는 `userId`로 시작하므로 `WHERE "entryId" = ?`에는 **전혀 쓰이지 않는다** → 좋아요 집계·조인이 전부 `likes` 풀스캔이었다. 그래서 `@@index([entryId])`를 따로 둔다. `EXPLAIN ANALYZE`로 확인: 인덱스 추가 후 `SELECT COUNT(*) FROM likes WHERE "entryId" = ?`가 **`Index Only Scan using likes_entryId_idx`**(Heap Fetches: 0)로 바뀐다. 이 경로는 `toggleLike`와 `findDefinitionsByWord`가 호출마다 타는 곳이다.
+- **상한 100을 둔 것 — 이번에 유일하게 바뀐 겉보기 동작**: `PLAZA_WORD_LIMIT = 100`(plaza.service.ts)을 repository 계약에 넘긴다. 단어가 100개를 넘으면 **활동순으로 잘린다**. 상한이 없으면 단어가 늘어날수록 응답이 선형으로 커진다. **"더 보기"(페이지네이션)는 후속** — 지금은 상한만으로 충분하다(현재 운영 데이터는 71개).
+- **왜 `$queryRaw`에 값을 보간하지 않았나**: `word`는 사용자 입력이다. 문자열로 끼워 넣으면 그대로 SQL 인젝션 경로가 된다 → 단어 목록을 **배열 하나로 바인딩**해 `WHERE e.word = ANY($1)`로 받는다. 그리고 PostgreSQL의 `COUNT(*)`는 `bigint`라 JS에 `BigInt`로 와서 **JSON 직렬화에서 터진다** → 전부 `::int`로 캐스팅했다.
+- **동률은 여전히 임의다(기존도 그랬다)**: `topLikedWord`/`mostDefinedWord`의 `LIMIT 1`은 동률이면 어느 쪽이 뽑히는지 보장하지 않는다. 기존 JS 루프도 `Map` 순회 순서(= `findMany`의 행 순서, Postgres가 보장하지 않는 값)에 기대고 있었으므로 **새로 생긴 비결정성이 아니다**. 단어 목록의 `(lastActivityAt, count)` 동률 구간도 같다. 표시용 통계라 이 정도는 허용하고, 주석에 남겼다.
+- **검증 — 옛 구현과 새 구현을 같은 DB에서 돌려 결과를 대조했다**(테스트 러너 없음. 일회성 스크립트라 커밋하지 않았다).
+  - 비교한 것: ⒜ 단어 목록의 **정렬키 시퀀스**(`lastActivityAt`#`count`)가 글자 그대로 같은지 ⒝ 동률 구간의 멤버 **집합**이 같은지(위 사유로 순서는 양쪽 다 임의) ⒞ 각 단어의 `count`·`lastActivityAt`·**미리보기 2개**(id/likeCount/nickname/text, 순서까지) ⒟ `stats` 5개 필드 전부.
+  - **정의 630개 / 좋아요 2,001개**(시드 500+2,000 + 기존 데이터)에서 `limit=100`과 `limit=전체(177단어, 동률 구간 9개)` 양쪽 **차이 0건**. 운영 데이터 그대로(정의 130 / 좋아요 1, 71단어)도 **차이 0건**. 시드는 끝나고 지웠다(cascade).
+  - **성능**(각 5회 평균): 정의 5,130 / 좋아요 20,001에서 `listWords` **60.5ms → 16.1ms**, `getStats` **25.8ms → 12.5ms**. 정의 630에서 `listWords` 8.1ms → 5.4ms, `getStats` 4.6ms → 3.0ms. 즉 **데이터가 8배 늘 때 옛 구현은 7.5배 느려지고 새 구현은 3배**다 — 끊고 싶었던 게 이 기울기다.
+  - **정직하게 — 정의 130개(현재 운영 규모)에서는 새 구현이 더 느리다**(2.7ms → 3.5ms). 쿼리를 두 번 왕복하는 고정비 때문이고, 630개쯤에서 이미 역전된다. 작은 데이터에서 빠르려고 큰 데이터에서 무너지는 쪽을 택할 이유는 없다.
+  - 실제 호출(실 서버 `localhost:3000`, 가입→토큰): `GET /api/plaza/words` **200**(71단어, 키 `word`/`count`/`previews[id,nickname,text,likeCount]` — 기존과 동일, 미리보기 **최대 2개**), `GET /api/plaza/stats` **200**, 회귀로 `GET /api/plaza/words/:word` **200**. `tsc --noEmit` 클린. `EXPLAIN ANALYZE`에서 미리보기 쿼리가 `Bitmap Index Scan on entries_word_idx`를 탄다(①의 전체 `GROUP BY word`는 테이블을 다 읽어야 하므로 Seq Scan이 정상이다).
+- **🔴 남겨둔 것 — `findDefinitionsByWord`는 아직 `take`가 없다.** 한 단어의 정의를 전부 가져온다. 한 단어에 정의가 수천 개 쌓이면 **지금 고친 것과 똑같은 문제**가 단어 상세 화면에서 난다. 이번 범위 밖이라 두었다(후속 후보 — 광장 목록 페이지네이션과 같이 하면 좋다).
+
 ### 2026-10-05 (2) — 마이크로 피드백(햅틱 + 완료 토스트)
 
 - **무엇을**: "일이 끝났다"를 손끝과 눈으로 알리는 두 축을 넣었다. 앱에 햅틱이 전무했고, 완료를 알리는 공용 수단도 없었다.
