@@ -8,7 +8,7 @@
  *   - 프로필: 닉네임(서버 저장·중복 방지, 로그인 필요) + 실제 기록 통계. 탭하면 닉네임 시트.
  *   - 화면: ThemeModeToggle (라이트/다크/시스템) — 다크 모드 복원 입구.
  *   - 설정: 닉네임 변경 / 진동 피드백 on-off / 알림(준비 중)
- *   - 지원: 버그 제보·문의 (준비 중 — 위치는 헤더 아닌 마이페이지로 결정)
+ *   - 지원: 버그 제보 (시트에 제목·내용 → 서버가 운영자 메일로. 로그인 필요) / 개인정보처리방침
  *   - 곧 만나요: 프리미엄 테마·폰트 (BM 로드맵, 비활성). PDF 내보내기는 단어장 탭으로 이동함
  *   - 버전 정보
  *
@@ -17,10 +17,12 @@
  *   - "데이터 초기화" → Task #14에서 디버그 편의로 판정되어 제거 확정. 정식 "전체 삭제"는 P2로 분리.
  */
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
+import { BugReportSheet } from '@/components/domain/bug-report-sheet';
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
@@ -30,6 +32,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
 import { hapticError, hapticSuccess, hapticWarning } from '@/lib/haptics';
 import { API_BASE } from '@/services/api-client';
+import { sendFeedback } from '@/services/feedback-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStreak } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
@@ -57,6 +60,7 @@ export default function MyPageScreen() {
   const setHaptics = useSettingsStore((s) => s.setHaptics);
 
   const [nicknameSheetOpen, setNicknameSheetOpen] = useState(false);
+  const [bugSheetOpen, setBugSheetOpen] = useState(false);
   const token = useAuthStore((s) => s.token);
   const balance = useAuthStore((s) => s.user?.balance ?? 0);
   const accountEmail = useAuthStore((s) => s.user?.email ?? null);
@@ -113,6 +117,24 @@ export default function MyPageScreen() {
     await updateNickname(name);
     hapticSuccess();
     show('이름을 바꿨어요');
+  }
+
+  /**
+   * 제보 전송 — 기기·앱 버전을 여기서 붙인다. 말로 전해지면 가장 먼저 유실되는 값들이다.
+   * 웹·시뮬레이터에선 Device 값이 비는데, 없으면 그냥 안 보낸다(서버가 optional로 받는다).
+   * 실패는 시트가 인라인으로 그리므로 에러를 삼키지 않고 그대로 올려보낸다.
+   */
+  async function handleSendFeedback(input: { title: string; body: string }) {
+    if (!token) return;
+    await sendFeedback(token, {
+      ...input,
+      appVersion: Constants.expoConfig?.version ?? undefined,
+      platform: Platform.OS,
+      osVersion: Device.osVersion ?? undefined,
+      deviceModel: Device.modelName ?? undefined,
+    });
+    hapticSuccess();
+    show('제보를 보냈어요. 고맙습니다');
   }
 
   const hasNickname = nickname.length > 0;
@@ -306,16 +328,17 @@ export default function MyPageScreen() {
         )}
 
         {/* ─── 지원 ───
-            버그 제보/문의 진입점. 위치는 헤더가 아니라 여기로 결정(저빈도 액션·표준 관례).
-            기능(이메일 열기/인앱 폼→서버/외부 폼)은 추후 구현 — 지금은 비활성 placeholder. */}
+            버그 제보 진입점. 위치는 헤더가 아니라 여기로 결정(저빈도 액션·표준 관례).
+            로그인한 사람만 보낼 수 있다 — 서버가 JWT를 요구한다(인증 없는 메일 발송은 스팸 통로). */}
         <SectionLabel theme={theme} text="지원" />
         <Group theme={theme}>
           <Row
             theme={theme}
             icon="send"
-            label="버그 제보 · 문의"
-            value="준비 중"
-            disabled
+            label="버그 제보"
+            value={token ? undefined : '로그인 필요'}
+            onPress={token ? () => setBugSheetOpen(true) : undefined}
+            disabled={!token}
           />
           <Divider theme={theme} />
           {/* 수집 항목·공개 범위를 사용자가 확인할 수 있어야 한다(스토어 심사 요건이기도 하다).
@@ -361,6 +384,13 @@ export default function MyPageScreen() {
         current={nickname}
         onSave={handleSaveNickname}
         onClose={() => setNicknameSheetOpen(false)}
+      />
+
+      {/* 버그 제보 시트 */}
+      <BugReportSheet
+        visible={bugSheetOpen}
+        onSubmit={handleSendFeedback}
+        onClose={() => setBugSheetOpen(false)}
       />
 
       {/* 로그아웃 확인 (시스템 Alert X) */}
