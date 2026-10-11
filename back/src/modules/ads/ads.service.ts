@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { AdRewardRepository } from './ad-reward.repository';
 import { SsvKeyCache, verifySsvCallback } from './ssv-verifier';
@@ -39,17 +39,23 @@ export class AdsService {
    *
    * **HTTP 코드를 어떻게 고르는가** — 구글은 비200을 받으면 같은 콜백을 계속 재시도한다.
    * 그래서 "우리가 처리하지 않기로 했다"와 "우리 서버가 고장났다"를 갈라야 한다:
-   *   - 서명 불일치/만료 → **403**. 이건 구글이 보낸 게 아니다(또는 조작됐다). 재시도할 이유가 없다.
-   *   - 중복·상한초과·탈퇴한 사용자 → **200**. 우리 판단으로 적립을 안 한 것이고, 구글이
-   *     몇 번을 다시 보내도 결과가 같다. 200을 줘야 재시도가 멈춘다.
+   *   - 서명 불일치/만료·중복·상한초과·탈퇴한 사용자 → **200**(적립은 안 한다).
+   *     우리 판단으로 넘긴 것이고, 구글이 몇 번을 다시 보내도 결과가 같다.
    *   - DB 오류 → 예외를 그대로 올려 **500**. 이건 진짜 실패라 재시도를 받아야 한다
    *     (transactionId 유니크가 있어 재시도가 이중지급이 되지 않는다).
+   *
+   * **서명이 틀려도 200인 이유** — 처음엔 403을 줬는데 AdMob 콘솔이 콜백 URL을 저장할 때
+   * 연결을 확인하면서 비2xx를 전부 "서버 오류"로 보고 **저장 자체를 거부했다**.
+   * 응답 코드는 보안과 무관하다 — 막아야 하는 것은 **적립이지 응답이 아니다**.
+   * 오히려 403은 "여기 서명 검증이 있다"를 알려줘 탐색의 단서가 되므로,
+   * 조용히 200을 주고 경고 로그만 남기는 편이 낫다. 로그로 공격 시도는 그대로 보인다.
    */
   async grantFromSsv(rawQuery: string): Promise<void> {
     const result = await verifySsvCallback(rawQuery, this.keyCache.lookup);
     if (!result.ok) {
+      // 적립하지 않고 조용히 끝낸다(위 주석 참고). 로그에는 남겨 공격 시도를 볼 수 있게 한다.
       this.logger.warn(`SSV 서명 거부: ${result.reason}`);
-      throw new ForbiddenException('서명을 확인할 수 없습니다.');
+      return;
     }
 
     const { transactionId, userId } = result.params;
