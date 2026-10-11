@@ -39,28 +39,32 @@ model Word {
 /// 거부할 수 있다(Apple은 "이메일 가리기"가 있다). 그래서 이메일을 계정의
 /// 필수 식별자로 둘 수 없다 → 소셜 계정의 정체성은 AuthIdentity가 맡는다.
 model User {
-  id           String   @id @default(cuid())
-  email        String?  @unique
-  passwordHash String?
+  id                    String         @id @default(cuid())
+  email                 String?        @unique
+  passwordHash          String?
   /// 표시 이름. 익명 모델이라 미설정(null) 허용. 설정 시엔 전역 중복 방지(unique).
-  nickname     String?  @unique
-  createdAt    DateTime @default(now())
-  entries      Entry[]
-  likes        Like[]
+  nickname              String?        @unique
+  createdAt             DateTime       @default(now())
+  entries               Entry[]
+  likes                 Like[]
   // ─── 프로필(마을 필터용). 완성 전까지 null. ───
-  birthYear    Int?
-  gender       String?        // 'male' | 'female'
-  interests    UserInterest[]
+  birthYear             Int?
+  gender                String? // 'male' | 'female'
+  interests             UserInterest[]
   // ─── 재화(잉크). balance는 중립어(이름 안 박음). lastAttendanceDate로 하루 1회 적립 멱등. ───
-  balance            Int     @default(0)
-  lastAttendanceDate String?
-  recallConsentAt    DateTime?   // tab3 회상 AI 데이터 동의 시각. null=미동의.
-  lastRewardedStreakDay Int      @default(0)   // 기록 연속 보너스: 지급한 최고 연속일(멱등 마커).
+  balance               Int            @default(0)
+  lastAttendanceDate    String?
+  recallConsentAt       DateTime? // tab3 회상 AI 데이터 동의 시각. null=미동의.
+  lastRewardedStreakDay Int            @default(0) // 기록 연속 보너스: 지급한 최고 연속일(멱등 마커).
   // 회상 채팅 말투 프로필 — 사용자 발화에서 추출한 말투 특징 요약(대화 원문은 저장 안 함).
   // 대화가 쌓일수록 갱신 → "과거의 나"가 첫 마디부터 이 사람 말투로 말하게 하는 재료.
-  speechProfile      String?
-  identities         AuthIdentity[]
-  adRewards          AdReward[]
+  speechProfile         String?
+  identities            AuthIdentity[]
+  adRewards             AdReward[]
+  // ─── 광장 중재(신고·차단). 역관계만 — 규칙은 Report·Block에 적혀 있다. ───
+  reportsMade           Report[]       @relation("ReportsMade")
+  blocksMade            Block[]        @relation("BlocksMade")
+  blocksReceived        Block[]        @relation("BlocksReceived")
 
   @@map("users")
 }
@@ -109,22 +113,29 @@ model AuthIdentity {
 /// 사용자 정의 단어(entry) — 로컬 SavedEntry의 서버 쌍둥이.
 /// clientId = 로컬 SavedEntry.id 보존 → (userId, clientId) 유니크로 재import 중복 방지.
 model Entry {
-  id         String   @id @default(cuid())
-  clientId   String
-  userId     String
-  word       String
-  text       String
-  changeNote String?
-  savedAt    DateTime
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  likes      Like[]
+  id          String   @id @default(cuid())
+  clientId    String
+  userId      String
+  word        String
+  text        String
+  changeNote  String?
+  savedAt     DateTime
+  createdAt   DateTime @default(now())
+  /// 신고 누적 수. 임계치에 닿으면 hidden이 된다.
+  reportCount Int      @default(0)
+  /// 광장에서 감춘다. 쓴 사람의 단어장에는 그대로 남는다 — 남의 눈에서만 치운다.
+  hidden      Boolean  @default(false)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes       Like[]
+  reports     Report[]
 
   @@unique([userId, clientId])
   /// 광장이 단어별로 묶어 세는 길. 이게 없으면 GROUP BY word가 전체를 훑는다.
   @@index([word])
   /// "이번 주" 통계 범위 검색.
   @@index([createdAt])
+  /// 광장 조회가 매번 거르는 조건이다.
+  @@index([hidden])
   @@map("entries")
 }
 
@@ -157,6 +168,39 @@ model Like {
   /// "이번 주 받은 좋아요" 범위 검색.
   @@index([createdAt])
   @@map("likes")
+}
+
+/// 신고. 같은 사람이 같은 글을 여러 번 신고해도 1건이다(@@unique).
+/// Apple 심사 가이드 1.2가 요구하는 "신고 수단" — 누적이 임계치에 닿으면 글이 hidden이 된다.
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  entryId    String
+  /// 'hate' | 'sexual' | 'violence' | 'spam' | 'other'
+  reason     String
+  createdAt  DateTime @default(now())
+  reporter   User     @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  entry      Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, entryId])
+  /// 정의별 신고 조회·조인용. @@unique는 선두가 reporterId라 entryId만으로는 쓸 수 없다.
+  @@index([entryId])
+  @@map("reports")
+}
+
+/// 차단. 차단하면 그 사람 글이 내 광장에서 사라진다(상대는 모른다).
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  /// 광장 조회가 "내가 차단한 사람들"을 매번 뽑는 길.
+  @@index([blockerId])
+  @@map("blocks")
 }
 
 /// LLM 호출 사용량·비용 원장. 호출 1건 = 1행. 회상(및 향후 AI 기능) 토큰·비용 모니터링.

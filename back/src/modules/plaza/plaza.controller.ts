@@ -2,15 +2,27 @@
  * PlazaController — /api/plaza/*. 모두 JwtAuthGuard(상호주의 = 로그인).
  * :word는 한글이라 클라가 encodeURIComponent로 보내고, @Param이 디코드해서 받는다.
  */
-import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
+  PlazaBlockedUsersResponse,
   PlazaLikeResponse,
   PlazaStatsResponse,
   PlazaWordDetailResponse,
   PlazaWordResponse,
 } from './dto/plaza.response';
+import { ReportEntryDto } from './dto/report-entry.dto';
 import { PlazaService } from './plaza.service';
 
 @Controller('plaza')
@@ -20,8 +32,8 @@ export class PlazaController {
 
   /** GET /api/plaza/words — 정의 있는 단어 목록(대표 정의 미리보기·활동순). */
   @Get('words')
-  listWords(): Promise<PlazaWordResponse[]> {
-    return this.plaza.listWords();
+  listWords(@Req() req: { user: { userId: string } }): Promise<PlazaWordResponse[]> {
+    return this.plaza.listWords(req.user.userId);
   }
 
   /** GET /api/plaza/stats — 광장 상단 "이번 주" 통계. */
@@ -46,5 +58,44 @@ export class PlazaController {
     @Req() req: { user: { userId: string } },
   ): Promise<PlazaLikeResponse> {
     return this.plaza.toggleLike(req.user.userId, entryId);
+  }
+
+  /** POST /api/plaza/entries/:entryId/report — 정의 신고. 돌려줄 게 없어 204. */
+  @Post('entries/:entryId/report')
+  @HttpCode(204)
+  report(
+    @Param('entryId') entryId: string,
+    @Req() req: { user: { userId: string } },
+    @Body() dto: ReportEntryDto,
+  ): Promise<void> {
+    return this.plaza.report(req.user.userId, entryId, dto.reason);
+  }
+
+  /** POST /api/plaza/users/:userId/block — 이 사람 글을 내 광장에서 치운다. */
+  @Post('users/:userId/block')
+  @HttpCode(204)
+  block(
+    @Param('userId') blockedId: string,
+    @Req() req: { user: { userId: string } },
+  ): Promise<void> {
+    return this.plaza.block(req.user.userId, blockedId);
+  }
+
+  /** DELETE /api/plaza/users/:userId/block — 차단 해제. */
+  @Delete('users/:userId/block')
+  @HttpCode(204)
+  unblock(
+    @Param('userId') blockedId: string,
+    @Req() req: { user: { userId: string } },
+  ): Promise<void> {
+    return this.plaza.unblock(req.user.userId, blockedId);
+  }
+
+  /** GET /api/plaza/blocks — 내가 차단한 사람들(마이페이지에서 해제하려면 목록이 필요하다). */
+  @Get('blocks')
+  listBlocks(
+    @Req() req: { user: { userId: string } },
+  ): Promise<PlazaBlockedUsersResponse> {
+    return this.plaza.listBlocked(req.user.userId);
   }
 }

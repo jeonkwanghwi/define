@@ -41,3 +41,8 @@ export type PlazaWordDetailResponse = {
 };
 
 export type PlazaLikeResponse = { liked: boolean; likeCount: number };
+
+/** 마이페이지 "차단한 사용자" 목록. 해제 호출에 id가 필요해 닉네임과 함께 내린다. */
+export type PlazaBlockedUsersResponse = {
+  users: { id: string; nickname: string }[]; // 없으면 '익명', 최근 차단 순
+};

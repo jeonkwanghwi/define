@@ -5,9 +5,11 @@
  * 한 단어의 정의 목록·좋아요 토글은 그대로 Prisma 쿼리.
  */
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma.service';
 import {
+  PlazaBlockedUserRow,
   PlazaDefinitionRow,
   PlazaPreviewRow,
   PlazaRepository,
@@ -21,16 +23,26 @@ export class PrismaPlazaRepository extends PlazaRepository {
     super();
   }
 
-  async listWordsWithCounts(limit: number): Promise<PlazaWordCount[]> {
+  async listWordsWithCounts(limit: number, userId?: string): Promise<PlazaWordCount[]> {
+    // 중재 조건. 두 쿼리에 똑같이 끼워 넣는다 — 집계(①)에서 빼지 않으면
+    // "정의 3개"라고 적고 미리보기·상세엔 2개만 보이는 모순이 생긴다.
+    // userId가 없으면(비로그인) Prisma.empty로 조건 자체가 사라진다. 값은 전부 바인딩.
+    const notBlocked = userId
+      ? Prisma.sql`AND e."userId" NOT IN (
+          SELECT "blockedId" FROM blocks WHERE "blockerId" = ${userId}
+        )`
+      : Prisma.empty;
+
     // ① 단어별 집계 → 활동순 상위 N. 정렬은 기존 JS와 같다: 마지막 정의 추가가 위로,
     //    동률이면 정의 많은 순. 상한이 있어야 단어가 늘어도 전송량이 고정된다.
     const words = await this.prisma.$queryRaw<
       { word: string; count: number; lastActivityAt: Date }[]
     >`
-      SELECT word, COUNT(*)::int AS count, MAX("savedAt") AS "lastActivityAt"
-      FROM entries
-      GROUP BY word
-      ORDER BY MAX("savedAt") DESC, COUNT(*) DESC
+      SELECT e.word, COUNT(*)::int AS count, MAX(e."savedAt") AS "lastActivityAt"
+      FROM entries e
+      WHERE e.hidden = false ${notBlocked}
+      GROUP BY e.word
+      ORDER BY MAX(e."savedAt") DESC, COUNT(*) DESC
       LIMIT ${limit}
     `;
     if (words.length === 0) return [];
@@ -54,7 +66,7 @@ export class PrismaPlazaRepository extends PlazaRepository {
         FROM entries e
         JOIN users u ON u.id = e."userId"
         LEFT JOIN likes l ON l."entryId" = e.id
-        WHERE e.word = ANY(${wordList})
+        WHERE e.word = ANY(${wordList}) AND e.hidden = false ${notBlocked}
         GROUP BY e.id, e.word, u.nickname, e.text, e."savedAt"
       ) t
       WHERE rn <= 2
@@ -129,7 +141,14 @@ export class PrismaPlazaRepository extends PlazaRepository {
     userId: string,
   ): Promise<PlazaDefinitionRow[]> {
     const rows = await this.prisma.entry.findMany({
-      where: { word },
+      // 숨겨진 정의는 광장에서만 사라진다(작성자 단어장엔 남는다).
+      // blocksReceived.none = "나를 차단한 사람 중에 요청자가 없는" 작성자만 — 차단은 단방향이고
+      // 상대는 모른다. 차단당한 쪽 화면은 그대로다.
+      where: {
+        word,
+        hidden: false,
+        user: { blocksReceived: { none: { blockerId: userId } } },
+      },
       orderBy: { savedAt: 'desc' },
       include: {
         user: { select: { nickname: true } },
@@ -174,5 +193,53 @@ export class PrismaPlazaRepository extends PlazaRepository {
     }
     const likeCount = await this.prisma.like.count({ where: { entryId } });
     return { liked: existing === null, likeCount };
+  }
+
+  async addReport(
+    reporterId: string,
+    entryId: string,
+    reason: string,
+    hideThreshold: number,
+  ): Promise<void> {
+    // 신고 1건과 카운터 증가가 따로 커밋되면 숫자가 어긋난다 → 한 트랜잭션.
+    await this.prisma.$transaction(async (tx) => {
+      // createMany + skipDuplicates: (reporterId, entryId) 유니크에 걸리면 조용히 0건.
+      // 재신고로 카운트가 부풀지 않는다 — upsert보다 "중복이면 아무 일도 없음"이 직접적이다.
+      const { count } = await tx.report.createMany({
+        data: [{ reporterId, entryId, reason }],
+        skipDuplicates: true,
+      });
+      if (count === 0) return;
+
+      const entry = await tx.entry.update({
+        where: { id: entryId },
+        data: { reportCount: { increment: 1 } },
+        select: { reportCount: true },
+      });
+      if (entry.reportCount >= hideThreshold) {
+        await tx.entry.update({ where: { id: entryId }, data: { hidden: true } });
+      }
+    });
+  }
+
+  async addBlock(blockerId: string, blockedId: string): Promise<void> {
+    await this.prisma.block.createMany({
+      data: [{ blockerId, blockedId }],
+      skipDuplicates: true,
+    });
+  }
+
+  async removeBlock(blockerId: string, blockedId: string): Promise<void> {
+    // deleteMany는 없는 행을 지워도 오류가 아니다 — 그게 멱등 해제에 맞다.
+    await this.prisma.block.deleteMany({ where: { blockerId, blockedId } });
+  }
+
+  async listBlocked(blockerId: string): Promise<PlazaBlockedUserRow[]> {
+    const rows = await this.prisma.block.findMany({
+      where: { blockerId },
+      orderBy: { createdAt: 'desc' },
+      select: { blocked: { select: { id: true, nickname: true } } },
+    });
+    return rows.map((r) => r.blocked);
   }
 }
