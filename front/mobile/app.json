@@ -39,7 +39,13 @@
           }
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-7103568935643385~3787712439"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

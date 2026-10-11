@@ -18,6 +18,7 @@ import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { ConfirmDialog } from '@/components/primitives/confirm-dialog';
 import { RedefineSheet } from '@/components/domain/redefine-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
+import { WatchAdButton } from '@/components/domain/watch-ad-button';
 import { FadeIn, Loading, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -61,6 +62,9 @@ export default function RecallChatScreen() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [redefineOpen, setRedefineOpen] = useState(false);
+  // 잉크가 모자라 막혔는가(402). 에러 문구만으로는 "광고로 채울 수 있다"를 보여줄 수 없어
+  // 별 상태로 둔다 — 이 자리에 광고 버튼을 더하려면 이유를 알아야 한다.
+  const [needInk, setNeedInk] = useState(false);
   const startedRef = useRef(false); // 첫 요청 = 새 대화(차감)
   const conversationTokenRef = useRef<string | undefined>(undefined); // 서버 발급 이어하기 토큰
   const listRef = useRef<FlatList<RecallMessage>>(null);
@@ -107,6 +111,7 @@ export default function RecallChatScreen() {
       .catch((e) => {
         startedRef.current = false; // 실패 → 재시도 여지
         setError(mapError(e));
+        setNeedInk((e as ApiError).status === 402);
       })
       .finally(() => {
         setSending(false);
@@ -123,6 +128,7 @@ export default function RecallChatScreen() {
     setInput('');
     setSending(true);
     setError(null);
+    setNeedInk(false);
     // 내가 보낸 메시지도 즉시 맨 아래로 — "생각하는 중"이 동시에 뜨며 어긋나지 않게 보정.
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
     try {
@@ -141,6 +147,7 @@ export default function RecallChatScreen() {
       setMessages((m) => m.slice(0, -1));
       setInput(text);
       setError(mapError(e));
+      setNeedInk((e as ApiError).status === 402);
     } finally {
       setSending(false);
       // "생각하는 중" 표시가 사라지며 레이아웃이 바뀌어 onContentSizeChange 스크롤이
@@ -223,6 +230,9 @@ export default function RecallChatScreen() {
             {error}
           </ThemedText>
         )}
+        {/* 잉크가 모자라 막힌 자리 — 가장 필요한 순간에 바로 채울 수 있게.
+            위 문구("잉크 30개가 필요해요 · 출석으로 모아보세요")를 대체하지 않고 더한다. */}
+        {needInk && <WatchAdButton style={styles.watchAd} />}
 
         {/* 질문모드: 그 단어 다시 정의 */}
         {focusWord && (
@@ -283,6 +293,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   list: { padding: 16, gap: 10 },
   bubble: { maxWidth: '82%', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18 },
+  watchAd: { paddingHorizontal: 16, paddingBottom: 10 },
   sendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingBottom: 8 },
   redefineBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderTopWidth: 1 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 12, borderTopWidth: 1 },

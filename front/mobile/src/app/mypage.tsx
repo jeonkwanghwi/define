@@ -26,6 +26,7 @@ import { BugReportSheet } from '@/components/domain/bug-report-sheet';
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
+import { WatchAdButton } from '@/components/domain/watch-ad-button';
 import { ConfirmDialog, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -324,6 +325,9 @@ export default function MyPageScreen() {
             <Group theme={theme}>
               <Row theme={theme} icon="ink" label="내 잉크" value={`${balance}개`} />
             </Group>
+            {/* 평소에 잉크를 모으는 자리 — 잔액 바로 아래가 가장 자연스럽다.
+                서버가 쿼터를 못 주면 이 버튼은 스스로 사라진다(watch-ad-button.tsx 참고). */}
+            <WatchAdButton style={{ marginTop: theme.spacing.s3 }} />
           </>
         )}
 
