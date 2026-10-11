@@ -22,6 +22,32 @@ export class PrismaWordRepository extends WordRepository {
       orderBy: { createdAt: 'asc' },
     });
     // DB row를 도메인 객체로 변환(필요한 필드만 노출).
-    return rows.map((row) => ({ id: row.id, text: row.text }));
+    return rows.map((row) => ({ id: row.id, text: row.text, tags: row.tags }));
+  }
+
+  async findActive(): Promise<WordEntity[]> {
+    const rows = await this.prisma.word.findMany({
+      where: { active: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => ({ id: row.id, text: row.text, tags: row.tags }));
+  }
+
+  async findInterests(userId: string): Promise<string[]> {
+    const rows = await this.prisma.userInterest.findMany({
+      where: { userId },
+      select: { interest: true },
+    });
+    return rows.map((row) => row.interest);
+  }
+
+  async findDefinedWordsSince(userId: string, since: Date): Promise<string[]> {
+    // distinct로 DB에서 중복을 접는다 — 같은 단어를 여러 번 재정의한 사람이 있다.
+    const rows = await this.prisma.entry.findMany({
+      where: { userId, savedAt: { gte: since } },
+      select: { word: true },
+      distinct: ['word'],
+    });
+    return rows.map((row) => row.word);
   }
 }

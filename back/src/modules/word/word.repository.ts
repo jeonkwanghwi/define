@@ -12,4 +12,16 @@ import { WordEntity } from './entities/word.entity';
 export abstract class WordRepository {
   /** 추천 단어 전체를 생성순으로 반환. */
   abstract findAll(): Promise<WordEntity[]>;
+
+  /** 추천에 쓸 수 있는 단어(active: true)만. 끈 단어는 정의 보존용으로 DB에 남아 있다. */
+  abstract findActive(): Promise<WordEntity[]>;
+
+  /** 이 사용자의 관심사 태그. 프로필 미완성이면 빈 배열. */
+  abstract findInterests(userId: string): Promise<string[]>;
+
+  /**
+   * 이 사용자가 since 이후에 정의한 단어들(중복 제거).
+   * "영구히 정의한 적 있는 단어"가 아니다 — 이유는 word.service.ts 참조.
+   */
+  abstract findDefinedWordsSince(userId: string, since: Date): Promise<string[]>;
 }

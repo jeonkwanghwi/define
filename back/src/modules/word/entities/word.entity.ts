@@ -7,4 +7,6 @@
 export class WordEntity {
   id: string;
   text: string;
+  /** 관심사 soft tag(복수). 빈 배열이면 보편어. 추천 가중치로만 쓰고 바깥에 노출하지 않는다. */
+  tags: string[];
 }

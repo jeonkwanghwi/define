@@ -13,7 +13,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "db:seed": "ts-node prisma/seed.ts",
-    "db:seed:plaza": "ts-node prisma/seed-plaza.ts"
+    "db:seed:plaza": "ts-node prisma/seed-plaza.ts",
+    "db:seed:words": "ts-node prisma/seed-words-sync.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

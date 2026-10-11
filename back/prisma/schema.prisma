@@ -15,14 +15,20 @@ datasource db {
 }
 
 /// 추천 단어 풀 — "오늘의 단어"로 서버가 내려주는 단어들.
-/// 카테고리 없음(저장 형식·분류는 팀 논의 보류 — DEVELOPMENT.md 참조).
+/// 단일 카테고리는 여전히 없다(단어는 다의적이라 분류가 자의적이다 — 2026-06-14 결정).
+/// 대신 복수 soft tag를 붙여 추천 가중치로만 쓴다. 선정 기준은 prisma/seed-words.ts 주석.
 model Word {
   /// cuid: 충돌 거의 없는 문자열 ID. 백엔드가 발급.
   id        String   @id @default(cuid())
   /// 단어 자체. 중복 방지(unique).
   text      String   @unique
+  /// 관심사 soft tag(복수). 빈 배열이면 보편어 — 누구에게나 뽑힌다.
+  tags      String[] @default([])
+  /// 풀에서 뺄 때 지우지 않고 끈다. 이미 이 단어로 쓴 정의가 있기 때문이다.
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
+  @@index([active])
   @@map("words") // 실제 테이블명은 words (소문자 복수형 관례)
 }
 
