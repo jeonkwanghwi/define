@@ -54,8 +54,25 @@ model User {
   // 대화가 쌓일수록 갱신 → "과거의 나"가 첫 마디부터 이 사람 말투로 말하게 하는 재료.
   speechProfile      String?
   identities         AuthIdentity[]
+  adRewards          AdReward[]
 
   @@map("users")
+}
+
+/// 광고 보상 지급 기록. 두 가지 일을 한다:
+///  ① transactionId 유니크로 **중복 지급 차단** — 구글은 응답이 늦으면 같은 콜백을 다시 보낸다.
+///  ② (userId, createdAt) 인덱스로 **하루 몇 번 받았는지** 센다.
+model AdReward {
+  id            String   @id @default(cuid())
+  /// 구글이 발급한 거래 ID. 이게 중복 방지의 전부다.
+  transactionId String   @unique
+  userId        String
+  amount        Int
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("ad_rewards")
 }
 
 /// 소셜 로그인 연결 — "이 제공자의 이 계정은 우리 유저 X다".
