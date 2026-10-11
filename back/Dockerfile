@@ -27,6 +27,13 @@ COPY tsconfig*.json nest-cli.json ./
 COPY src ./src
 RUN npm run build
 
+# 단어 시드도 미리 컴파일해 둔다.
+# ts-node는 devDependency라 최종 이미지에 없다 — 여기서 JS로 만들어 두면
+# 운영 컨테이너가 node만으로 시드를 돌릴 수 있다(이미지도 안 커진다).
+RUN npx tsc prisma/seed-words-sync.ts prisma/seed-words.ts \
+      --outDir dist-seed --module commonjs --target es2022 \
+      --esModuleInterop --skipLibCheck
+
 # ─── 2) run: 실제로 배포되는 이미지 ───────────────────────────────────
 FROM node:22-slim
 WORKDIR /app
@@ -41,6 +48,7 @@ COPY prisma ./prisma
 RUN npm ci --omit=dev
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-seed ./dist-seed
 
 # root 대신 node 유저로 실행 (기본 제공 유저).
 USER node
@@ -48,4 +56,7 @@ USER node
 EXPOSE 3000
 
 # 컨테이너가 뜰 때마다 미적용 마이그레이션을 반영한 뒤 서버 시작.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+# 뜰 때마다: 미적용 마이그레이션 반영 → 단어 풀 동기화 → 서버 시작.
+# 시드는 멱등이라(있으면 갱신, 없으면 추가, 빠진 건 비활성) 매번 돌려도 안전하고,
+# 덕분에 단어를 늘리는 일이 "seed-words.ts 고치고 배포"로 끝난다.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist-seed/seed-words-sync.js && node dist/main"]
