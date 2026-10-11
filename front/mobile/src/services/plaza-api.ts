@@ -1,5 +1,5 @@
 /**
- * plaza-api — 광장 조회. GET /api/plaza/* (Bearer 필요).
+ * plaza-api — 광장 조회 + 중재(신고·차단). /api/plaza/* (Bearer 필요).
  * 단어는 한글이라 path에 encodeURIComponent.
  */
 import { apiRequest } from './api-client';
@@ -27,6 +27,8 @@ export type PlazaStats = {
 
 export type PlazaDefinition = {
   id: string;
+  /** 작성자 userId — 차단 호출에 필요하다(닉네임은 바뀔 수 있어 id로만 가리킨다). */
+  authorId: string;
   nickname: string;
   text: string;
   savedAt: string;
@@ -69,4 +71,49 @@ export function toggleEntryLike(
     method: 'POST',
     token,
   });
+}
+
+/** 신고 사유 — 서버 DTO의 @IsIn 목록과 같아야 한다. */
+export type ReportReason = 'hate' | 'sexual' | 'violence' | 'spam' | 'other';
+
+/**
+ * POST /api/plaza/entries/:entryId/report — 정의 신고(204).
+ * 같은 글을 두 번 신고해도 서버가 조용히 204를 준다(멱등) — 재시도를 겁낼 필요가 없다.
+ */
+export function reportEntry(
+  token: string,
+  entryId: string,
+  reason: ReportReason,
+): Promise<void> {
+  return apiRequest<void>(`/plaza/entries/${encodeURIComponent(entryId)}/report`, {
+    method: 'POST',
+    token,
+    body: { reason },
+  });
+}
+
+/** POST /api/plaza/users/:userId/block — 이 사람 글을 내 광장에서 치운다(204, 멱등). */
+export function blockUser(token: string, userId: string): Promise<void> {
+  return apiRequest<void>(`/plaza/users/${encodeURIComponent(userId)}/block`, {
+    method: 'POST',
+    token,
+  });
+}
+
+/** DELETE /api/plaza/users/:userId/block — 차단 해제(204, 멱등). */
+export function unblockUser(token: string, userId: string): Promise<void> {
+  return apiRequest<void>(`/plaza/users/${encodeURIComponent(userId)}/block`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export type PlazaBlockedUser = { id: string; nickname: string };
+
+/** GET /api/plaza/blocks — 내가 차단한 사람들(최근 차단 순). 해제하려면 목록이 필요하다. */
+export function getBlockedUsers(token: string): Promise<PlazaBlockedUser[]> {
+  return apiRequest<{ users: PlazaBlockedUser[] }>('/plaza/blocks', {
+    method: 'GET',
+    token,
+  }).then((res) => res.users);
 }

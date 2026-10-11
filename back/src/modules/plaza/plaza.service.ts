@@ -60,6 +60,7 @@ export class PlazaService {
     const rows = await this.repo.findDefinitionsByWord(word, userId);
     const definitions = rows.map((r) => ({
       id: r.id,
+      authorId: r.userId,
       nickname: r.nickname ?? '익명',
       text: r.text,
       savedAt: r.savedAt.toISOString(),

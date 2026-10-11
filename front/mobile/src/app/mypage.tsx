@@ -8,7 +8,8 @@
  *   - 프로필: 닉네임(서버 저장·중복 방지, 로그인 필요) + 실제 기록 통계. 탭하면 닉네임 시트.
  *   - 화면: ThemeModeToggle (라이트/다크/시스템) — 다크 모드 복원 입구.
  *   - 설정: 닉네임 변경 / 진동 피드백 on-off / 알림(준비 중)
- *   - 지원: 버그 제보 (시트에 제목·내용 → 서버가 운영자 메일로. 로그인 필요) / 개인정보처리방침
+ *   - 지원: 버그 제보 (시트에 제목·내용 → 서버가 운영자 메일로. 로그인 필요) /
+ *           차단한 사용자 (목록 시트에서 해제 — 차단만 되고 풀 수 없으면 불친절하다) / 개인정보처리방침
  *   - 곧 만나요: 프리미엄 테마·폰트 (BM 로드맵, 비활성). PDF 내보내기는 단어장 탭으로 이동함
  *   - 버전 정보
  *
@@ -19,7 +20,7 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { useRouter } from 'expo-router';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { BugReportSheet } from '@/components/domain/bug-report-sheet';
@@ -27,13 +28,18 @@ import { NicknameSheet } from '@/components/domain/nickname-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
 import { WatchAdButton } from '@/components/domain/watch-ad-button';
-import { ConfirmDialog, PressableScale, useToast } from '@/components/primitives';
+import { ActionSheet, ConfirmDialog, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
 import { hapticError, hapticSuccess, hapticWarning } from '@/lib/haptics';
 import { API_BASE } from '@/services/api-client';
 import { sendFeedback } from '@/services/feedback-api';
+import {
+  getBlockedUsers,
+  unblockUser,
+  type PlazaBlockedUser,
+} from '@/services/plaza-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStreak } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
@@ -100,6 +106,50 @@ export default function MyPageScreen() {
       setDeleting(false);
     }
   }
+  // ─── 차단한 사용자 ───
+  // 화면을 열 때 한 번 받는다(차단은 드문 행동이라 들어올 때마다 받으면 그게 낭비다).
+  // 비동기 3종: 진행 중·실패·해제 중을 전부 행의 value 한 칸으로 말하고, 해제 실패만
+  // 행 아래 인라인 문구로 남긴다(토스트는 성공 전용이다).
+  const [blocked, setBlocked] = useState<PlazaBlockedUser[]>([]);
+  const [blockedLoading, setBlockedLoading] = useState(false);
+  const [blockedFailed, setBlockedFailed] = useState(false);
+  const [blockedSheetOpen, setBlockedSheetOpen] = useState(false);
+  const [unblocking, setUnblocking] = useState(false);
+  const [blockedError, setBlockedError] = useState<string | null>(null);
+
+  const loadBlocked = useCallback(() => {
+    if (!token) return;
+    setBlockedLoading(true);
+    setBlockedFailed(false);
+    getBlockedUsers(token)
+      .then(setBlocked)
+      .catch(() => setBlockedFailed(true))
+      .finally(() => setBlockedLoading(false));
+  }, [token]);
+
+  useEffect(() => {
+    loadBlocked();
+  }, [loadBlocked]);
+
+  /** 차단 해제 — 목록에서 지우고 토스트. 실패하면 목록을 건드리지 않는다(풀린 줄 알면 안 된다). */
+  async function handleUnblock(user: PlazaBlockedUser) {
+    if (!token || unblocking) return;
+    setUnblocking(true);
+    setBlockedError(null);
+    try {
+      await unblockUser(token, user.id);
+      hapticSuccess();
+      show(`${user.nickname} 차단을 해제했어요`);
+      setBlocked((prev) => prev.filter((u) => u.id !== user.id));
+    } catch {
+      // 이미 인라인으로 에러를 그리는 자리라 진동을 더한다(새 에러 UI를 만들지 않는다).
+      hapticError();
+      setBlockedError('차단을 해제하지 못했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setUnblocking(false);
+    }
+  }
+
   // 재시도 중 표시는 이 화면에서만 필요해 로컬 state로 둔다(store에 두면 영속돼 "동기화 중"이 박힌다).
   const [retrying, setRetrying] = useState(false);
 
@@ -345,6 +395,41 @@ export default function MyPageScreen() {
             disabled={!token}
           />
           <Divider theme={theme} />
+          {/* 차단한 사용자 — 광장에서 차단한 사람을 여기서 풀 수 있어야 한다(Apple 심사 가이드 1.2).
+              차단한 사람이 없으면 '없음'으로 비활성 — 빈 시트를 열어 보게 만들 이유가 없다. */}
+          <Row
+            theme={theme}
+            icon="lock"
+            label="차단한 사용자"
+            value={
+              !token
+                ? '로그인 필요'
+                : blockedLoading
+                  ? '불러오는 중…'
+                  : blockedFailed
+                    ? '불러오지 못했어요 · 다시 시도'
+                    : unblocking
+                      ? '해제하는 중…'
+                      : blocked.length === 0
+                        ? '없음'
+                        : `${blocked.length}명`
+            }
+            valueColor={blockedFailed ? theme.colors.ruby.base : undefined}
+            onPress={
+              blockedFailed
+                ? loadBlocked
+                : blocked.length > 0
+                  ? () => setBlockedSheetOpen(true)
+                  : undefined
+            }
+            disabled={!token || blockedLoading || unblocking}
+          />
+          {blockedError ? (
+            <ThemedText variant="caption" style={[styles.syncNote, { color: theme.colors.ruby.base }]}>
+              {blockedError}
+            </ThemedText>
+          ) : null}
+          <Divider theme={theme} />
           {/* 수집 항목·공개 범위를 사용자가 확인할 수 있어야 한다(스토어 심사 요건이기도 하다).
               웹 빌드와 함께 배포되는 정적 페이지라 앱 업데이트 없이 갱신할 수 있다. */}
           <Row
@@ -388,6 +473,18 @@ export default function MyPageScreen() {
         current={nickname}
         onSave={handleSaveNickname}
         onClose={() => setNicknameSheetOpen(false)}
+      />
+
+      {/* 차단 목록 시트 — 항목을 누르면 그 사람의 차단이 풀린다(시스템 Alert X). */}
+      <ActionSheet
+        visible={blockedSheetOpen}
+        title="누르면 차단이 풀려요"
+        items={blocked.map((u) => ({
+          label: `${u.nickname} 차단 해제`,
+          onPress: () => void handleUnblock(u),
+        }))}
+        onClose={() => setBlockedSheetOpen(false)}
+        cancelLabel="닫기"
       />
 
       {/* 버그 제보 시트 */}

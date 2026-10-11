@@ -50,6 +50,7 @@ export type IconName =
   | 'user'
   | 'arrowUp'
   | 'edit'
+  | 'more' // 카드 더보기(⋯) — 광장 정의의 신고·차단 진입
   | 'search'
   | 'sparkle'
   | 'heart'; // 광장 좋아요(추천)
@@ -94,7 +95,7 @@ type StrokeProps = {
 };
 
 /**
- * 27개 아이콘 path를 한 곳에 모아 둠.
+ * 28개 아이콘 path를 한 곳에 모아 둠.
  * 각 case는 design-source/app/icons.jsx의 항목과 1:1 대응.
  * SVG path 좌표는 모두 24×24 viewBox 기준.
  */
@@ -261,5 +262,14 @@ function renderIcon(name: IconName, p: StrokeProps) {
       );
     case 'sparkle':
       return <Path d="M12 4l1.8 5.2L19 11l-5.2 1.8L12 18l-1.8-5.2L5 11l5.2-1.8z" {...p} />;
+    case 'more':
+      // 가로 점 셋. 선이 아니라 점이라 fill을 선 색으로 되돌린다(공통 props는 fill:none).
+      return (
+        <>
+          <Circle cx="6" cy="12" r="1.3" {...p} fill={p.stroke} />
+          <Circle cx="12" cy="12" r="1.3" {...p} fill={p.stroke} />
+          <Circle cx="18" cy="12" r="1.3" {...p} fill={p.stroke} />
+        </>
+      );
   }
 }

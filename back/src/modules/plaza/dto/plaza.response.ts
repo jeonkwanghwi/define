@@ -27,6 +27,9 @@ export type PlazaStatsResponse = {
 
 export type PlazaDefinitionResponse = {
   id: string;
+  // 작성자 userId. 앱의 "이 사용자 차단하기"가 POST /plaza/users/:userId/block에 쓴다 —
+  // 닉네임은 중복·변경되므로 차단 대상을 가리킬 수 있는 건 id뿐이다.
+  authorId: string;
   nickname: string; // 없으면 '익명'
   text: string;
   savedAt: string; // ISO
