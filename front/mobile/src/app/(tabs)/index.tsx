@@ -16,7 +16,7 @@
  *   - 실제 단어장 저장 (현재는 mock — 상태 초기화만)
  */
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Keyboard,
@@ -41,6 +41,8 @@ import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { formatKoreanDate } from '@/lib/format-date';
 import { hapticSuccess } from '@/lib/haptics';
 import { topicSuffix } from '@/lib/korean';
+import { getRecommendedWords } from '@/services/word-api';
+import { useAuthHydrated, useAuthStore } from '@/store/auth-store';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
 import { controlPresets, fontFamily, useTheme } from '@/theme';
 
@@ -64,6 +66,7 @@ export default function RecordScreen() {
 
   // 단어 풀과 현재 인덱스. 진입 시 랜덤 1개 선택.
   // 사용자가 커스텀 단어를 추가할 수 있으므로 mutable.
+  // 초기값은 **폴백 풀**이다 — 서버에서 받아오는 동안에도 홈이 비면 안 되기 때문(아래 effect).
   const [pool, setPool] = useState<string[]>(() => RECOMMENDED_WORDS.map((w) => w.word));
   const [wordIdx, setWordIdx] = useState(() => Math.floor(Math.random() * RECOMMENDED_WORDS.length));
 
@@ -121,6 +124,38 @@ export default function RecordScreen() {
     },
     [heroOpacity, heroTranslateY, heroScale, reduceMotion],
   );
+
+  // ─── 단어 풀을 서버에서 받아 교체 ───
+  // 출처만 바뀐다 — 받아온 풀 안에서 "다시 뽑기"를 돌리는 구조는 그대로다.
+  // 서버는 로그인했으면 관심사 7 : 전체 3으로 섞고, 최근 90일 안에 정의한 단어를 뺀다.
+  const hydrated = useAuthHydrated();
+  const token = useAuthStore((s) => s.token);
+  // 응답이 늦게 왔을 때 "쓰는 중인가"를 보는 거울. effect 안에서 state를 읽으면
+  // 마운트 시점의 빈 문자열에 갇히므로 ref로 현재 값을 들고 있는다.
+  const definitionRef = useRef('');
+  useEffect(() => {
+    definitionRef.current = definition;
+  }, [definition]);
+
+  useEffect(() => {
+    // 토큰을 다 읽기 전에 물으면 로그인 사용자에게도 비로그인 풀이 와서 관심사가 날아간다.
+    if (!hydrated) return;
+    let alive = true;
+    getRecommendedWords(token)
+      .then((words) => {
+        if (!alive || words.length === 0) return;
+        // 쓰는 중이면 교체하지 않는다 — 풀이 바뀌면 같은 인덱스가 다른 단어를 가리켜
+        // 눈앞의 단어가 쓰던 글과 어긋난다. 이 경우는 다음 진입에 반영된다.
+        if (definitionRef.current.trim()) return;
+        swapTo(Math.floor(Math.random() * words.length), () => words);
+      })
+      .catch(() => {
+        // 서버가 안 되면 폴백 풀(data/recommended-words.ts)이 그대로 남는다. 홈은 비지 않는다.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [hydrated, token, swapTo]);
 
   const word = pool[wordIdx];
   // 이 단어의 기존 기록 수. 쓰는 동안엔 어떤 힌트도 노출하지 않는다(블라인드 쓰기 —
