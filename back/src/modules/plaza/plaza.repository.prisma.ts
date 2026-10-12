@@ -96,16 +96,27 @@ export class PrismaPlazaRepository extends PlazaRepository {
   }
 
   async getStats(userId: string, since: Date): Promise<PlazaStatsRow> {
+    // 목록·상세와 **같은 것만 센다.** 숨겨진 글(신고 누적)과 내가 차단한 사람의 글이
+    // 통계에만 남아 있으면 "이번 주 23개"인데 목록엔 22개가 보이는 식으로 숫자가 어긋난다.
+    // 사용자는 그걸 버그로 읽는다.
+    const visible = {
+      hidden: false,
+      user: { blocksReceived: { none: { blockerId: userId } } },
+    };
+    const notBlocked = Prisma.sql`AND e."userId" NOT IN (SELECT "blockedId" FROM blocks WHERE "blockerId" = ${userId})`;
+
     const weekDefinitions = await this.prisma.entry.count({
-      where: { createdAt: { gte: since } },
+      where: { createdAt: { gte: since }, ...visible },
     });
 
     const contributorGroups = await this.prisma.entry.groupBy({
       by: ['userId'],
-      where: { createdAt: { gte: since } },
+      where: { createdAt: { gte: since }, ...visible },
     });
     const weekContributors = contributorGroups.length;
 
+    // 내가 받은 좋아요는 **내 글** 기준이라 차단·숨김과 무관하다. 내가 누군가를 차단했다고
+    // 내 글이 받은 좋아요가 줄어들 이유가 없다.
     const myWeekLikesReceived = await this.prisma.like.count({
       where: { createdAt: { gte: since }, entry: { userId } },
     });
@@ -118,11 +129,14 @@ export class PrismaPlazaRepository extends PlazaRepository {
     const topLiked = await this.prisma.$queryRaw<{ word: string; likeCount: number }[]>`
       SELECT e.word, COUNT(l.id)::int AS "likeCount"
       FROM entries e JOIN likes l ON l."entryId" = e.id
+      WHERE e.hidden = false ${notBlocked}
       GROUP BY e.word ORDER BY COUNT(l.id) DESC LIMIT 1
     `;
     const mostDefined = await this.prisma.$queryRaw<{ word: string; count: number }[]>`
-      SELECT word, COUNT(*)::int AS count
-      FROM entries GROUP BY word ORDER BY COUNT(*) DESC LIMIT 1
+      SELECT e.word, COUNT(*)::int AS count
+      FROM entries e
+      WHERE e.hidden = false ${notBlocked}
+      GROUP BY e.word ORDER BY COUNT(*) DESC LIMIT 1
     `;
     const topLikedWord = topLiked[0] ?? null;
     const mostDefinedWord = mostDefined[0] ?? null;
