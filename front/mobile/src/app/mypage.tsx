@@ -53,6 +53,19 @@ const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
  */
 const WEB_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
 
+/**
+ * 아직 만들지 않은 메뉴를 가린다 (2026-10-12).
+ *
+ * Apple 심사 가이드 2.1이 "placeholder text … incomplete features"를 리젝 사유로 든다.
+ * "준비 중"이라고 적어둔 행은 심사자에게 **아직 안 만든 기능을 메뉴에 깔아둔 앱**으로 보이고,
+ * 사용자에게는 지킬 수 없는 기대를 준다. 없는 기능은 메뉴에서 빼는 게 손해가 아니다.
+ *
+ * **지우지 않고 가린다** — 아래 Row는 그대로 살아 있어서 기능이 준비되면 이 상수만 true로
+ * 바꾸면 돌아온다. 실제 구현은 DEVELOPMENT.md "다음 후보 — 마이페이지 후속"에 있다.
+ */
+const SHOW_NOTIFICATION_SETTING = false;
+const SHOW_PREMIUM_THEME = false;
+
 export default function MyPageScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -358,14 +371,12 @@ export default function MyPageScreen() {
             onPress={() => setHaptics(!haptics)}
             showChevron={false}
           />
-          <Divider theme={theme} />
-          <Row
-            theme={theme}
-            icon="bell"
-            label="알림 설정"
-            value="준비 중"
-            disabled
-          />
+          {SHOW_NOTIFICATION_SETTING && (
+            <>
+              <Divider theme={theme} />
+              <Row theme={theme} icon="bell" label="알림 설정" value="준비 중" disabled />
+            </>
+          )}
         </Group>
 
         {/* ─── 잉크(재화) — 로그인 사용자만 ─── */}
@@ -440,17 +451,21 @@ export default function MyPageScreen() {
           />
         </Group>
 
-        {/* ─── 곧 만나요 (BM 로드맵) ─── */}
-        <SectionLabel theme={theme} text="곧 만나요" />
-        <Group theme={theme}>
-          <Row
-            theme={theme}
-            icon="sparkle"
-            label="프리미엄 테마 · 폰트"
-            value="준비 중"
-            disabled
-          />
-        </Group>
+        {/* ─── 곧 만나요 (BM 로드맵) — 기능이 준비될 때까지 가린다 ─── */}
+        {SHOW_PREMIUM_THEME && (
+          <>
+            <SectionLabel theme={theme} text="곧 만나요" />
+            <Group theme={theme}>
+              <Row
+                theme={theme}
+                icon="sparkle"
+                label="프리미엄 테마 · 폰트"
+                value="준비 중"
+                disabled
+              />
+            </Group>
+          </>
+        )}
 
         {/* ─── 버전 ─── */}
         <View style={styles.footer}>

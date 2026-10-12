@@ -22,6 +22,16 @@ import { Icon } from '@/icons';
 import { useGroupedByWord, useJournalStats, useJournalStreak } from '@/store/journal-store';
 import { useTheme, fontFamily } from '@/theme';
 
+/**
+ * PDF 내보내기 자리를 가린다 (2026-10-12).
+ *
+ * Apple 심사 가이드 2.1이 "placeholder text … incomplete features"를 리젝 사유로 든다.
+ * 점선 박스에 "준비 중"을 달아 자리만 잡아둔 건 **미완성 신호가 가장 뚜렷한 형태**다.
+ * 지우지 않고 가린다 — IAP가 붙으면 이 상수만 true로 바꾸고 Pressable로 만들면 된다.
+ * (DEVELOPMENT.md "다음 후보 — 마이페이지 후속")
+ */
+const SHOW_PDF_EXPORT = false;
+
 export default function JournalListScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -103,43 +113,42 @@ export default function JournalListScreen() {
           <StatCard label="생각 변화" value={`${stats.changeNotes}`} />
         </View>
 
-        {/* ─── PDF 내보내기 (BM 로드맵, 준비 중) ───
-            "내 사전 한 권" 통짜 PDF. 유료(IAP) 예정이라 실기능은 IAP 인프라 이후.
-            지금은 자리만 잡아둔 비활성 placeholder — 점선+흐림으로 미완성 신호.
-            구현 시 이 블록을 Pressable로 바꾸고 disabled 스타일만 제거하면 됨. */}
-        <View
-          style={[
-            styles.exportBtn,
-            {
-              marginTop: theme.spacing.s6,
-              borderColor: theme.colors.line.base,
-              backgroundColor: theme.colors.surface.nested,
-            },
-          ]}
-        >
-          <Icon name="book" size={22} color={theme.colors.point.p500} />
-          <View style={{ flex: 1 }}>
-            <ThemedText variant="body" style={{ fontWeight: '700' }}>
-              PDF로 내보내기
-            </ThemedText>
-            <ThemedText variant="caption" tone="secondary" style={{ marginTop: 2 }}>
-              내 사전 한 권으로 소장하기
-            </ThemedText>
-          </View>
-          <View
+        {/* ─── PDF 내보내기 (BM 로드맵) — 기능이 준비될 때까지 가린다 ─── */}
+        {SHOW_PDF_EXPORT && (
+  <View
             style={[
-              styles.soonBadge,
+              styles.exportBtn,
               {
-                backgroundColor: theme.colors.surface.base,
+                marginTop: theme.spacing.s6,
                 borderColor: theme.colors.line.base,
+                backgroundColor: theme.colors.surface.nested,
               },
             ]}
           >
-            <ThemedText variant="caption" tone="placeholder">
-              준비 중
-            </ThemedText>
+            <Icon name="book" size={22} color={theme.colors.point.p500} />
+            <View style={{ flex: 1 }}>
+              <ThemedText variant="body" style={{ fontWeight: '700' }}>
+                PDF로 내보내기
+              </ThemedText>
+              <ThemedText variant="caption" tone="secondary" style={{ marginTop: 2 }}>
+                내 사전 한 권으로 소장하기
+              </ThemedText>
+            </View>
+            <View
+              style={[
+                styles.soonBadge,
+                {
+                  backgroundColor: theme.colors.surface.base,
+                  borderColor: theme.colors.line.base,
+                },
+              ]}
+            >
+              <ThemedText variant="caption" tone="placeholder">
+                준비 중
+              </ThemedText>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* ─── 3. 단어 리스트 ─── */}
         <View style={[styles.list, { marginTop: theme.spacing.s6 }]}>
