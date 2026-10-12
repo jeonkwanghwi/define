@@ -28,6 +28,8 @@ export default function Root({ children }: PropsWithChildren) {
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        {/* 없으면 브라우저 탭·북마크에 URL이 그대로 뜬다. privacy.html·support.html과 톤을 맞춘다. */}
+        <title>define — 우린 모두 각자의 정의가 있다</title>
         {/* expo-router 기본: ScrollView가 body 스크롤 대신 자체 스크롤 쓰도록 리셋 */}
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: appLikeCss }} />
