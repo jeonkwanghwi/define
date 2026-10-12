@@ -9,6 +9,9 @@
  * 그래서 화면은 `isAvailableAsync()` 결과를 보고 버튼을 잠근다 — 눌러도 아무 일이 없으면
  * 고장으로 보인다.
  *
+ * 인가 코드는 **탈퇴 때 Apple 연결을 끊기 위해** 함께 받는다(심사 가이드 5.1.1(v)).
+ * 서버가 이것을 Apple 토큰으로 교환해 보관한다 — 로그인 자체에는 쓰이지 않는다.
+ *
  * 이름·이메일은 요청하지 않는다. Apple은 그것들을 **첫 로그인 때만** 주고, "이메일 가리기"를
  * 고르면 릴레이 주소를 준다. 계정의 신뢰할 수 있는 식별자가 못 되므로 sub만 쓴다
  * (카카오에서 회원번호만 받는 것과 같은 원칙).
@@ -28,11 +31,18 @@ export function isAppleAuthAvailable(): Promise<boolean> {
   return AppleAuthentication.isAvailableAsync();
 }
 
+/** 시트가 돌려주는 것 — 로그인에 쓰는 토큰과, 탈퇴 때 쓸 인가 코드. */
+export type AppleCredential = {
+  identityToken: string;
+  /** 서버가 Apple 토큰으로 교환해 보관한다 — 탈퇴 시 연결 해제에만 쓴다. 없을 수 있다. */
+  authorizationCode?: string;
+};
+
 /**
- * Apple 시트를 띄워 identityToken을 받는다.
+ * Apple 시트를 띄워 자격증명을 받는다.
  * 취소면 AppleCanceled, 토큰이 안 오면 일반 Error.
  */
-export async function getAppleIdentityToken(): Promise<string> {
+export async function getAppleCredential(): Promise<AppleCredential> {
   let credential: AppleAuthentication.AppleAuthenticationCredential;
   try {
     // scope를 비워 이름·이메일을 아예 요청하지 않는다(동의 화면도 그만큼 가벼워진다).
@@ -46,5 +56,9 @@ export async function getAppleIdentityToken(): Promise<string> {
     // 원인(취소인지 토큰 문제인지)을 구분하기 쉽다.
     throw new Error('Apple이 인증 토큰을 주지 않았어요.');
   }
-  return credential.identityToken;
+  // 인가 코드가 없어도 로그인은 된다 — 막지 않는다. 그 계정은 탈퇴 때 연결만 못 끊는다.
+  return {
+    identityToken: credential.identityToken,
+    authorizationCode: credential.authorizationCode ?? undefined,
+  };
 }

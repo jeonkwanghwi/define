@@ -39,7 +39,18 @@ export default () => ({
    * Apple 로그인. identityToken의 audience 검증에 쓰는 번들 ID —
    * app.json의 ios.bundleIdentifier와 **반드시 같아야** 한다(다르면 전부 401).
    */
-  apple: { bundleId: process.env.APPLE_BUNDLE_ID ?? '' },
+  apple: {
+    bundleId: process.env.APPLE_BUNDLE_ID ?? '',
+    /**
+     * 탈퇴 시 Apple 연결 해제(revoke)용 — 로그인 검증에는 필요 없다(그건 Apple 공개키로 한다).
+     * 셋이 다 있어야 client_secret JWT를 만들 수 있고, 하나라도 비면 폐기를 건너뛴다
+     * (카카오 adminKey와 같은 원칙: 없으면 탈퇴는 되고 연결만 남는다).
+     */
+    teamId: process.env.APPLE_TEAM_ID ?? '',
+    keyId: process.env.APPLE_KEY_ID ?? '',
+    // SSM SecureString에서 온다. 줄바꿈이 \n 로 들어오는 경우가 흔해 되돌려 둔다.
+    privateKey: (process.env.APPLE_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
+  },
   /** 소셜 로그인 후 앱으로 돌아올 커스텀 스킴(define://oauth). app.json의 scheme과 같아야 한다. */
   app: { scheme: process.env.APP_SCHEME ?? 'define' },
   /**

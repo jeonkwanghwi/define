@@ -114,10 +114,23 @@ export class PrismaUserRepository extends UserRepository {
     return toEntity(row);
   }
 
-  async findIdentities(userId: string): Promise<{ provider: string; providerSub: string }[]> {
+  async findIdentities(
+    userId: string,
+  ): Promise<{ provider: string; providerSub: string; refreshToken: string | null }[]> {
     return this.prisma.authIdentity.findMany({
       where: { userId },
-      select: { provider: true, providerSub: true },
+      select: { provider: true, providerSub: true, refreshToken: true },
+    });
+  }
+
+  async saveIdentityRefreshToken(
+    provider: string,
+    providerSub: string,
+    refreshToken: string,
+  ): Promise<void> {
+    await this.prisma.authIdentity.update({
+      where: { provider_providerSub: { provider, providerSub } },
+      data: { refreshToken },
     });
   }
 

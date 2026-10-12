@@ -81,8 +81,11 @@ export function kakaoLogin(input: {
  * 서버가 Apple JWKS로 서명을 검증하고 sub만 꺼내 계정을 찾거나 만든다.
  * 401 = 토큰 위조/만료, 503 = 서버에 번들 ID 미설정.
  */
-export function appleLogin(identityToken: string): Promise<AuthResult> {
-  return apiRequest<AuthResult>('/auth/apple', { method: 'POST', body: { identityToken } });
+export function appleLogin(identityToken: string, authorizationCode?: string): Promise<AuthResult> {
+  return apiRequest<AuthResult>('/auth/apple', {
+    method: 'POST',
+    body: { identityToken, authorizationCode },
+  });
 }
 
 /**

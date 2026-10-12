@@ -164,7 +164,18 @@ export class AuthService {
       if (e instanceof AppleAuthError) throw new UnauthorizedException(e.message);
       throw e;
     }
-    return this.findOrCreateSocial('apple', sub);
+    const res = await this.findOrCreateSocial('apple', sub);
+
+    // 인가 코드는 **로그인 뒤에** 처리한다 — 이게 실패해도 로그인은 이미 끝나야 한다.
+    // (폐기는 나중 일이고, 나중 일 때문에 지금 들어오려는 사람을 막을 수는 없다.)
+    // 구버전 앱은 코드를 보내지 않는다. 그때는 지금까지와 똑같이 동작한다.
+    if (dto.authorizationCode) {
+      const refreshToken = await this.apple.exchangeCode(dto.authorizationCode);
+      if (refreshToken) {
+        await this.users.saveIdentityRefreshToken('apple', sub, refreshToken);
+      }
+    }
+    return res;
   }
 
   /**
@@ -180,9 +191,15 @@ export class AuthService {
     const unlinked: string[] = [];
     const failed: string[] = [];
 
-    for (const { provider, providerSub } of identities) {
-      // Apple은 연결 해제(revoke)에 Sign in with Apple 전용 키가 필요해 아직 미구현.
-      const ok = provider === 'kakao' ? await this.kakao.unlink(providerSub) : false;
+    for (const { provider, providerSub, refreshToken } of identities) {
+      // Apple은 토큰이 있어야 끊을 수 있다. 인가 코드를 안 보내던 구버전 앱으로 가입한
+      // 사람은 토큰이 없어, 끊지 못한 채 failed로 남는다(앱이 안내한다).
+      const ok =
+        provider === 'kakao'
+          ? await this.kakao.unlink(providerSub)
+          : provider === 'apple' && refreshToken
+            ? await this.apple.revoke(refreshToken)
+            : false;
       (ok ? unlinked : failed).push(provider);
     }
 

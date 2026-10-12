@@ -51,7 +51,16 @@ export abstract class UserRepository {
   }): Promise<UserEntity>;
 
   /** 이 사용자의 소셜 연결 목록. 탈퇴 시 제공자 쪽 연결도 끊어야 해서 필요하다. */
-  abstract findIdentities(userId: string): Promise<{ provider: string; providerSub: string }[]>;
+  abstract findIdentities(
+    userId: string,
+  ): Promise<{ provider: string; providerSub: string; refreshToken: string | null }[]>;
+
+  /** 연결 해제용 갱신 토큰을 갱신한다 — 로그인할 때마다 새 코드가 오므로 최신으로 덮어쓴다. */
+  abstract saveIdentityRefreshToken(
+    provider: string,
+    providerSub: string,
+    refreshToken: string,
+  ): Promise<void>;
 
   /**
    * 회원 탈퇴 — 사용자와 딸린 데이터를 지운다.

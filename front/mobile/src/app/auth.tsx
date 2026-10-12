@@ -17,7 +17,7 @@ import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
-import { AppleCanceled, getAppleIdentityToken, isAppleAuthAvailable } from '@/lib/apple-auth';
+import { AppleCanceled, getAppleCredential, isAppleAuthAvailable } from '@/lib/apple-auth';
 import { hapticError } from '@/lib/haptics';
 import { KakaoCanceled, useKakaoAuth } from '@/lib/kakao-auth';
 import type { ApiError } from '@/services/api-client';
@@ -159,14 +159,17 @@ export default function AuthScreen() {
     }
   }
 
-  /** Apple 로그인 — 시트에서 받은 identityToken을 서버에 넘기면 로그인/가입이 끝난다. */
+  /**
+   * Apple 로그인 — 시트에서 받은 identityToken을 서버에 넘기면 로그인/가입이 끝난다.
+   * 인가 코드도 같이 넘긴다 — 로그인이 아니라 탈퇴 때 연결을 끊는 데 쓰인다.
+   */
   async function handleApple() {
     setSocialNotice(null);
     setError(null);
     setSubmitting(true);
     try {
-      const identityToken = await getAppleIdentityToken();
-      await loginWithApple(identityToken);
+      const { identityToken, authorizationCode } = await getAppleCredential();
+      await loginWithApple(identityToken, authorizationCode);
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
