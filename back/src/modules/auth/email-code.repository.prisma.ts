@@ -54,6 +54,11 @@ export class PrismaEmailCodeRepository extends EmailCodeRepository {
     });
   }
 
+  async countAllSince(since: Date): Promise<number> {
+    // 주소도 목적도 가리지 않는다 — 우리가 24시간 동안 내보낸 메일 전부를 센다.
+    return this.prisma.emailCode.count({ where: { createdAt: { gte: since } } });
+  }
+
   async lastIssuedAt(email: string, purpose: string): Promise<Date | null> {
     const row = await this.prisma.emailCode.findFirst({
       where: { email, purpose },

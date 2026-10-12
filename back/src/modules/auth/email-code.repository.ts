@@ -33,6 +33,9 @@ export abstract class EmailCodeRepository {
   /** since 이후 발급 건수 — 레이트리밋 판정용. */
   abstract countSince(email: string, purpose: string, since: Date): Promise<number>;
 
+  /** since 이후 전체 발급 건수(주소 무관) — 전체 발송 차단기 판정용. */
+  abstract countAllSince(since: Date): Promise<number>;
+
   /** 가장 최근 발급 시각. 없으면 null — 재발송 쿨다운 판정용. */
   abstract lastIssuedAt(email: string, purpose: string): Promise<Date | null>;
 }

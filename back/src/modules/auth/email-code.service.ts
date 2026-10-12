@@ -8,7 +8,7 @@
  */
 import { randomInt } from 'node:crypto';
 
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 
 import { EmailCodeRepository } from './email-code.repository';
@@ -22,11 +22,25 @@ export const MAX_ATTEMPTS = 5;
 export const RESEND_COOLDOWN_MS = 60 * 1000;
 /** 같은 (이메일, 목적)의 24시간 발급 상한 — 남의 주소로 메일 폭탄을 보내는 걸 막는다. */
 export const DAILY_LIMIT = 10;
+/**
+ * 24시간 **전체** 발송 상한 — 차단기(circuit breaker)다.
+ *
+ * 위의 세 제한은 전부 (이메일, 목적) 단위라, 주소를 바꿔가며 부르면 **하나도 안 걸린다.**
+ * 이 엔드포인트는 인증이 없어서 누구나 부를 수 있다. 그렇게 모르는 주소로 메일이 쏟아지면
+ * 반송과 스팸 신고가 쌓이고, AWS는 반송률 5% / 불만율 0.1%에서 **SES 프로덕션 권한을 끊는다.**
+ * 그러면 가입이 통째로 멈추고 복구에 몇 주가 걸린다 — 되돌리기 가장 어려운 사고다.
+ *
+ * 그래서 평소 트래픽보다 훨씬 높게 잡아두고(지금 사용자는 두 자리다), 넘으면 발송을 멈춘다.
+ * 정상 성장으로 닿을 수 있는 수가 되면 올리면 된다 — 닿는 순간 error 로그가 남는다.
+ */
+export const GLOBAL_DAILY_LIMIT = 300;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class EmailCodeService {
+  private readonly logger = new Logger(EmailCodeService.name);
+
   constructor(
     private readonly codes: EmailCodeRepository,
     private readonly mail: MailService,
@@ -43,6 +57,17 @@ export class EmailCodeService {
     }
     const issuedToday = await this.codes.countSince(email, purpose, new Date(Date.now() - DAY_MS));
     if (issuedToday >= DAILY_LIMIT) {
+      throw this.throttled();
+    }
+
+    // 주소를 바꿔가며 들어오는 남용은 위 제한에 안 걸린다. 여기가 마지막 방어선이다.
+    const sentToday = await this.codes.countAllSince(new Date(Date.now() - DAY_MS));
+    if (sentToday >= GLOBAL_DAILY_LIMIT) {
+      // 사용자에게는 다른 429와 같은 문구를 준다 — 상한의 존재를 알려줄 이유가 없다.
+      this.logger.error(
+        `24시간 전체 발송 상한(${GLOBAL_DAILY_LIMIT})에 닿아 메일 발송을 멈춘다. ` +
+          `남용인지, 정상 성장이라 상한을 올릴 때인지 확인할 것.`,
+      );
       throw this.throttled();
     }
 
