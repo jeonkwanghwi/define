@@ -441,6 +441,15 @@ export default function MyPageScreen() {
             </ThemedText>
           ) : null}
           <Divider theme={theme} />
+          {/* 자주 묻는 것·문의 주소. App Store의 지원 URL과 같은 페이지다 —
+              스토어에서만 닿고 앱 안에서는 못 여는 건 앞뒤가 안 맞는다. */}
+          <Row
+            theme={theme}
+            icon="help"
+            label="고객 지원"
+            onPress={() => Linking.openURL(`${WEB_ORIGIN}/support.html`)}
+          />
+          <Divider theme={theme} />
           {/* 수집 항목·공개 범위를 사용자가 확인할 수 있어야 한다(스토어 심사 요건이기도 하다).
               웹 빌드와 함께 배포되는 정적 페이지라 앱 업데이트 없이 갱신할 수 있다. */}
           <Row

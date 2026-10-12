@@ -41,6 +41,7 @@ export type IconName =
   // 상태/액션
   | 'lock' // 광장 비공개
   | 'send'
+  | 'help' // 고객 지원(물음표)
   | 'settings'
   | 'bell'
   | 'ruby' // 재화
@@ -208,6 +209,14 @@ function renderIcon(name: IconName, p: StrokeProps) {
         <>
           <Path d="M6.5 10a5.5 5.5 0 0111 0c0 4 1.5 5.5 1.5 5.5H5s1.5-1.5 1.5-5.5z" {...p} />
           <Path d="M10 18.5a2 2 0 004 0" {...p} />
+        </>
+      );
+    case 'help':
+      return (
+        <>
+          <Circle cx={12} cy={12} r={9} {...p} />
+          <Path d="M9.6 9.3a2.5 2.5 0 014.4 1.5c0 1.7-2 1.9-2 3.4" {...p} />
+          <Path d="M12 17.2v.01" {...p} />
         </>
       );
     case 'ruby':
