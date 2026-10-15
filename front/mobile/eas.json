@@ -8,19 +8,23 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://d2kejc3sjm91mt.cloudfront.net/api"
+        "EXPO_PUBLIC_API_URL": "https://d2kejc3sjm91mt.cloudfront.net/api",
+        "EXPO_PUBLIC_KAKAO_REST_API_KEY": "86b5104691ab80c91ffe73b0aba62767"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://d2kejc3sjm91mt.cloudfront.net/api"
+        "EXPO_PUBLIC_API_URL": "https://d2kejc3sjm91mt.cloudfront.net/api",
+        "EXPO_PUBLIC_KAKAO_REST_API_KEY": "86b5104691ab80c91ffe73b0aba62767"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://d2kejc3sjm91mt.cloudfront.net/api"
+        "EXPO_PUBLIC_API_URL": "https://d2kejc3sjm91mt.cloudfront.net/api",
+        "EXPO_PUBLIC_KAKAO_REST_API_KEY": "86b5104691ab80c91ffe73b0aba62767",
+        "EXPO_PUBLIC_ADMOB_REWARDED_ID": "ca-app-pub-7103568935643385/9712302007"
       }
     }
   },
