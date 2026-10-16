@@ -7,9 +7,9 @@ import type { ImageSourcePropType } from 'react-native';
 import type { ZoneId } from './village-zones';
 
 export const ZONE_BACKGROUNDS: Record<ZoneId, ImageSourcePropType> = {
-  center: require('../../assets/village/bg-center.png'),
-  east: require('../../assets/village/bg-east-spring.png'),
-  south: require('../../assets/village/bg-south-summer.png'),
-  west: require('../../assets/village/bg-west-autumn.png'),
-  north: require('../../assets/village/bg-north-winter.png'),
+  center: require('../../assets/village/bg-center.webp'),
+  east: require('../../assets/village/bg-east-spring.webp'),
+  south: require('../../assets/village/bg-south-summer.webp'),
+  west: require('../../assets/village/bg-west-autumn.webp'),
+  north: require('../../assets/village/bg-north-winter.webp'),
 };

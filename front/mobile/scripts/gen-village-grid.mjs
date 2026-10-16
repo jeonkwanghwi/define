@@ -12,7 +12,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const ASSETS = new URL('../assets/village/', import.meta.url).pathname;
+/**
+ * 읽는 곳은 **앱에 실리는 webp가 아니라 원본 PNG**다(`front/design-source/village-art/`).
+ * webp는 손실 압축이라 길 색이 미세하게 번지는데, 이 스크립트는 바로 그 색으로 길을 가른다.
+ * 실제로 webp에서 뽑으면 격자가 0.4~3.1% 달라졌다(east는 걸을 수 있는 칸이 9% 줄었다).
+ * 앱 용량은 webp로 줄이되, 격자의 진실 출처는 원본으로 남긴다.
+ */
+const ASSETS = new URL('../../design-source/village-art/', import.meta.url).pathname;
 const OUT = new URL('../src/data/village-grid.ts', import.meta.url).pathname;
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'village-grid-'));
 
