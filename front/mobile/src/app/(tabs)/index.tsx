@@ -12,9 +12,10 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  AppState,
   Easing,
   Keyboard,
   KeyboardAvoidingView,
@@ -78,6 +79,38 @@ async function readTodayWord(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** 단어장이 저장소에서 다 복원될 때까지 기다린다 — 덜 읽힌 채로 "오늘 이미 썼나"를 보면 놓친다. */
+function journalHydrated(): Promise<void> {
+  if (useJournalStore.persist.hasHydrated()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const unsub = useJournalStore.persist.onFinishHydration(() => {
+      unsub();
+      resolve();
+    });
+  });
+}
+
+/**
+ * 오늘의 단어를 고른다. 저장된 오늘 단어가 있으면 그것, 없거나 **오늘 이미 썼다면** 새로 뽑아 적는다.
+ * 오늘 이미 쓴 단어를 다시 내밀지 않는 이유: 열 때마다 "방금 쓴 단어"가 또 나오면 끝난 화면처럼 보인다.
+ * (블라인드 쓰기와 무관: 고르는 단어가 바뀔 뿐, 새 단어의 이력은 아무것도 드러내지 않는다.)
+ */
+function pickTodayWord(stored: string | null, base: string[]): { list: string[]; idx: number } {
+  const today = formatYmd(new Date());
+  const writtenToday =
+    !!stored &&
+    useJournalStore.getState().entries.some((e) => e.word === stored && formatYmd(new Date(e.savedAt)) === today);
+  if (stored && !writtenToday) {
+    const at = base.indexOf(stored);
+    return at >= 0 ? { list: base, idx: at } : { list: [stored, ...base], idx: 0 };
+  }
+  const list = writtenToday ? base.filter((w) => w !== stored) : base;
+  const idx = Math.floor(Math.random() * list.length);
+  // 실패해도 그만 — 다음에 열 때 새로 뽑힐 뿐이다.
+  AsyncStorage.setItem(TODAY_WORD_KEY, JSON.stringify({ day: todayKey(), word: list[idx] })).catch(() => {});
+  return { list, idx };
 }
 
 /** 쓰기 모드 상단 바(단어 + 글자 수)의 높이. 접힐 때 0까지 줄어든다. */
@@ -299,7 +332,7 @@ export default function RecordScreen() {
   // 서버 풀이 오거나 HERO_HOLD_MS가 지나면 그때 오늘의 단어를 정해 떠오른다(settleHero).
   // 한 번 보인 뒤 늦게 온 풀은 눈앞 단어를 건드리지 않고 **다음 뽑기**에 쓴다(latePool).
   const [heroShown, setHeroShown] = useState(false);
-  const [storedToday] = useState(readTodayWord);
+  const [storedToday] = useState(() => journalHydrated().then(readTodayWord));
   const heroShownRef = useRef(false);
   const latePool = useRef<string[] | null>(null);
   const showHero = useCallback(() => {
@@ -326,26 +359,7 @@ export default function RecordScreen() {
           return;
         }
         // 아직 숨어 있다 — 애니메이션 없이 정하고 바로 띄운다(바뀌는 장면이 없다).
-        let list = words ?? RECOMMENDED_WORDS.map((w) => w.word);
-        let idx: number;
-        // 오늘의 단어를 이미 오늘 썼다면 다시 내밀지 않는다 — 열 때마다 "방금 쓴 단어"가 또 나오면
-        // 할 일이 끝난 화면처럼 보인다. 새 단어를 골라 오늘의 단어로 다시 적는다.
-        // (블라인드 쓰기와 무관: 고르는 단어가 바뀔 뿐, 새 단어의 이력은 아무것도 드러내지 않는다.)
-        const today = formatYmd(new Date());
-        const writtenToday =
-          !!stored && useJournalStore.getState().entries.some((e) => e.word === stored && formatYmd(new Date(e.savedAt)) === today);
-        if (stored && !writtenToday) {
-          idx = list.indexOf(stored);
-          if (idx < 0) {
-            list = [stored, ...list];
-            idx = 0;
-          }
-        } else {
-          if (writtenToday) list = list.filter((w) => w !== stored);
-          idx = Math.floor(Math.random() * list.length);
-          // 실패해도 그만 — 다음에 열 때 새로 뽑힐 뿐이다.
-          AsyncStorage.setItem(TODAY_WORD_KEY, JSON.stringify({ day: todayKey(), word: list[idx] })).catch(() => {});
-        }
+        const { list, idx } = pickTodayWord(stored, words ?? RECOMMENDED_WORDS.map((w) => w.word));
         setPool(list);
         setWordIdx(idx);
         showHero();
@@ -381,7 +395,27 @@ export default function RecordScreen() {
   // 이 단어의 기존 기록 수. 쓰는 동안엔 어떤 힌트도 노출하지 않는다(블라인드 쓰기 —
   // 재정의임을 알면 일부러 다르게/같게 쓰게 되므로). 저장 후 리빌에만 사용.
   const entryCount = useEntryCountForWord(word);
-  const today = useMemo(() => new Date(), []);
+  // 날짜 표시도 자정 넘김에 맞춰 바뀌어야 한다(아래 AppState 처리에서 갱신).
+  const [today, setToday] = useState(() => new Date());
+  const dayRef = useRef(todayKey());
+
+  // 앱을 켜 둔 채 자정을 넘기면(폰은 앱을 메모리에 오래 둔다) 다음 날 아침에도 어제 단어가 남는다.
+  // 앞으로 돌아올 때 날짜가 바뀌었으면, 쓰는 중이 아닐 때만 오늘의 단어를 새로 정한다.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active' || todayKey() === dayRef.current) return;
+      dayRef.current = todayKey();
+      setToday(new Date());
+      if (writingRef.current || definitionRef.current.trim()) return;
+      readTodayWord().then((stored) => {
+        const { list, idx } = pickTodayWord(stored, latePool.current ?? pool);
+        setPool(list);
+        setWordIdx(idx);
+        setPickedWord(null);
+      });
+    });
+    return () => sub.remove();
+  }, [pool]);
   // 최소 글자 수 미달이면 "기록 완료" disabled — 카운터·안내 문구가 이유와 남은 양을 말해 준다.
   const typedLength = definition.trim().length;
   const canSubmit = typedLength >= MIN_DEFINITION_LENGTH;

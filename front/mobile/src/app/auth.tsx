@@ -86,7 +86,12 @@ export default function AuthScreen() {
 
   const isSignup = mode === 'signup';
   // 가입=아이디@도메인 조합, 로그인=단일 이메일 칸(자동완성 유지).
-  const effectiveEmail = isSignup ? `${emailLocal.trim()}@${emailDomain.trim()}` : email.trim();
+  // 아이디 칸에 이메일을 통째로 쳤다면(아직 칸을 떠나지 않아 나누기 전) 그 값을 그대로 쓴다.
+  const effectiveEmail = isSignup
+    ? emailLocal.includes('@')
+      ? emailLocal.trim()
+      : `${emailLocal.trim()}@${emailDomain.trim()}`
+    : email.trim();
 
   // 모드 전환 시 폼이 진행 방향(로그인=왼쪽, 회원가입=오른쪽)으로 슬라이드+페이드 →
   // "다른 화면으로 넘어왔다"는 느낌을 준다. 상단 세그먼트가 현재 모드를 항상 명시.
@@ -104,13 +109,20 @@ export default function AuthScreen() {
 
   // 아이디 칸에 이메일 전체(me@gmail.com)를 붙여넣는 경우가 흔하다 — 그대로 두면
   // "me@gmail.com@선택"이 돼 형식 에러가 난다. "@" 뒤를 도메인 칸으로 옮겨 준다.
+  // 나누는 건 붙여넣기(한 번에 여러 글자)거나 칸을 떠날 때만 — 한 글자씩 칠 때 "@"에서 나누면
+  // "@"가 사라지고 이어 친 "gmail.com"이 아이디에 붙어 "megmail.com"이 된다.
   function handleEmailLocalChange(t: string) {
+    if (t.length - emailLocal.length > 1) splitEmail(t);
+    else setEmailLocal(t);
+  }
+
+  function splitEmail(t: string) {
     const at = t.indexOf('@');
-    if (at < 0) {
+    const domain = at < 0 ? '' : t.slice(at + 1).trim();
+    if (!domain) {
       setEmailLocal(t);
       return;
     }
-    const domain = t.slice(at + 1).trim();
     setEmailLocal(t.slice(0, at));
     if (!domain) return; // "@"만 친 상태 — 도메인은 드롭다운에서 고르게 둔다
     setEmailDomain(domain);
@@ -481,6 +493,7 @@ export default function AuthScreen() {
                     <TextField
                       value={emailLocal}
                       onChangeText={handleEmailLocalChange}
+                      onBlur={() => splitEmail(emailLocal)}
                       onFocus={() => setDomainOpen(false)}
                       placeholder="아이디"
                       autoCapitalize="none"

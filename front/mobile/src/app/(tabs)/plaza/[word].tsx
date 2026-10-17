@@ -49,6 +49,7 @@ import {
   type ReportReason,
 } from '@/services/plaza-api';
 import { useAuthHydrated, useAuthStore } from '@/store/auth-store';
+import { useJournalWord } from '@/store/journal-store';
 import { controlPresets, useTheme } from '@/theme';
 
 export default function PlazaWordDetailScreen() {
@@ -58,6 +59,7 @@ export default function PlazaWordDetailScreen() {
   const word = typeof rawWord === 'string' ? rawWord : '';
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthHydrated();
+  const localWord = useJournalWord(word);
 
   const { show } = useToast();
 
@@ -261,6 +263,9 @@ export default function PlazaWordDetailScreen() {
   );
   const others = defs.filter((d) => !d.isMine);
   const shown = latestMine ? [latestMine, ...others] : others;
+  // 서버엔 있어도 이 폰 단어장엔 없을 수 있다(다른 기기·로컬 삭제). 그때 링크를 열면 빈 화면이
+  // 바로 뒤로 튕겨 고장처럼 보인다 → 이 폰에 있을 때만 입구를 연다.
+  const hasLocalWord = !!localWord;
   const openMyTimeline = () => router.push({ pathname: '/journal/[word]', params: { word } });
 
   // 비로그인 — 서버를 부를 수 없으니 로딩에 갇히지 않게 가입 유도로 대체(뒤로가기는 유지).
@@ -357,7 +362,8 @@ export default function PlazaWordDetailScreen() {
               <>
                 {/* 내 카드 = 내 단어장 타임라인으로 가는 입구. 공감은 내가 누를 게 아니라 받은 수만 보인다. */}
                 <PressableScale
-                  onPress={openMyTimeline}
+                  onPress={hasLocalWord ? openMyTimeline : undefined}
+                  disabled={!hasLocalWord}
                   accessibilityRole="button"
                   accessibilityLabel={`내 정의, 공감 ${d.likeCount} — 내 단어장에서 보기`}
                   style={[
@@ -383,7 +389,7 @@ export default function PlazaWordDetailScreen() {
                     <ThemedText variant="caption" tone="placeholder">
                       {formatRelativeLabel(new Date(d.savedAt), new Date())}
                     </ThemedText>
-                    <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} />
+                    {hasLocalWord ? <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} /> : null}
                   </View>
                   <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
                     {d.text}
@@ -397,7 +403,7 @@ export default function PlazaWordDetailScreen() {
                     </ThemedText>
                   </View>
                 </PressableScale>
-                {mine.length > 1 ? (
+                {mine.length > 1 && hasLocalWord ? (
                   <Button
                     label={`내 이전 정의 ${mine.length - 1}개 보기`}
                     variant="ghost"

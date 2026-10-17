@@ -144,7 +144,9 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
         confirmLabel="버리기"
         cancelLabel="계속 쓰기"
         destructive
-        onConfirm={onClose}
+        // 대화상자 Modal이 사라지는 중에 시트 Modal을 닫으라고 하면 iOS가 무시해, 안 보이는 시트가
+        // 터치를 막는다. 대화상자 퇴장(ConfirmDialog의 200ms)보다 넉넉히 기다린 뒤 닫는다.
+        onConfirm={() => setTimeout(onClose, 350)}
         onClose={() => setDiscardOpen(false)}
       />
     </Modal>

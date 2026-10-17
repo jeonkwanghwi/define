@@ -105,6 +105,7 @@ export default function MyPageScreen() {
   const router = useRouter();
   // 헤더 잉크 칩에서 오면 section='ink' — 잉크 섹션까지 스르륵 내려가 "그게 뭔지"에 바로 답한다.
   const { section } = useLocalSearchParams<{ section?: string }>();
+  const scrolledToInk = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const nickname = useAuthStore((s) => s.user?.nickname ?? '');
@@ -442,7 +443,9 @@ export default function MyPageScreen() {
             {/* onLayout 좌표로 스크롤 — 칩에서 왔을 때만. 섹션 제목이 화면 위에 살짝 걸리게 여백을 둔다. */}
             <View
               onLayout={(e) => {
-                if (section === 'ink') {
+                // 한 번만 — 위쪽 높이가 바뀔 때마다(테마 문구 등) 다시 끌려 내려가지 않게.
+                if (section === 'ink' && !scrolledToInk.current) {
+                  scrolledToInk.current = true;
                   scrollRef.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 16), animated: true });
                 }
               }}
