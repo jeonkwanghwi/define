@@ -16,6 +16,23 @@ export const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:300
 /** 서버 에러를 화면이 다루기 쉬운 형태로. */
 export type ApiError = { status: number; message: string };
 
+/**
+ * 서버가 준 메시지를 사용자에게 보여줘도 되는가.
+ *
+ * 우리 서버는 사용자용 문구를 **한국어로** 쓴다. 반면 NestJS 기본 예외는 영어다
+ * ("Unauthorized", "Forbidden", "Internal server error"). 그걸 그대로 화면에 뿌리면
+ * 사용자는 영어 한 단어를 보고 무슨 일인지 알 수 없다 — 실제로 닉네임 저장 실패 때
+ * "Unauthorized"가 그대로 떴다.
+ *
+ * 그래서 **한글이 없는 메시지는 우리 것이 아니라고 보고 버린다.** 화면마다 if를
+ * 늘리는 대신 여기 한 곳에서 거른다.
+ */
+export function userFacingMessage(e: unknown): string | null {
+  const msg = (e as Partial<ApiError> | undefined)?.message;
+  if (!msg) return null;
+  return /[가-힣]/.test(msg) ? msg : null;
+}
+
 type RequestOptions = {
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;

@@ -20,7 +20,7 @@ import { Icon } from '@/icons';
 import { AppleCanceled, getAppleCredential, isAppleAuthAvailable } from '@/lib/apple-auth';
 import { hapticError } from '@/lib/haptics';
 import { KakaoCanceled, useKakaoAuth } from '@/lib/kakao-auth';
-import type { ApiError } from '@/services/api-client';
+import { type ApiError, userFacingMessage } from '@/services/api-client';
 import { requestEmailCode } from '@/services/auth-api';
 import { useAuthStore } from '@/store/auth-store';
 import { motion, useTheme } from '@/theme';
@@ -548,16 +548,14 @@ function mapSocialError(e: unknown, provider: '카카오' | 'Apple'): string {
   const err = e as Partial<ApiError>;
   if (err?.status === 503) return `${provider} 로그인은 조금 뒤에 다시 시도해 주세요.`;
   if (err?.status === 401) return `${provider} 로그인에 실패했어요. 다시 시도해 주세요.`;
-  if (err?.message) return err.message;
-  return '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
+  return userFacingMessage(e) ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 }
 
 function mapAuthError(e: unknown): string {
   const err = e as Partial<ApiError>;
   if (err?.status === 409) return '이미 가입된 이메일이에요.';
   if (err?.status === 401) return '이메일 또는 비밀번호를 확인해 주세요.';
-  if (err?.message) return err.message;
-  return '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
+  return userFacingMessage(e) ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 }
 
 const styles = StyleSheet.create({

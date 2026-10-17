@@ -26,7 +26,7 @@ import {
 
 import { Button, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
-import type { ApiError } from '@/services/api-client';
+import { userFacingMessage } from '@/services/api-client';
 import { useTheme } from '@/theme';
 
 const MAX_LENGTH = 16;
@@ -146,10 +146,10 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
 
 /** 서버/네트워크 에러 → 우리 톤 인라인 문구. */
 function mapNicknameError(e: unknown): string {
-  const err = e as Partial<ApiError>;
-  if (err?.status === 409) return '이미 사용 중인 닉네임이에요. 다른 이름은 어때요?';
-  if (err?.message) return err.message;
-  return '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
+  if ((e as { status?: number } | undefined)?.status === 409) {
+    return '이미 사용 중인 닉네임이에요. 다른 이름은 어때요?';
+  }
+  return userFacingMessage(e) ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 }
 
 const styles = StyleSheet.create({

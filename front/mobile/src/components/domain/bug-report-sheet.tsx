@@ -26,7 +26,7 @@ import {
 
 import { Button, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
-import type { ApiError } from '@/services/api-client';
+import { userFacingMessage } from '@/services/api-client';
 import { useTheme } from '@/theme';
 
 const TITLE_MAX = 100;
@@ -168,9 +168,7 @@ export function BugReportSheet({ visible, onSubmit, onClose }: BugReportSheetPro
  * 여기서 다시 적으면 같은 문구가 두 군데에 생긴다.
  */
 function mapFeedbackError(e: unknown): string {
-  const err = e as Partial<ApiError>;
-  if (err?.message) return err.message;
-  return '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
+  return userFacingMessage(e) ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 }
 
 const styles = StyleSheet.create({

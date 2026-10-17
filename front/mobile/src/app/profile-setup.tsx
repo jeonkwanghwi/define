@@ -14,7 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { INTERESTS } from '@/constants/interests';
 import { Icon } from '@/icons';
-import type { ApiError } from '@/services/api-client';
+import { type ApiError, userFacingMessage } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth-store';
 import { useTheme } from '@/theme';
 
@@ -62,8 +62,7 @@ export default function ProfileSetupScreen() {
       // 가입 → 프로필 완성 후에도 로그인과 동일하게 기록 탭(홈)으로.
       router.replace('/');
     } catch (e) {
-      const err = e as Partial<ApiError>;
-      setError(err?.message ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.');
+      setError(userFacingMessage(e) ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setSubmitting(false);
     }

@@ -19,7 +19,7 @@ import { ScreenHeader } from '@/components/domain/screen-header';
 import { Button, FadeIn, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import type { ApiError } from '@/services/api-client';
+import { type ApiError, userFacingMessage } from '@/services/api-client';
 import { requestEmailCode } from '@/services/auth-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useTheme } from '@/theme';
@@ -112,7 +112,7 @@ export default function PasswordResetScreen() {
       // 에러도 거기에 그린다(여기 남겨두면 "틀렸다"만 보이고 고칠 입력칸이 없다).
       if (err?.status === 400) {
         setStep('code');
-        setError(err.message ?? '인증번호가 올바르지 않아요.');
+        setError(userFacingMessage(e) ?? '인증번호가 올바르지 않아요.');
         return;
       }
       setError(mapResetError(e));
@@ -257,9 +257,7 @@ export default function PasswordResetScreen() {
  * → 그대로 쓰고, 메시지가 없을 때(네트워크 단절)만 우리 문구로 대체한다.
  */
 function mapResetError(e: unknown): string {
-  const err = e as Partial<ApiError>;
-  if (err?.message) return err.message;
-  return '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
+  return userFacingMessage(e) ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 }
 
 const styles = StyleSheet.create({
