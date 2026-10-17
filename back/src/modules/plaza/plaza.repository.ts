@@ -55,12 +55,15 @@ export abstract class PlazaRepository {
   /** 광장 상단 통계. since = "최근 N일" 경계. userId = 내 정의 좋아요 집계용. */
   abstract getStats(userId: string, since: Date): Promise<PlazaStatsRow>;
   /**
-   * 한 단어의 정의들(닉네임·좋아요 집계 포함), savedAt 역순. userId로 likedByMe 판정.
+   * 한 단어의 정의들(닉네임·좋아요 집계 포함). userId로 likedByMe 판정.
    * 숨겨진 정의와 내가 차단한 작성자의 정의는 빠진다.
+   *   - mine: true  → 내 정의 전부, 최신순.
+   *   - mine: false → 남의 정의를 좋아요 많은 순 → 최신순으로 skip/take만큼.
    */
   abstract findDefinitionsByWord(
     word: string,
     userId: string,
+    page: { mine: true } | { mine: false; skip: number; take: number },
   ): Promise<PlazaDefinitionRow[]>;
   /** 정의(Entry)의 작성자 userId. 없으면 null. (자기 좋아요 판정용) */
   abstract getEntryOwner(entryId: string): Promise<string | null>;

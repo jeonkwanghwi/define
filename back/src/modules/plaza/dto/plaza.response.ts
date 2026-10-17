@@ -41,6 +41,8 @@ export type PlazaDefinitionResponse = {
 export type PlazaWordDetailResponse = {
   word: string;
   definitions: PlazaDefinitionResponse[];
+  /** 다음 쪽이 더 있는가 — 앱은 false면 바닥에 닿아도 더 부르지 않는다. */
+  hasMore: boolean;
 };
 
 export type PlazaLikeResponse = { liked: boolean; likeCount: number };

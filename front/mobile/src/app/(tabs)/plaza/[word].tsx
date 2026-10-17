@@ -4,6 +4,9 @@
  * 동적 라우트: /plaza/{word}. useLocalSearchParams로 word 받음(journal [word] 패턴).
  * 서버에서 정의 목록을 받아 표시. 내 정의(isMine)는 맨 위 + 포인트 강조 + "내 정의" 배지.
  *
+ * 무한 스크롤: 서버가 10개씩 준다(좋아요 많은 순). 바닥 근처에 오면 다음 쪽을 붙인다.
+ * 정의가 수백 개로 늘어도 처음엔 10개만 받고, FlatList가 화면 밖 카드는 그리지 않아 가볍다.
+ *
  * 비로그인 처리: 이 화면은 광장 리스트(AuthGate 적용)에서만 들어오지만, 딥링크·웹 새로고침으로
  * 바로 열릴 수 있다. 그때 토큰이 없으면 요청을 못 보내 "불러오는 중…"에 갇히므로
  * 가입 유도 화면을 대신 보여준다. AuthGate를 쓰지 않는 이유 = push된 화면이라
@@ -15,7 +18,7 @@
  */
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { LikeButton } from '@/components/domain/like-button';
 import { ReportSheet } from '@/components/domain/report-sheet';
@@ -59,6 +62,18 @@ export default function PlazaWordDetailScreen() {
   const [data, setData] = useState<PlazaWordDetail | null>(null);
   const [failed, setFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // 다음 쪽의 offset = 서버에서 받은 남의 정의 수. 화면 개수(data.definitions.length)로 쓰면 안 된다 —
+  // 신고·차단으로 카드를 걷어내면 줄어들어, 다음 쪽이 이미 본 카드를 다시 준다.
+  const [nextOffset, setNextOffset] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreFailed, setMoreFailed] = useState(false);
+
+  /** 첫 쪽을 받아 화면을 통째로 바꾼다(첫 진입·당겨서 새로고침 공용). */
+  const applyFirstPage = useCallback((d: PlazaWordDetail) => {
+    setData(d);
+    setNextOffset(d.definitions.filter((x) => !x.isMine).length);
+    setMoreFailed(false);
+  }, []);
 
   // 중재 흐름의 대상 카드. 셋을 따로 두는 이유 = ⋯ 메뉴 → 사유 시트 / 차단 확인으로
   // 갈라지고, 시트가 닫히는 동안에도 대상이 살아 있어야 한다.
@@ -74,14 +89,48 @@ export default function PlazaWordDetailScreen() {
     if (!token || !word) return;
     setRefreshing(true);
     try {
-      setData(await getPlazaWord(token, word));
+      applyFirstPage(await getPlazaWord(token, word));
       setFailed(false);
     } catch {
       setFailed(true);
     } finally {
       setRefreshing(false);
     }
-  }, [token, word]);
+  }, [token, word, applyFirstPage]);
+
+  /**
+   * 다음 쪽. 바닥 근처에서 여러 번 불려도 한 번만 나간다(loadingMore).
+   * 실패하면 자동으로 다시 부르지 않는다 — 스크롤할 때마다 실패 요청이 쏟아진다.
+   * 대신 바닥에 "다시 시도"를 띄운다(실패를 삼키면 "정의가 여기까지"로 읽힌다).
+   */
+  const fetchMore = useCallback(async () => {
+    if (!token || !data?.hasMore || loadingMore) return;
+    setMoreFailed(false);
+    setLoadingMore(true);
+    try {
+      const page = await getPlazaWord(token, word, nextOffset);
+      setNextOffset((n) => n + page.definitions.length);
+      setData((prev) => {
+        if (!prev) return prev;
+        // 쪽을 넘기는 사이 좋아요 순위가 바뀌면 한 장이 겹칠 수 있다 → id로 거른다.
+        const seen = new Set(prev.definitions.map((d) => d.id));
+        return {
+          ...prev,
+          definitions: [...prev.definitions, ...page.definitions.filter((d) => !seen.has(d.id))],
+          hasMore: page.hasMore,
+        };
+      });
+    } catch {
+      setMoreFailed(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [token, word, data?.hasMore, loadingMore, nextOffset]);
+
+  /** 스크롤로 부를 때는 실패 상태면 멈춘다. 다시 시도 버튼은 fetchMore를 바로 부른다. */
+  const loadMore = useCallback(() => {
+    if (!moreFailed) void fetchMore();
+  }, [moreFailed, fetchMore]);
 
   useEffect(() => {
     if (!token || !word) return;
@@ -89,7 +138,7 @@ export default function PlazaWordDetailScreen() {
     setFailed(false);
     getPlazaWord(token, word)
       .then((d) => {
-        if (alive) setData(d);
+        if (alive) applyFirstPage(d);
       })
       .catch(() => {
         if (alive) setFailed(true);
@@ -97,7 +146,7 @@ export default function PlazaWordDetailScreen() {
     return () => {
       alive = false;
     };
-  }, [token, word]);
+  }, [token, word, applyFirstPage]);
 
   function handleToggleLike(entryId: string) {
     if (!token) return;
@@ -226,9 +275,14 @@ export default function PlazaWordDetailScreen() {
     <ThemedView bg="paper" style={styles.root}>
       <ScreenHeader title={word} />
 
-      <ScrollView
+      <FlatList
+        data={failed || data === null ? [] : data.definitions}
+        keyExtractor={(d) => d.id}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        // 바닥에서 화면 반 높이쯤 남았을 때 미리 부른다 — 끝에 닿아서야 부르면 매번 멈칫한다.
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -236,92 +290,111 @@ export default function PlazaWordDetailScreen() {
             tintColor={theme.colors.point.p500}
           />
         }
-      >
-        {failed ? (
-          // 실패 문구만 두면 막다른 길이다. 당겨서 새로고침은 글자 한 줄뿐인 화면에서
-          // 찾아낼 수 없으니, 빠져나갈 버튼을 눈에 보이게 둔다.
-          <View style={styles.failWrap}>
-            <ThemedText variant="body" tone="secondary">
-              정의를 불러오지 못했어요.
+        ListEmptyComponent={
+          failed ? (
+            // 실패 문구만 두면 막다른 길이다. 당겨서 새로고침은 글자 한 줄뿐인 화면에서
+            // 찾아낼 수 없으니, 빠져나갈 버튼을 눈에 보이게 둔다.
+            <View style={styles.failWrap}>
+              <ThemedText variant="body" tone="secondary">
+                정의를 불러오지 못했어요.
+              </ThemedText>
+              <Button label="다시 시도" variant="soft" size="sm" loading={refreshing} onPress={onRefresh} />
+            </View>
+          ) : data === null ? (
+            <View style={styles.loadingWrap}>
+              <Loading message="정의를 불러오고 있어요" />
+            </View>
+          ) : (
+            <ThemedText variant="body" tone="secondary" style={styles.centerText}>
+              아직 정의가 없어요.
             </ThemedText>
-            <Button label="다시 시도" variant="soft" size="sm" loading={refreshing} onPress={onRefresh} />
-          </View>
-        ) : data === null ? (
-          <View style={styles.loadingWrap}>
-            <Loading message="정의를 불러오고 있어요" />
-          </View>
-        ) : data.definitions.length === 0 ? (
-          <ThemedText variant="body" tone="secondary" style={styles.centerText}>
-            아직 정의가 없어요.
-          </ThemedText>
-        ) : (
-          data.definitions.map((d, i) => (
-            <FadeIn key={d.id} delay={Math.min(i, 8) * 40}>
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: theme.colors.surface.base,
-                    borderColor: d.isMine ? theme.colors.point.p500 : theme.colors.line.base,
-                    borderRadius: theme.radii.lg,
-                  },
-                  theme.shadows.sm,
-                ]}
-              >
-                <View style={styles.cardHead}>
-                  <ThemedText variant="bodyMd" tone="strong">
-                    {d.nickname}
-                  </ThemedText>
-                  {d.isMine ? (
-                    <View style={[styles.badge, { backgroundColor: theme.colors.point.p100 }]}>
-                      <ThemedText variant="caption" style={{ color: theme.colors.point.p700 }}>
-                        내 정의
-                      </ThemedText>
-                    </View>
-                  ) : null}
-                  <View style={{ flex: 1 }} />
-                  <ThemedText variant="caption" tone="placeholder">
-                    {formatRelativeLabel(new Date(d.savedAt), new Date())}
-                  </ThemedText>
-                  {/* 남의 글에만 ⋯. 내 글엔 신고·차단할 대상이 없다. */}
-                  {!d.isMine ? (
-                    <PressableScale
-                      onPress={() => setMenuTarget(d)}
-                      disabled={busyId !== null}
-                      // 아이콘이 18px이라 hitSlop 8로는 터치 영역이 34pt — Apple HIG 44pt 미달이었다.
-                      // 신고·차단으로 가는 유일한 길이라 더 못 누르면 안 된다.
-                      hitSlop={13}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${d.nickname}의 정의 — 신고하거나 차단하기`}
-                      style={styles.menuBtn}
-                    >
-                      <Icon
-                        name="more"
-                        size={18}
-                        color={
-                          busyId === d.id
-                            ? theme.colors.ink.placeholder
-                            : theme.colors.ink.secondary
-                        }
-                      />
-                    </PressableScale>
-                  ) : null}
-                </View>
-                <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
-                  {d.text}
+          )
+        }
+        ListFooterComponent={
+          moreFailed ? (
+            <View style={styles.moreWrap}>
+              <ThemedText variant="sm" tone="secondary">
+                더 불러오지 못했어요.
+              </ThemedText>
+              <Button
+                label="다시 시도"
+                variant="soft"
+                size="sm"
+                onPress={() => void fetchMore()}
+              />
+            </View>
+          ) : loadingMore ? (
+            <View style={styles.moreWrap}>
+              <Loading inline />
+            </View>
+          ) : null
+        }
+        renderItem={({ item: d, index: i }) => (
+      <FadeIn delay={i < 8 ? i * 40 : 0}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.colors.surface.base,
+              borderColor: d.isMine ? theme.colors.point.p500 : theme.colors.line.base,
+              borderRadius: theme.radii.lg,
+            },
+            theme.shadows.sm,
+          ]}
+        >
+          <View style={styles.cardHead}>
+            <ThemedText variant="bodyMd" tone="strong">
+              {d.nickname}
+            </ThemedText>
+            {d.isMine ? (
+              <View style={[styles.badge, { backgroundColor: theme.colors.point.p100 }]}>
+                <ThemedText variant="caption" style={{ color: theme.colors.point.p700 }}>
+                  내 정의
                 </ThemedText>
-                {!d.isMine ? (
-                  <LikeButton
-                    liked={d.isLiked}
-                    count={d.likeCount}
-                    onToggle={() => handleToggleLike(d.id)}
-                  />
-                ) : null}
               </View>
-            </FadeIn>
-          ))
+            ) : null}
+            <View style={{ flex: 1 }} />
+            <ThemedText variant="caption" tone="placeholder">
+              {formatRelativeLabel(new Date(d.savedAt), new Date())}
+            </ThemedText>
+            {/* 남의 글에만 ⋯. 내 글엔 신고·차단할 대상이 없다. */}
+            {!d.isMine ? (
+              <PressableScale
+                onPress={() => setMenuTarget(d)}
+                disabled={busyId !== null}
+                // 아이콘이 18px이라 hitSlop 8로는 터치 영역이 34pt — Apple HIG 44pt 미달이었다.
+                // 신고·차단으로 가는 유일한 길이라 더 못 누르면 안 된다.
+                hitSlop={13}
+                accessibilityRole="button"
+                accessibilityLabel={`${d.nickname}의 정의 — 신고하거나 차단하기`}
+                style={styles.menuBtn}
+              >
+                <Icon
+                  name="more"
+                  size={18}
+                  color={
+                    busyId === d.id
+                      ? theme.colors.ink.placeholder
+                      : theme.colors.ink.secondary
+                  }
+                />
+              </PressableScale>
+            ) : null}
+          </View>
+          <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
+            {d.text}
+          </ThemedText>
+          {!d.isMine ? (
+            <LikeButton
+              liked={d.isLiked}
+              count={d.likeCount}
+              onToggle={() => handleToggleLike(d.id)}
+            />
+          ) : null}
+        </View>
+      </FadeIn>
         )}
-      </ScrollView>
+      />
 
       {/* ⋯ 메뉴 — 시스템 ActionSheet/Alert가 아니라 우리 톤의 시트를 쓴다. */}
       <ActionSheet
@@ -370,8 +443,9 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32, gap: 12 },
   centerText: { textAlign: 'center', marginTop: 80 },
   failWrap: { marginTop: 80, alignItems: 'center', gap: 16 },
-  // ScrollView 안이라 flex:1이 안 먹는다 → 높이를 줘 Loading이 중앙에 오게.
+  // 리스트 안이라 flex:1이 안 먹는다 → 높이를 줘 Loading이 중앙에 오게.
   loadingWrap: { height: 200, justifyContent: 'center' },
+  moreWrap: { paddingVertical: 16, alignItems: 'center', gap: 12 },
   gate: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   card: { borderWidth: 1, paddingVertical: 16, paddingHorizontal: 16 },
   // 시간 글자 오른쪽. 음수 마진으로 카드 패딩 안쪽 여백을 되찾아 ⋯가 모서리에 붙는다.

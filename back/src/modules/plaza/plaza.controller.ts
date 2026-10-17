@@ -10,6 +10,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -42,13 +43,19 @@ export class PlazaController {
     return this.plaza.getStats(req.user.userId);
   }
 
-  /** GET /api/plaza/words/:word — 한 단어의 정의들(내 정의 강조). */
+  /**
+   * GET /api/plaza/words/:word?offset=N — 한 단어의 정의 한 쪽(무한 스크롤).
+   * offset 없이 부르는 옛 앱(빌드 10 이하)은 첫 쪽만 받는다 — 깨지지는 않는다.
+   */
   @Get('words/:word')
   getWord(
     @Param('word') word: string,
+    @Query('offset') offset: string | undefined,
     @Req() req: { user: { userId: string } },
   ): Promise<PlazaWordDetailResponse> {
-    return this.plaza.getWord(word, req.user.userId);
+    // 숫자가 아니거나 음수면 첫 쪽으로. 쿼리 하나에 DTO 클래스를 만들 일은 아니다.
+    const n = Math.max(0, Math.floor(Number(offset) || 0));
+    return this.plaza.getWord(word, req.user.userId, n);
   }
 
   /** POST /api/plaza/definitions/:entryId/like — 좋아요 토글(내 정의 불가). */
