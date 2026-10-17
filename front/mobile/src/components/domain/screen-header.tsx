@@ -52,6 +52,9 @@ export function ScreenHeader({ title, subtitle, right, bordered, onBack }: Scree
       <PressableScale
         onPress={onBack ?? goBack}
         hitSlop={4}
+        // 아이콘만 있는 버튼은 보이는 글자가 없어 화면 낭독기가 읽을 것이 없다.
+        accessibilityRole="button"
+        accessibilityLabel="뒤로"
         style={[styles.iconBtn, { backgroundColor: 'transparent' }]}
       >
         <Icon name="back" size={22} color={theme.colors.ink.strong} />

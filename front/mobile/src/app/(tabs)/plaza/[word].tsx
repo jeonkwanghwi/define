@@ -280,7 +280,11 @@ export default function PlazaWordDetailScreen() {
                     <PressableScale
                       onPress={() => setMenuTarget(d)}
                       disabled={busyId !== null}
-                      hitSlop={8}
+                      // 아이콘이 18px이라 hitSlop 8로는 터치 영역이 34pt — Apple HIG 44pt 미달이었다.
+                      // 신고·차단으로 가는 유일한 길이라 더 못 누르면 안 된다.
+                      hitSlop={13}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${d.nickname}의 정의 — 신고하거나 차단하기`}
                       style={styles.menuBtn}
                     >
                       <Icon

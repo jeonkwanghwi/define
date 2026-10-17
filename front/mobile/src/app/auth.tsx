@@ -416,7 +416,12 @@ export default function AuthScreen() {
                           keyboardType="email-address"
                           style={[styles.domainBoxInput, theme.typography.body, { color: theme.colors.ink.primary }]}
                         />
-                        <PressableScale onPress={() => setDomainOpen((v) => !v)} hitSlop={8}>
+                        <PressableScale
+                          onPress={() => setDomainOpen((v) => !v)}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel="이메일 도메인 고르기"
+                        >
                           <Icon name="chevronD" size={20} color={theme.colors.ink.secondary} />
                         </PressableScale>
                       </View>

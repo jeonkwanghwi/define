@@ -260,6 +260,10 @@ export default function RecallChatScreen() {
           <PressableScale
             onPress={send}
             disabled={sending || input.trim().length === 0}
+            accessibilityRole="button"
+            accessibilityLabel="보내기"
+            // 비활성인 이유까지 읽히게 — 낭독기는 색을 보지 못한다.
+            accessibilityState={{ disabled: sending || input.trim().length === 0 }}
             style={[styles.sendBtn, { backgroundColor: input.trim().length === 0 ? theme.colors.surface.nested : theme.colors.point.p600 }]}
           >
             <Icon name="send" size={20} color={input.trim().length === 0 ? theme.colors.ink.placeholder : theme.colors.paper.base} />
