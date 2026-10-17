@@ -4,19 +4,14 @@
  */
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  ScrollView,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
+import { ChoiceChip } from '@/components/domain/choice-chip';
 import { RecallConsentSheet } from '@/components/domain/recall-consent-sheet';
-import { Button, Card, PressableScale, useToast } from '@/components/primitives';
+import { WatchAdButton } from '@/components/domain/watch-ad-button';
+import { Button, Card, SegmentedControl, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
@@ -32,19 +27,89 @@ import {
 import { recallConsent } from '@/services/recall-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStore } from '@/store/journal-store';
-import { motion, typography, useTheme, type Theme } from '@/theme';
+import { motion, useTheme } from '@/theme';
 
 const UNLOCK_WORDS = 20;
 
 export default function PastScreen() {
+  // 가입만으로 열리는 게 아니다 — 진짜 조건(단어 20개)과 지금 위치를 먼저 말한다. 로컬 기록이라 오프라인에서도 센다.
+  const { uniqueWords } = useJournalStats();
   return (
     <AuthGate
       icon="past"
       title="회상"
-      description={'그때의 나와 이야기해요.\n가입하면 만날 수 있어요.'}
+      description={`단어 ${UNLOCK_WORDS}개를 모으면\n그때의 나와 이야기할 수 있어요.\n지금 ${Math.min(uniqueWords, UNLOCK_WORDS)}/${UNLOCK_WORDS}`}
     >
       <RecallHome />
     </AuthGate>
+  );
+}
+
+/**
+ * 잠금 화면 — 관문은 포인트 색(다른 게이트와 같은 말). 숫자만 있으면 "얼마나 남았나"가 안 읽혀
+ * 진행 막대로 보여주고, 할 일(단어 정의)로 바로 가는 버튼을 둔다(막다른 길 금지).
+ */
+function RecallLocked({ count }: { count: number }) {
+  const theme = useTheme();
+  const router = useRouter();
+  const ratio = Math.min(count, UNLOCK_WORDS) / UNLOCK_WORDS;
+  // 막대는 0에서 지금 위치까지 스르륵 차오른다 — 너비는 네이티브 드라이버 불가라 JS 구동.
+  const fill = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fill, {
+      toValue: ratio,
+      duration: motion.duration.slow * 2,
+      easing: motion.easing.standard,
+      useNativeDriver: false,
+    }).start();
+  }, [fill, ratio]);
+
+  return (
+    <ThemedView bg="paper" style={{ flex: 1 }}>
+      <View style={styles.headerWrap}>
+        <AppHeader />
+      </View>
+      <View style={styles.center}>
+        <Icon name="lock" size={48} color={theme.colors.point.p600} />
+        <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
+          회상을 시작하려면
+        </ThemedText>
+        {/* 한 줄로 두면 좁은 폭에서 낱말 중간이 끊긴다 → 뜻 단위로 직접 줄을 나눈다. */}
+        <ThemedText
+          variant="body"
+          tone="secondary"
+          style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
+        >
+          {`서로 다른 단어 ${UNLOCK_WORDS}개를 모으면\n그 시절의 나와 대화할 수 있어요.`}
+        </ThemedText>
+        <ThemedText
+          variant="h2"
+          style={{ marginTop: theme.spacing.s5, color: theme.colors.point.p600 }}
+        >
+          {count} / {UNLOCK_WORDS}
+        </ThemedText>
+        <View
+          style={[styles.track, { backgroundColor: theme.colors.point.p100, marginTop: theme.spacing.s3 }]}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: UNLOCK_WORDS, now: count }}
+        >
+          <Animated.View
+            style={[
+              styles.trackFill,
+              {
+                backgroundColor: theme.colors.point.p600,
+                width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+              },
+            ]}
+          />
+        </View>
+        <Button
+          label="단어 정의하러 가기"
+          onPress={() => router.push('/')}
+          style={{ marginTop: theme.spacing.s6 }}
+        />
+      </View>
+    </ThemedView>
   );
 }
 
@@ -56,6 +121,7 @@ function RecallHome() {
   const token = useAuthStore((s) => s.token);
   const birthYear = useAuthStore((s) => s.user?.birthYear ?? null);
   const recallConsented = useAuthStore((s) => s.user?.recallConsented ?? false);
+  const balance = useAuthStore((s) => s.user?.balance ?? 0);
   const setRecallConsented = useAuthStore((s) => s.setRecallConsented);
   const { show } = useToast();
 
@@ -63,41 +129,26 @@ function RecallHome() {
   const [consentSubmitting, setConsentSubmitting] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [convoMode, setConvoMode] = useState<'free' | 'question'>('free');
-  const [mode, setMode] = useState<'age' | 'year'>('age');
-  const [selAge, setSelAge] = useState<number | null>(null);
-  const [selYear, setSelYear] = useState<number | null>(null);
+  // null = 아직 안 골랐다. 그동안은 아래에서 기본값(가장 최근 시절)을 대신 쓴다.
+  const [pickedMode, setMode] = useState<'age' | 'year' | null>(null);
+  const [pickedAge, setSelAge] = useState<number | null>(null);
+  const [pickedYear, setSelYear] = useState<number | null>(null);
 
   const ages = useMemo(() => availableAges(entries, birthYear), [entries, birthYear]);
   const years = useMemo(() => availableYears(entries), [entries]);
 
+  /**
+   * 들어오자마자 시작할 수 있게 **가장 최근 시절을 미리 골라 둔다.**
+   * 전엔 아무것도 안 골라진 채 시작 버튼이 회색이라, 왜 못 누르는지 알 수 없었다.
+   * 출생연도가 없어 나이 목록이 비면 처음부터 '연도로'를 보여준다(막다른 길을 첫 화면으로 두지 않는다).
+   */
+  const mode = pickedMode ?? (ages.length > 0 ? 'age' : 'year');
+  const selAge = pickedAge ?? ages[ages.length - 1] ?? null; // 오름차순 → 마지막이 최근
+  const selYear = pickedYear ?? years[0] ?? null; // 내림차순 → 첫 번째가 최근
+
   // ── 잠금: 서로 다른 단어 20개 미만 ──
   if (uniqueWords < UNLOCK_WORDS) {
-    return (
-      <ThemedView bg="paper" style={{ flex: 1 }}>
-        <View style={styles.headerWrap}>
-          <AppHeader />
-        </View>
-        <View style={styles.center}>
-          <Icon name="lock" size={48} color={theme.colors.ink.placeholder} />
-          <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
-            회상을 시작하려면
-          </ThemedText>
-          <ThemedText
-            variant="body"
-            tone="secondary"
-            style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
-          >
-            서로 다른 단어 {UNLOCK_WORDS}개를 모으면 그 시절의 나와 대화할 수 있어요.
-          </ThemedText>
-          <ThemedText
-            variant="h2"
-            style={{ marginTop: theme.spacing.s5, color: theme.colors.point.p600 }}
-          >
-            {uniqueWords} / {UNLOCK_WORDS}
-          </ThemedText>
-        </View>
-      </ThemedView>
-    );
+    return <RecallLocked count={uniqueWords} />;
   }
 
   const handleConsent = async () => {
@@ -167,42 +218,29 @@ function RecallHome() {
         ? countForYear(entries, selYear)
         : 0;
   const canStart = sliceCount > 0;
+  // 잔액은 서버가 마지막으로 알려준 값. 모자라면 대화 화면에 들어가서야 알게 하지 않고 여기서 말한다.
+  const inkShort = balance < RECALL_COST;
 
   return (
     <ThemedView bg="paper" style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <AppHeader />
-        <ThemedText variant="h2">회상</ThemedText>
-        <ThemedText variant="caption" tone="placeholder" style={{ marginTop: 4 }}>
-          이 기능은 생성형 AI를 활용해요
+        {/* 제목 모양은 광장·단어장과 같게(h1 + 본문 부제). AI 안내는 부제에 녹인다. */}
+        <ThemedText variant="h1">회상</ThemedText>
+        <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
+          생성형 AI로 그 시절의 나와 이야기해요
         </ThemedText>
 
-        {/* 대화 방식 */}
+        {/* 대화 방식 — 둘 중 하나를 고르는 자리라 SegmentedControl(테마 토글과 같은 모양) */}
         <SectionLabel text="대화 방식" />
-        <View style={styles.segment}>
-          {(['free', 'question'] as const).map((cm) => {
-            const active = convoMode === cm;
-            return (
-              <AnimatedPill
-                key={cm}
-                grow
-                active={active}
-                onPress={() => setConvoMode(cm)}
-                style={styles.segItem}
-                colors={{
-                  bgOff: theme.colors.surface.base,
-                  bgOn: theme.colors.point.p600,
-                  borderOff: theme.colors.line.base,
-                  borderOn: theme.colors.line.base,
-                  textOff: theme.colors.ink.secondary,
-                  textOn: theme.colors.paper.base,
-                }}
-              >
-                {cm === 'free' ? '자유롭게 대화' : '질문 받기'}
-              </AnimatedPill>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          options={[
+            { value: 'free', label: '자유롭게 대화' },
+            { value: 'question', label: '질문 받기' },
+          ]}
+          value={convoMode}
+          onChange={setConvoMode}
+        />
 
         {convoMode === 'question' && (
           <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s4 }}>
@@ -214,64 +252,51 @@ function RecallHome() {
           <>
             {/* 시절 선택 */}
             <SectionLabel text="어느 시절의 나" />
-            <View style={styles.segment}>
-              {(['age', 'year'] as const).map((m) => {
-                const active = mode === m;
-                return (
-                  <AnimatedPill
-                    key={m}
-                    grow
-                    active={active}
-                    onPress={() => setMode(m)}
-                    style={styles.segItem}
-                    colors={{
-                      bgOff: theme.colors.surface.base,
-                      bgOn: theme.colors.point.p600,
-                      borderOff: theme.colors.line.base,
-                      borderOn: theme.colors.line.base,
-                      textOff: theme.colors.ink.secondary,
-                      textOn: theme.colors.paper.base,
-                    }}
-                  >
-                    {m === 'age' ? '나이로' : '연도로'}
-                  </AnimatedPill>
-                );
-              })}
-            </View>
+            <SegmentedControl
+              options={[
+                { value: 'age', label: '나이로' },
+                { value: 'year', label: '연도로' },
+              ]}
+              value={mode}
+              onChange={setMode}
+            />
 
             {/* 칩 목록 */}
             <View style={[styles.chips, { marginTop: theme.spacing.s4 }]}>
               {mode === 'age'
                 ? ages.length === 0
-                  ? <ThemedText variant="body" tone="placeholder">출생연도가 없거나 기록이 없어요.</ThemedText>
-                  : ages.map((a) => {
-                      const active = selAge === a;
-                      return (
-                        <AnimatedPill
-                          key={a}
-                          active={active}
-                          onPress={() => setSelAge(a)}
-                          style={styles.chip}
-                          colors={chipColors(theme)}
-                        >
-                          {`${a}살`}
-                        </AnimatedPill>
-                      );
-                    })
-                : years.map((y) => {
-                    const active = selYear === y;
-                    return (
-                      <AnimatedPill
-                        key={y}
-                        active={active}
-                        onPress={() => setSelYear(y)}
-                        style={styles.chip}
-                        colors={chipColors(theme)}
-                      >
-                        {`${y}년`}
-                      </AnimatedPill>
-                    );
-                  })}
+                  ? (
+                    // 막다른 길로 두지 않는다 — 갈 수 있는 길(연도)을 버튼으로 바로 건넨다.
+                    <View style={{ gap: theme.spacing.s3, alignItems: 'flex-start' }}>
+                      <ThemedText variant="body" tone="placeholder">
+                        {birthYear == null
+                          ? '출생연도가 없어 나이로는 고를 수 없어요.'
+                          : '나이로 고를 기록이 없어요.'}
+                      </ThemedText>
+                      <Button
+                        label="연도로 고르기"
+                        variant="ghost"
+                        size="sm"
+                        onPress={() => setMode('year')}
+                      />
+                    </View>
+                  )
+                  : ages.map((a) => (
+                      <ChoiceChip
+                        key={a}
+                        label={`${a}살`}
+                        selected={selAge === a}
+                        onPress={() => setSelAge(a)}
+                      />
+                    ))
+                : years.map((y) => (
+                    <ChoiceChip
+                      key={y}
+                      label={`${y}년`}
+                      selected={selYear === y}
+                      onPress={() => setSelYear(y)}
+                    />
+                  ))}
             </View>
 
             {sliceCount > 0 && (
@@ -292,19 +317,33 @@ function RecallHome() {
           </View>
           <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
             그 시절에 남긴 단어와 정의로 그때의 나를 되살려요. 시절을 고르고 말을
-            걸어보세요. 대화 한 번에 {RECALL_COST}잉크가 쓰여요.
+            걸어보세요. 대화 한 번에 잉크 {RECALL_COST}개가 쓰여요.
           </ThemedText>
         </Card>
       </ScrollView>
 
       {/* CTA — 비용 명시 */}
       <View style={[styles.cta, { borderTopColor: theme.colors.line.base }]}>
+        {/* 회색 버튼만 두면 왜 못 누르는지 모른다 — 이유를 바로 위에 한 줄로. */}
+        {!inkShort && convoMode === 'free' && !canStart ? (
+          <ThemedText
+            variant="caption"
+            tone="secondary"
+            style={{ textAlign: 'center', marginBottom: theme.spacing.s2 }}
+          >
+            위에서 시절을 골라주세요
+          </ThemedText>
+        ) : null}
         <Button
           label={
-            convoMode === 'question'
-              ? `질문 받기 · ${RECALL_COST}잉크`
-              : `회상 시작하기 · ${RECALL_COST}잉크`
+            inkShort
+              ? `잉크가 부족해요 · 잉크 ${RECALL_COST}개 필요`
+              : convoMode === 'question'
+                ? `질문 받기 · 잉크 ${RECALL_COST}개`
+                : `회상 시작하기 · 잉크 ${RECALL_COST}개`
           }
+          // 잉크 부족은 안내만 하고 막지 않는다 — 기기의 잔액은 늦게 반영될 수 있어서(광고 보상 지연·다른 기기)
+          // 실제로는 충분한데 버튼이 잠길 수 있다. 진짜 판정은 서버가 한다(부족하면 402 → 대화 화면이 안내).
           disabled={convoMode === 'free' && !canStart}
           onPress={() => {
             if (!recallConsented) {
@@ -316,6 +355,8 @@ function RecallHome() {
             }
           }}
         />
+        {/* 모자라면 바로 채울 길을 같은 자리에 — 가장 필요한 순간이다. */}
+        {inkShort ? <WatchAdButton style={{ marginTop: theme.spacing.s3 }} /> : null}
       </View>
 
       <RecallConsentSheet
@@ -352,81 +393,13 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-/**
- * 선택 상태(active)가 바뀔 때 배경·테두리·글자색이 툭 바뀌지 않고 부드럽게 전환되는 알약.
- * PressableScale로 눌림 피드백은 유지하고, 색 전환만 Animated로 보간(fast, ease-out).
- * grow=true면 세그먼트처럼 가로를 꽉 채우고, 기본은 칩처럼 내용 크기.
- */
-type PillColors = {
-  bgOff: string;
-  bgOn: string;
-  borderOff: string;
-  borderOn: string;
-  textOff: string;
-  textOn: string;
-};
-
-/** 나이/연도 칩 색 세트 — 선택 시 옅은 point 배경 + point 테두리. */
-function chipColors(theme: Theme): PillColors {
-  return {
-    bgOff: theme.colors.surface.base,
-    bgOn: theme.colors.point.p050,
-    borderOff: theme.colors.line.base,
-    borderOn: theme.colors.point.p600,
-    textOff: theme.colors.ink.primary,
-    textOn: theme.colors.point.p700,
-  };
-}
-
-function AnimatedPill({
-  active,
-  onPress,
-  style,
-  colors,
-  grow,
-  children,
-}: {
-  active: boolean;
-  onPress: () => void;
-  style?: StyleProp<ViewStyle>;
-  colors: PillColors;
-  grow?: boolean;
-  children: string;
-}) {
-  const p = useRef(new Animated.Value(active ? 1 : 0)).current;
-  useEffect(() => {
-    Animated.timing(p, {
-      toValue: active ? 1 : 0,
-      duration: motion.duration.fast,
-      easing: motion.easing.standard,
-      useNativeDriver: false, // 색 보간은 네이티브 드라이버 미지원
-    }).start();
-  }, [active, p]);
-
-  const backgroundColor = p.interpolate({ inputRange: [0, 1], outputRange: [colors.bgOff, colors.bgOn] });
-  const borderColor = p.interpolate({ inputRange: [0, 1], outputRange: [colors.borderOff, colors.borderOn] });
-  const color = p.interpolate({ inputRange: [0, 1], outputRange: [colors.textOff, colors.textOn] });
-
-  return (
-    <PressableScale onPress={onPress} style={grow ? styles.grow : undefined}>
-      <Animated.View style={[style, { backgroundColor, borderColor }]}>
-        <Animated.Text style={[typography.bodyMd, { color, textAlign: 'center' }]}>
-          {children}
-        </Animated.Text>
-      </Animated.View>
-    </PressableScale>
-  );
-}
-
 const styles = StyleSheet.create({
   headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  track: { width: '100%', maxWidth: 240, height: 6, borderRadius: 3, overflow: 'hidden' },
+  trackFill: { height: '100%', borderRadius: 3 },
   scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
-  segment: { flexDirection: 'row', gap: 8 },
-  grow: { flex: 1 },
-  segItem: { alignItems: 'center', paddingVertical: 10, borderRadius: 999, borderWidth: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
   infoHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cta: { padding: 16, borderTopWidth: 1 },
 });

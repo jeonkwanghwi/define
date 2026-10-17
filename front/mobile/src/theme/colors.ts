@@ -18,7 +18,16 @@
 export type Colors = {
   paper: { base: string; recessed: string };
   surface: { base: string; nested: string };
-  ink: { primary: string; strong: string; secondary: string; placeholder: string };
+  ink: {
+    primary: string;
+    strong: string;
+    secondary: string;
+    placeholder: string;
+    /** 포인트(p600) 바탕 위의 글자·아이콘. 다크의 p600은 밝아서 흰 글자가 안 읽힌다(2.9:1). */
+    onPoint: string;
+    /** 루비(ruby.base) 바탕 위의 글자. onPoint와 같은 이유로 다크에선 어두운 잉크. */
+    onRuby: string;
+  };
   line: { base: string; strong: string };
   point: { p700: string; p600: string; p500: string; p300: string; p100: string; p050: string };
   ruby: { base: string; soft: string };
@@ -44,6 +53,8 @@ export const lightColors: Colors = {
     // 전에는 #918A7D(3.2:1)라 WCAG AA(작은 글자 4.5:1)에 못 미쳤다. 색조·채도는 그대로 두고
     // 명도만 낮춰 4.5:1을 넘겼다. primary·strong·secondary와의 위계는 그대로다.
     placeholder: '#736C61',
+    onPoint: '#FFFFFF', // p600 위 10.7:1
+    onRuby: '#FFFFFF', // ruby.base 위 5.2:1
   },
   line: {
     base: '#EAE3D7', // 헤어라인 보더 (따뜻한 톤)
@@ -84,6 +95,9 @@ export const darkColors: Colors = {
     secondary: '#A59E90',
     // 라이트와 같은 이유로 올렸다(3.1~3.9:1 → 4.5:1 이상).
     placeholder: '#989184',
+    // 다크의 p600·ruby는 밝은 파스텔이라 흰 글자가 묻힌다 → 페이지 바탕색 잉크로 뒤집는다.
+    onPoint: '#1A1815', // p600 위 6.1:1
+    onRuby: '#1A1815', // ruby.base 위 7.2:1
   },
   line: {
     base: '#38332C',
@@ -91,12 +105,16 @@ export const darkColors: Colors = {
   },
   // 다크에서는 흰색을 섞어 가독성 확보 (라이트의 p값과 의미적으로 같지만 hex 다름)
   point: {
-    p700: '#6D6FB3', // 70% pt + 30% white
+    // p700은 "옅은 포인트 바탕(p100) 위의 글자"로 쓰인다. 다크에선 강조 = 더 밝게라서
+    // p600보다 밝아야 위계가 맞다. 구 #6D6FB3은 새 p100 위에서 2.7:1이라 올렸다(→5.2:1).
+    p700: '#A4A6D8',
     p600: '#9294C6', // 52% pt + 48% white
     p500: '#8284BE',
     p300: '#4A4C7E', // 옅은 포인트(옛 dot·빈 상태 아이콘·좋아요 보더) — 구 #1C1D58은 배경과 동화되어 안 보였음
-    p100: '#111337',
-    p050: '#0C0D26',
+    // 옅은 포인트 바탕(soft 버튼·선택 표시). 구 #111337/#0C0D26은 카드(surface)보다 **어두워서**
+    // 선택한 자리가 구멍처럼 꺼져 보였다. 인디고 색조는 그대로, 명도만 surface.nested 위로 올렸다.
+    p100: '#30325A',
+    p050: '#2A2B47',
   },
   ruby: {
     base: '#EE85A0',

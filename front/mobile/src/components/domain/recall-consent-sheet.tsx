@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  View,
 } from 'react-native';
 
 import { Button } from '@/components/primitives';
@@ -43,10 +44,16 @@ export function RecallConsentSheet({
           <Pressable
             style={[
               styles.sheet,
-              { backgroundColor: theme.colors.paper.base, borderColor: theme.colors.line.base },
+              // 닉네임·제보 시트와 같은 겉모양(바탕·모서리·손잡이) — 시트마다 달라 보이면 다른 물건 같다.
+              {
+                backgroundColor: theme.colors.surface.base,
+                borderTopLeftRadius: theme.radii.xl,
+                borderTopRightRadius: theme.radii.xl,
+              },
             ]}
             onPress={(e) => e.stopPropagation()}
           >
+            <View style={[styles.grip, { backgroundColor: theme.colors.line.strong }]} />
             <Icon name="past" size={40} color={theme.colors.point.p600} />
             <ThemedText variant="h3" style={{ marginTop: theme.spacing.s3 }}>
               회상 시작하기
@@ -88,11 +95,15 @@ const styles = StyleSheet.create({
   scrimInner: { width: '100%' },
   sheet: {
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 36,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
+    paddingHorizontal: 22,
+    paddingTop: 12,
+    paddingBottom: 28,
+  },
+  grip: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 18,
   },
 });

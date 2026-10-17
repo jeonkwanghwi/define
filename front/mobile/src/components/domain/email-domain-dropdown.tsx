@@ -78,10 +78,11 @@ export function EmailDomainDropdown({
             ]}
           >
             <ThemedText
-              variant="bodyMd"
+              variant="label"
               style={{
                 color: on ? theme.colors.point.p600 : theme.colors.ink.primary,
-                fontWeight: on ? '700' : '400',
+                // 고르는 글이라 산세리프 — 명조 Bold(bodyMd)엔 굵기 차이가 먹지 않았다.
+                fontWeight: on ? '700' : '500',
               }}
             >
               {domain}
@@ -103,7 +104,7 @@ export function EmailDomainDropdown({
           pressed && { backgroundColor: theme.colors.surface.nested },
         ]}
       >
-        <ThemedText variant="bodyMd" style={{ color: theme.colors.point.p600, fontWeight: '600' }}>
+        <ThemedText variant="label" style={{ color: theme.colors.point.p600 }}>
           직접 입력
         </ThemedText>
         <Icon name="chevronR" size={16} color={theme.colors.point.p600} />

@@ -46,6 +46,11 @@ type AuthState = {
    * 비로그인 상태일 때 "재방문 사용자에게만" 로그인 리마인드 말풍선을 띄우는 판별용.
    */
   hasLoggedInBefore: boolean;
+  /**
+   * 방금 받은 연속 기록 보상 — 루트의 토스트가 한 번 띄우는 "이벤트"다(새 객체 = 새 소식).
+   * 저장하지 않는다(partialize에서 뺀다): 다시 켤 때마다 지난 보상 토스트가 뜨면 안 된다.
+   */
+  recordBonus: { milestone: number; amount: number } | null;
   /** 실패 시 throw(화면이 인라인 에러로 표시). 성공 시에만 상태 갱신. */
   signup: (email: string, password: string, code: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -90,6 +95,11 @@ type AuthState = {
   retrySync: () => Promise<void>;
   /** 출석 적립 등으로 잔액만 갱신(서버 응답값으로). */
   setBalance: (balance: number) => void;
+  /**
+   * 연속 기록 보상 반영 — 잔액 갱신 + recordBonus로 토스트에 알린다.
+   * 잔액만 바꾸면 헤더 숫자만 조용히 변해 받은 줄 모른다(출석은 이미 토스트로 알린다).
+   */
+  applyRecordBonus: (bonus: { milestone: number; amount: number; balance: number }) => void;
   /** 동의 완료 표시(서버 기록 후). */
   setRecallConsented: () => void;
   /** 인증만 해제. 로컬 단어장은 보존. */
@@ -111,6 +121,7 @@ export const useAuthStore = create<AuthState>()(
       lastSyncedAt: null,
       syncFailedAt: null,
       hasLoggedInBefore: false,
+      recordBonus: null,
       signup: async (email, password, code) => {
         const { token, user } = await signupApi(email, password, code);
         set({ token, user, hasLoggedInBefore: true });
@@ -166,7 +177,7 @@ export const useAuthStore = create<AuthState>()(
         if (!token) return; // 익명 — 동기화할 서버가 없음
         try {
           const res = await syncJournal(token);
-          if (res.recordBonus) get().setBalance(res.recordBonus.balance);
+          if (res.recordBonus) get().applyRecordBonus(res.recordBonus);
           await downloadJournal(token);
           set({ lastSyncedAt: new Date().toISOString(), syncFailedAt: null });
         } catch (e) {
@@ -177,6 +188,10 @@ export const useAuthStore = create<AuthState>()(
       setBalance: (balance) => {
         const user = get().user;
         if (user) set({ user: { ...user, balance } });
+      },
+      applyRecordBonus: ({ milestone, amount, balance }) => {
+        get().setBalance(balance);
+        set({ recordBonus: { milestone, amount } });
       },
       setRecallConsented: () => {
         const user = get().user;
@@ -196,6 +211,9 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'define-auth-v1', // 모델 깨는 변경 시 v2로 마이그레이션
       storage: createJSONStorage(() => AsyncStorage),
+      // recordBonus는 한 번 띄우고 끝나는 소식이라 저장하지 않는다.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      partialize: ({ recordBonus, ...rest }) => rest,
     },
   ),
 );
@@ -260,7 +278,7 @@ async function reconcileForUser(
   try {
     const res = await syncJournal(token);
     if (res.recordBonus) {
-      useAuthStore.getState().setBalance(res.recordBonus.balance);
+      useAuthStore.getState().applyRecordBonus(res.recordBonus);
     }
   } catch (e) {
     console.warn('[auth] 업로드 실패 (다운로드는 계속 진행):', e);

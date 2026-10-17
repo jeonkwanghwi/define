@@ -2,7 +2,8 @@
  * 광장 단어 상세 — 한 단어에 대한 여러 사람의 정의 카드.
  *
  * 동적 라우트: /plaza/{word}. useLocalSearchParams로 word 받음(journal [word] 패턴).
- * 서버에서 정의 목록을 받아 표시. 내 정의(isMine)는 맨 위 + 포인트 강조 + "내 정의" 배지.
+ * 서버에서 정의 목록을 받아 표시. 내 정의(isMine)는 최신 하나만 맨 위 + 포인트 강조 + "내 정의" 배지
+ * (이전 것들은 "내 이전 정의 N개 보기" → 단어장 타임라인).
  *
  * 무한 스크롤: 서버가 10개씩 준다(좋아요 많은 순). 바닥 근처에 오면 다음 쪽을 붙인다.
  * 정의가 수백 개로 늘어도 처음엔 10개만 받고, FlatList가 화면 밖 카드는 그리지 않아 가볍다.
@@ -21,6 +22,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { LikeButton } from '@/components/domain/like-button';
+import { LoadFailed } from '@/components/domain/load-failed';
 import { ReportSheet } from '@/components/domain/report-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import {
@@ -47,6 +49,7 @@ import {
   type ReportReason,
 } from '@/services/plaza-api';
 import { useAuthHydrated, useAuthStore } from '@/store/auth-store';
+import { useJournalWord } from '@/store/journal-store';
 import { controlPresets, useTheme } from '@/theme';
 
 export default function PlazaWordDetailScreen() {
@@ -56,6 +59,7 @@ export default function PlazaWordDetailScreen() {
   const word = typeof rawWord === 'string' ? rawWord : '';
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthHydrated();
+  const localWord = useJournalWord(word);
 
   const { show } = useToast();
 
@@ -83,6 +87,9 @@ export default function PlazaWordDetailScreen() {
   // 전송 중인 카드 = 진행 중 표시. ActionSheet·ConfirmDialog는 누른 직후 닫혀서
   // 그 안에 "보내는 중"을 그릴 자리가 없다 → 그 카드의 ⋯만 잠가 두 번 보내는 걸 막는다.
   const [busyId, setBusyId] = useState<string | null>(null);
+  // 시트 제목에 쓸 닉네임. 대상(menuTarget 등)은 시트가 닫히는 순간 null이 돼, 그걸 쓰면
+  // 내려가는 동안 제목이 바뀌어 보인다 → 열 때 한 번 적어 두고 지우지 않는다.
+  const [sheetNickname, setSheetNickname] = useState('');
 
   /** 당겨서 새로고침 — 남이 방금 쓴 정의·좋아요를 보려면 다시 받을 수단이 있어야 한다. */
   const onRefresh = useCallback(async () => {
@@ -195,7 +202,7 @@ export default function PlazaWordDetailScreen() {
             : prev,
         );
         hapticError();
-        show('좋아요를 저장하지 못했어요');
+        show('공감을 저장하지 못했어요', { tone: 'error' });
       });
   }
 
@@ -220,7 +227,7 @@ export default function PlazaWordDetailScreen() {
       dropDefinitions((d) => d.id !== target.id);
     } catch {
       hapticError();
-      show('신고하지 못했어요. 잠시 후 다시 시도해 주세요');
+      show('신고하지 못했어요. 잠시 후 다시 시도해 주세요', { tone: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -237,11 +244,29 @@ export default function PlazaWordDetailScreen() {
       dropDefinitions((d) => d.authorId !== target.authorId);
     } catch {
       hapticError();
-      show('차단하지 못했어요. 잠시 후 다시 시도해 주세요');
+      show('차단하지 못했어요. 잠시 후 다시 시도해 주세요', { tone: 'error' });
     } finally {
       setBusyId(null);
     }
   }
+
+  /**
+   * 내 정의는 **가장 최근 하나만** 맨 위에. 내가 5번 정의했으면 첫 화면이 내 기록으로 덮여
+   * 정작 남의 정의(이 화면의 목적)가 안 보였다. 이전 것들은 단어장 타임라인으로 보낸다.
+   * 페이징(nextOffset)은 원본 data.definitions 기준 그대로 — 여기선 보여줄 것만 고른다.
+   */
+  const defs = data?.definitions ?? [];
+  const mine = defs.filter((d) => d.isMine);
+  const latestMine = mine.reduce<PlazaDefinition | null>(
+    (a, d) => (a === null || d.savedAt > a.savedAt ? d : a),
+    null,
+  );
+  const others = defs.filter((d) => !d.isMine);
+  const shown = latestMine ? [latestMine, ...others] : others;
+  // 서버엔 있어도 이 폰 단어장엔 없을 수 있다(다른 기기·로컬 삭제). 그때 링크를 열면 빈 화면이
+  // 바로 뒤로 튕겨 고장처럼 보인다 → 이 폰에 있을 때만 입구를 연다.
+  const hasLocalWord = !!localWord;
+  const openMyTimeline = () => router.push({ pathname: '/journal/[word]', params: { word } });
 
   // 비로그인 — 서버를 부를 수 없으니 로딩에 갇히지 않게 가입 유도로 대체(뒤로가기는 유지).
   // hydrated 전에는 판단하지 않는다(저장된 토큰을 아직 못 읽은 것뿐인데 가입 화면이 깜빡인다).
@@ -276,9 +301,10 @@ export default function PlazaWordDetailScreen() {
       <ScreenHeader title={word} />
 
       <FlatList
-        data={failed || data === null ? [] : data.definitions}
+        data={failed || data === null ? [] : shown}
         keyExtractor={(d) => d.id}
-        contentContainerStyle={styles.scroll}
+        // 실패 화면을 광장 목록과 같은 자리(가운데)에 두려면 빈 리스트도 화면 높이를 채워야 한다.
+        contentContainerStyle={[styles.scroll, failed && styles.fill]}
         showsVerticalScrollIndicator={false}
         // 바닥에서 화면 반 높이쯤 남았을 때 미리 부른다 — 끝에 닿아서야 부르면 매번 멈칫한다.
         onEndReached={loadMore}
@@ -292,13 +318,9 @@ export default function PlazaWordDetailScreen() {
         }
         ListEmptyComponent={
           failed ? (
-            // 실패 문구만 두면 막다른 길이다. 당겨서 새로고침은 글자 한 줄뿐인 화면에서
-            // 찾아낼 수 없으니, 빠져나갈 버튼을 눈에 보이게 둔다.
+            // 광장 목록과 같은 실패 화면 — 같은 실패는 같은 모양이어야 한다.
             <View style={styles.failWrap}>
-              <ThemedText variant="body" tone="secondary">
-                정의를 불러오지 못했어요.
-              </ThemedText>
-              <Button label="다시 시도" variant="soft" size="sm" loading={refreshing} onPress={onRefresh} />
+              <LoadFailed onRetry={onRefresh} retrying={refreshing} />
             </View>
           ) : data === null ? (
             <View style={styles.loadingWrap}>
@@ -327,78 +349,134 @@ export default function PlazaWordDetailScreen() {
             <View style={styles.moreWrap}>
               <Loading inline />
             </View>
+          ) : latestMine && others.length === 0 && !data?.hasMore ? (
+            // 내 카드 하나뿐인 화면이 "남의 정의를 못 불러왔나?"로 읽히지 않게.
+            <ThemedText variant="caption" tone="placeholder" style={styles.aloneText}>
+              아직 나만 정의한 단어예요
+            </ThemedText>
           ) : null
         }
         renderItem={({ item: d, index: i }) => (
-      <FadeIn delay={i < 8 ? i * 40 : 0}>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface.base,
-              borderColor: d.isMine ? theme.colors.point.p500 : theme.colors.line.base,
-              borderRadius: theme.radii.lg,
-            },
-            theme.shadows.sm,
-          ]}
-        >
-          <View style={styles.cardHead}>
-            <ThemedText variant="bodyMd" tone="strong">
-              {d.nickname}
-            </ThemedText>
+          <FadeIn delay={i < 8 ? i * 40 : 0}>
             {d.isMine ? (
-              <View style={[styles.badge, { backgroundColor: theme.colors.point.p100 }]}>
-                <ThemedText variant="caption" style={{ color: theme.colors.point.p700 }}>
-                  내 정의
-                </ThemedText>
-              </View>
-            ) : null}
-            <View style={{ flex: 1 }} />
-            <ThemedText variant="caption" tone="placeholder">
-              {formatRelativeLabel(new Date(d.savedAt), new Date())}
-            </ThemedText>
-            {/* 남의 글에만 ⋯. 내 글엔 신고·차단할 대상이 없다. */}
-            {!d.isMine ? (
-              <PressableScale
-                onPress={() => setMenuTarget(d)}
-                disabled={busyId !== null}
-                // 아이콘이 18px이라 hitSlop 8로는 터치 영역이 34pt — Apple HIG 44pt 미달이었다.
-                // 신고·차단으로 가는 유일한 길이라 더 못 누르면 안 된다.
-                hitSlop={13}
-                accessibilityRole="button"
-                accessibilityLabel={`${d.nickname}의 정의 — 신고하거나 차단하기`}
-                style={styles.menuBtn}
+              <>
+                {/* 내 카드 = 내 단어장 타임라인으로 가는 입구. 공감은 내가 누를 게 아니라 받은 수만 보인다. */}
+                <PressableScale
+                  onPress={hasLocalWord ? openMyTimeline : undefined}
+                  disabled={!hasLocalWord}
+                  accessibilityRole="button"
+                  accessibilityLabel={`내 정의, 공감 ${d.likeCount} — 내 단어장에서 보기`}
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: theme.colors.surface.base,
+                      borderColor: theme.colors.point.p500,
+                      borderRadius: theme.radii.lg,
+                    },
+                    theme.shadows.sm,
+                  ]}
+                >
+                  <View style={styles.cardHead}>
+                    <ThemedText variant="bodyMd" tone="strong">
+                      {d.nickname}
+                    </ThemedText>
+                    <View style={[styles.badge, { backgroundColor: theme.colors.point.p100 }]}>
+                      <ThemedText variant="caption" style={{ color: theme.colors.point.p700 }}>
+                        내 정의
+                      </ThemedText>
+                    </View>
+                    <View style={{ flex: 1 }} />
+                    <ThemedText variant="caption" tone="placeholder">
+                      {formatRelativeLabel(new Date(d.savedAt), new Date())}
+                    </ThemedText>
+                    {hasLocalWord ? <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} /> : null}
+                  </View>
+                  <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
+                    {d.text}
+                  </ThemedText>
+                  {/* 읽기 전용 공감 수 — LikeButton과 같은 알약 치수·하트지만 테두리 대신 옅은 바탕:
+                      누르는 버튼이 아니라 받은 숫자라는 걸 모양으로 구분한다. */}
+                  <View style={[styles.likeStat, { backgroundColor: theme.colors.surface.nested }]}>
+                    <Icon name="heart" size={16} color={theme.colors.ink.secondary} />
+                    <ThemedText variant="caption" tone="secondary">
+                      {d.likeCount}
+                    </ThemedText>
+                  </View>
+                </PressableScale>
+                {mine.length > 1 && hasLocalWord ? (
+                  <Button
+                    label={`내 이전 정의 ${mine.length - 1}개 보기`}
+                    variant="ghost"
+                    size="sm"
+                    onPress={openMyTimeline}
+                    style={styles.prevLink}
+                  />
+                ) : null}
+              </>
+            ) : (
+              <View
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: theme.colors.surface.base,
+                    borderColor: theme.colors.line.base,
+                    borderRadius: theme.radii.lg,
+                  },
+                  theme.shadows.sm,
+                ]}
               >
-                <Icon
-                  name="more"
-                  size={18}
-                  color={
-                    busyId === d.id
-                      ? theme.colors.ink.placeholder
-                      : theme.colors.ink.secondary
-                  }
+                <View style={styles.cardHead}>
+                  <ThemedText variant="bodyMd" tone="strong">
+                    {d.nickname}
+                  </ThemedText>
+                  <View style={{ flex: 1 }} />
+                  <ThemedText variant="caption" tone="placeholder">
+                    {formatRelativeLabel(new Date(d.savedAt), new Date())}
+                  </ThemedText>
+                  {/* 남의 글에만 ⋯. 내 글엔 신고·차단할 대상이 없다. */}
+                  <PressableScale
+                    onPress={() => {
+                      setSheetNickname(d.nickname);
+                      setMenuTarget(d);
+                    }}
+                    disabled={busyId !== null}
+                    // 아이콘이 18px이라 hitSlop 8로는 터치 영역이 34pt — Apple HIG 44pt 미달이었다.
+                    // 신고·차단으로 가는 유일한 길이라 더 못 누르면 안 된다.
+                    hitSlop={13}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${d.nickname}의 정의 — 신고하거나 차단하기`}
+                    style={styles.menuBtn}
+                  >
+                    <Icon
+                      name="more"
+                      size={18}
+                      color={
+                        busyId === d.id
+                          ? theme.colors.ink.placeholder
+                          : theme.colors.ink.secondary
+                      }
+                    />
+                  </PressableScale>
+                </View>
+                <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
+                  {d.text}
+                </ThemedText>
+                <LikeButton
+                  liked={d.isLiked}
+                  count={d.likeCount}
+                  onToggle={() => handleToggleLike(d.id)}
                 />
-              </PressableScale>
-            ) : null}
-          </View>
-          <ThemedText variant="body" style={{ marginTop: theme.spacing.s2 }}>
-            {d.text}
-          </ThemedText>
-          {!d.isMine ? (
-            <LikeButton
-              liked={d.isLiked}
-              count={d.likeCount}
-              onToggle={() => handleToggleLike(d.id)}
-            />
-          ) : null}
-        </View>
-      </FadeIn>
+              </View>
+            )}
+          </FadeIn>
         )}
       />
 
       {/* ⋯ 메뉴 — 시스템 ActionSheet/Alert가 아니라 우리 톤의 시트를 쓴다. */}
       <ActionSheet
         visible={menuTarget !== null}
+        // 어느 카드의 메뉴인지 — 시트가 카드를 가리면 누구 글인지 잊는다.
+        title={`${sheetNickname}님의 정의`}
         items={[
           {
             label: '신고하기',
@@ -415,6 +493,7 @@ export default function PlazaWordDetailScreen() {
 
       <ReportSheet
         visible={reportTarget !== null}
+        nickname={sheetNickname}
         onSelect={(reason) => {
           if (reportTarget) void handleReport(reportTarget, reason);
         }}
@@ -442,7 +521,10 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32, gap: 12 },
   centerText: { textAlign: 'center', marginTop: 80 },
-  failWrap: { marginTop: 80, alignItems: 'center', gap: 16 },
+  fill: { flexGrow: 1 },
+  failWrap: { flex: 1, justifyContent: 'center' },
+  aloneText: { textAlign: 'center', paddingVertical: 16 },
+  prevLink: { alignSelf: 'center', marginTop: 4 },
   // 리스트 안이라 flex:1이 안 먹는다 → 높이를 줘 Loading이 중앙에 오게.
   loadingWrap: { height: 200, justifyContent: 'center' },
   moreWrap: { paddingVertical: 16, alignItems: 'center', gap: 12 },
@@ -452,4 +534,14 @@ const styles = StyleSheet.create({
   menuBtn: { paddingHorizontal: 4, marginRight: -4 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: { ...controlPresets.badge, borderRadius: 999 },
+  // LikeButton의 알약과 같은 치수·자리(오른쪽 아래) — 숫자 위치가 남의 카드와 맞는다.
+  likeStat: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    ...controlPresets.pill,
+    borderRadius: 999,
+  },
 });

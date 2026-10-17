@@ -13,7 +13,8 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
-import { Button, FadeIn, Loading, PressableScale } from '@/components/primitives';
+import { LoadFailed } from '@/components/domain/load-failed';
+import { FadeIn, Loading, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
@@ -31,7 +32,8 @@ export default function PlazaScreen() {
     <AuthGate
       icon="plaza"
       title="광장"
-      description={'남들은 어떻게 정의했을까요?\n가입하면 광장이 열려요.'}
+      // 무엇이 있는지 + 가입하면 내 정의가 함께 올라간다는 것(가져오기)까지 미리 말한다.
+      description={'같은 단어를 사람들은 어떻게\n정의했는지 볼 수 있어요.\n가입하면 지금까지 쓴 정의도 함께 올라가요.'}
     >
       <PlazaWordList />
     </AuthGate>
@@ -82,10 +84,7 @@ function PlazaWordList() {
   const openWord = (word: string) =>
     router.push({ pathname: '/plaza/[word]', params: { word } });
 
-  if (failed)
-    return (
-      <CenterMessage text="광장을 불러오지 못했어요." onRetry={onRefresh} retrying={refreshing} />
-    );
+  if (failed) return <CenterMessage onRetry={onRefresh} retrying={refreshing} />;
   if (words === null) return <CenterMessage loading="광장을 불러오고 있어요" />;
 
   return (
@@ -104,7 +103,7 @@ function PlazaWordList() {
         <AppHeader />
         <ThemedText variant="h1">광장</ThemedText>
         <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
-          남들은 이 단어를 어떻게 정의했을까요
+          같은 단어, 다른 정의들
         </ThemedText>
 
         {stats ? (
@@ -197,8 +196,9 @@ function StatsSection({ stats, onWord }: { stats: PlazaStats; onWord: (w: string
             <StatTile
               label="가장 의견이 많은"
               word={mostDefinedWord.word}
-              icon="shuffle"
-              metric={`${mostDefinedWord.count}개`}
+              // shuffle은 앱 전체에서 "다시 뽑기"라는 뜻 — 개수 옆에 두면 누를 거리로 읽힌다.
+              icon="feather"
+              metric={`정의 ${mostDefinedWord.count}개`}
               onPress={() => onWord(mostDefinedWord.word)}
             />
           ) : null}
@@ -302,17 +302,13 @@ function WordCard({ word, onPress }: { word: PlazaWord; onPress: () => void }) {
 
 /**
  * 로딩/에러 상태 — 헤더는 유지해 잉크·마이페이지 접근을 잃지 않게.
- * loading을 주면 공통 Loading(스피너+문구), text를 주면 정적 메시지.
- * onRetry를 주면 "다시 시도" 버튼이 붙는다 — 실패 화면에선 리스트가 없어
- * 당겨서 새로고침을 쓸 수 없으니, 이 버튼이 유일한 복구 수단이다.
+ * loading을 주면 공통 Loading(스피너+문구), 아니면 실패 화면(LoadFailed — 단어 상세와 같은 모양).
  */
 function CenterMessage({
-  text,
   loading,
   onRetry,
   retrying,
 }: {
-  text?: string;
   loading?: string;
   onRetry?: () => void;
   retrying?: boolean;
@@ -326,19 +322,7 @@ function CenterMessage({
         <Loading message={loading} />
       ) : (
         <View style={styles.center}>
-          <ThemedText variant="body" tone="secondary">
-            {text}
-          </ThemedText>
-          {onRetry ? (
-            <Button
-              label="다시 시도"
-              variant="soft"
-              size="sm"
-              loading={retrying}
-              onPress={onRetry}
-              style={styles.retryBtn}
-            />
-          ) : null}
+          {onRetry ? <LoadFailed onRetry={onRetry} retrying={retrying} /> : null}
         </View>
       )}
     </ThemedView>
@@ -350,7 +334,6 @@ const styles = StyleSheet.create({
   headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
   scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  retryBtn: { marginTop: 16 },
   list: { gap: 12 },
 
   summaryCard: { marginTop: 24, borderWidth: 1, padding: 16, alignItems: 'center' },

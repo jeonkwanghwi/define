@@ -31,4 +31,7 @@ export { Loading } from './loading';
 export type { LoadingProps } from './loading';
 
 export { ToastProvider, useToast } from './toast';
-export type { ToastApi, ToastProviderProps } from './toast';
+export type { ToastApi, ToastOptions, ToastProviderProps, ToastTone } from './toast';
+
+export { SegmentedControl } from './segmented-control';
+export type { SegmentedControlOption, SegmentedControlProps } from './segmented-control';

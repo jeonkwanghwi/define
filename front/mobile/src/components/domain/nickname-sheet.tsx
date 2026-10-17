@@ -56,7 +56,7 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
   }, [visible, current]);
 
   async function handleSubmit() {
-    if (saving) return;
+    if (saving || !value.trim() || value.trim() === current) return;
     setSaving(true);
     setError(null);
     try {
@@ -133,6 +133,8 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
             <Button
               label="저장"
               loading={saving}
+              // 비었거나 그대로면 바뀐 게 없다 — 눌러서 "바꿨어요"가 뜨면 거짓 성공이다.
+              disabled={!value.trim() || value.trim() === current}
               fullWidth
               onPress={handleSubmit}
               style={{ marginTop: theme.spacing.s4 }}

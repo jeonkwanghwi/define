@@ -8,6 +8,7 @@
  *   <Icon name="plaza" />                                  // 24px, 자동 ink.primary 색
  *   <Icon name="feather" size={28} />                      // 크기 변경
  *   <Icon name="ruby" color={theme.colors.ruby.base} />    // 색 명시
+ *   <Icon name="heart" filled />                           // 속을 선 색으로 채움(켜진 상태)
  *
  * 새 아이콘 추가:
  *   1) IconName 유니온에 이름 추가
@@ -43,7 +44,9 @@ export type IconName =
   | 'send'
   | 'mail' // 이메일 로그인
   | 'help' // 고객 지원(물음표)
-  | 'settings'
+  | 'settings' // (모양은 해) — 테마 "시스템"·진동에는 device·vibrate를 쓴다
+  | 'device' // 테마 "시스템"(기기 설정을 따름) — 휴대폰 윤곽
+  | 'vibrate' // 진동 피드백 — 휴대폰 + 양옆 떨림 선
   | 'bell'
   | 'ruby' // 재화
   | 'ink' // 재화 "잉크" (잉크방울) — ruby를 대체하는 표시용
@@ -65,15 +68,20 @@ export type IconProps = Omit<SvgProps, 'width' | 'height' | 'viewBox'> & {
   color?: string;
   /** 선 굵기 (기본 1.7 — define 아이콘 셋 표준) */
   strokeWidth?: number;
+  /**
+   * 속을 선 색으로 채운다 — 공감(heart)처럼 "켜짐"을 모양으로 보여 줄 때.
+   * 색만 바뀌면 켜졌는지 놓치기 쉽다. 닫힌 도형 아이콘에서만 의미가 있다.
+   */
+  filled?: boolean;
 };
 
-export function Icon({ name, size = 24, color, strokeWidth = 1.7, ...rest }: IconProps) {
+export function Icon({ name, size = 24, color, strokeWidth = 1.7, filled, ...rest }: IconProps) {
   const theme = useTheme();
   const resolvedColor = color ?? theme.colors.ink.primary;
 
   // 모든 path/circle/rect가 공유하는 stroke 속성 — 한 곳에서 일관 관리
   const stroke = {
-    fill: 'none',
+    fill: filled ? resolvedColor : 'none',
     stroke: resolvedColor,
     strokeWidth,
     strokeLinecap: 'round',
@@ -205,6 +213,22 @@ function renderIcon(name: IconName, p: StrokeProps) {
           <Path d="M12 3v2.5M12 18.5V21M21 12h-2.5M5.5 12H3M18 6l-1.8 1.8M7.8 16.2 6 18M18 18l-1.8-1.8M7.8 7.8 6 6" {...p} />
         </>
       );
+    case 'device':
+      // 휴대폰 윤곽 + 아래 홈 바. "기기 설정을 따른다".
+      return (
+        <>
+          <Rect x="7" y="3" width="10" height="18" rx="2.5" {...p} />
+          <Path d="M11 17.8h2" {...p} />
+        </>
+      );
+    case 'vibrate':
+      // device보다 작은 휴대폰 + 양옆 떨림 선(안쪽 길게·바깥 짧게).
+      return (
+        <>
+          <Rect x="8" y="4.5" width="8" height="15" rx="2" {...p} />
+          <Path d="M5 9v6M2.5 10.5v3M19 9v6M21.5 10.5v3" {...p} />
+        </>
+      );
     case 'bell':
       return (
         <>
@@ -274,8 +298,10 @@ function renderIcon(name: IconName, p: StrokeProps) {
         </>
       );
     case 'heart':
+      // 가운데(x=12) 기준 좌우 대칭. 전 path는 왼쪽 반이 x=12, 오른쪽 반이 x=10을 축으로 그려져
+      // 아래 끝에서 두 선이 엇갈려 꼬리가 났다 — 속을 채우자(filled) 그 꼬리가 드러났다.
       return (
-        <Path d="M12 20s-6.6-4.2-9-8.3C1.4 8.9 3 5.5 6.2 5.5c1.9 0 3.1 1.1 3.8 2.2.7-1.1 1.9-2.2 3.8-2.2 3.2 0 4.8 3.4 3.2 6.2-2.4 4.1-9 8.3-9 8.3z" {...p} />
+        <Path d="M12 20C12 20 5.4 15.8 3 11.7 1.4 8.9 3 5.5 6.2 5.5c2.4 0 4.7 1.1 5.8 2.2 1.1-1.1 3.4-2.2 5.8-2.2 3.2 0 4.8 3.4 3.2 6.2C18.6 15.8 12 20 12 20z" {...p} />
       );
     case 'sparkle':
       return <Path d="M12 4l1.8 5.2L19 11l-5.2 1.8L12 18l-1.8-5.2L5 11l5.2-1.8z" {...p} />;

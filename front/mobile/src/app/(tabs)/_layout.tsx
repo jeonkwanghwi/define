@@ -20,7 +20,7 @@ import { Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/icons';
-import { fontFamily, useTheme } from '@/theme';
+import { fontFamily, motion, radii, useTheme } from '@/theme';
 
 // 한 곳에서 탭 설정 관리. 5개 탭 모두 동일 규칙 — 선택 시 진한 알약, 비선택 시 아이콘만.
 const TAB_ORDER: { name: string; label: string; icon: IconName }[] = [
@@ -67,7 +67,7 @@ export default function TabsLayout() {
          *
          * 부드러움을 잃는 것 아닌가: 탭 전환은 하루에 수십 번 하는 동작이라 원래
          * 애니메이션을 빼는 쪽이 맞다(iOS 기본 탭바도 씬을 전환하지 않는다). 손끝의
-         * 반응은 탭 알약(TabIcon, 180ms)이 그대로 맡는다.
+         * 반응은 탭 알약(TabIcon, motion.duration.base)이 그대로 맡는다.
          */
         animation: 'none',
         tabBarActiveTintColor: theme.colors.point.p600,
@@ -123,7 +123,7 @@ function withAlpha(hex: string, a: number): string {
 }
 
 /**
- * TabIcon — 5개 탭 공통. 선택 시 진한 p600 알약 + 흰 아이콘, 비선택 시 배경 없이 회색 아이콘만.
+ * TabIcon — 5개 탭 공통. 선택 시 진한 p600 알약 + onPoint 아이콘, 비선택 시 배경 없이 회색 아이콘만.
  * 배경(투명→p600)과 아이콘 크로스페이드(회색↔흰색)를 t 하나로 동기화해 깜빡임이 없다.
  * 알약 배경은 컨테이너에 직접 칠해 항상 아이콘 뒤(웹의 absolute 오버셋 문제 회피).
  */
@@ -131,7 +131,13 @@ function TabIcon({ name, focused }: { name: IconName; focused: boolean }) {
   const theme = useTheme();
   const t = useRef(new Animated.Value(focused ? 1 : 0)).current;
   useEffect(() => {
-    Animated.timing(t, { toValue: focused ? 1 : 0, duration: 180, useNativeDriver: false }).start();
+    // 배경색 보간이라 네이티브 드라이버를 못 쓴다(transform/opacity만 지원).
+    Animated.timing(t, {
+      toValue: focused ? 1 : 0,
+      duration: motion.duration.base,
+      easing: motion.easing.standard,
+      useNativeDriver: false,
+    }).start();
   }, [focused, t]);
 
   const backgroundColor = t.interpolate({
@@ -146,9 +152,9 @@ function TabIcon({ name, focused }: { name: IconName; focused: boolean }) {
       <Animated.View style={{ opacity: grayOpacity }}>
         <Icon name={name} size={22} color={theme.colors.ink.placeholder} />
       </Animated.View>
-      {/* 선택 흰색 아이콘 — 위에 겹쳐 배경과 함께 페이드인 */}
+      {/* 선택 아이콘(onPoint — 다크의 밝은 p600 위에선 어두운 잉크) — 위에 겹쳐 배경과 함께 페이드인 */}
       <Animated.View style={[styles.iconLayer, { opacity: t }]}>
-        <Icon name={name} size={22} color="#FFFFFF" />
+        <Icon name={name} size={22} color={theme.colors.ink.onPoint} />
       </Animated.View>
     </Animated.View>
   );
@@ -158,7 +164,7 @@ const styles = StyleSheet.create({
   tabPill: {
     width: 46,
     height: 30,
-    borderRadius: 999,
+    borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

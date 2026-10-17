@@ -1,10 +1,10 @@
 /**
  * WordRow — 단어장 리스트의 한 행.
  *
- * 좌: 단어(h3) + 최신 정의 한 줄 (말줄임)
- * 우: 정의 횟수(작은 원) + chevronR
+ * 좌: 단어(h3) + (오늘 쓴 단어면 '오늘' 뱃지) + 최신 정의 한 줄 (말줄임)
+ * 우: 정의 횟수 뱃지("N번", 2번 이상일 때만) + chevronR
  *   ("변화" 뱃지는 2026-07-17 제거 — 기준이 '2회 이상 정의'라 실제 변화와 무관했고,
- *    쓸수록 모든 행에 붙어 신호가 죽음. 역사의 존재는 횟수 원이 이미 전달.)
+ *    쓸수록 모든 행에 붙어 신호가 죽음. 역사의 존재는 횟수 뱃지가 전달.)
  *
  * 누름 시 onPress 호출. 화면 측에서 router.push로 단어 상세로 이동.
  */
@@ -13,7 +13,8 @@ import { StyleSheet, View } from 'react-native';
 import { Card, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
-import { useTheme } from '@/theme';
+import { formatYmd } from '@/lib/format-date';
+import { controlPresets, useTheme } from '@/theme';
 import type { JournalWord } from '@/types/word';
 
 export type WordRowProps = {
@@ -23,13 +24,25 @@ export type WordRowProps = {
 
 export function WordRow({ item, onPress }: WordRowProps) {
   const theme = useTheme();
+  // 방금 쓴 단어 표시 — 기록 화면의 '오늘' 뱃지와 같은 모양. date는 'YYYY.MM.DD'.
+  const isToday = item.entries[0]?.date === formatYmd(new Date());
+  const count = item.entries.length;
 
   return (
     <PressableScale onPress={onPress}>
       <Card style={styles.row}>
         {/* 좌측 메인 정보 */}
         <View style={styles.main}>
-          <ThemedText variant="h3">{item.word}</ThemedText>
+          <View style={styles.titleRow}>
+            <ThemedText variant="h3">{item.word}</ThemedText>
+            {isToday ? (
+              <View style={[styles.badge, { backgroundColor: theme.colors.point.p050 }]}>
+                <ThemedText variant="caption" style={{ color: theme.colors.point.p600 }}>
+                  오늘
+                </ThemedText>
+              </View>
+            ) : null}
+          </View>
           <ThemedText
             variant="sm"
             tone="secondary"
@@ -38,7 +51,7 @@ export function WordRow({ item, onPress }: WordRowProps) {
           >
             {item.entries[0]?.text}
           </ThemedText>
-          {/* 최신 변화 노트 미리보기 — 가장 최근 정의에 변화 노트가 있을 때만. point 톤 한 줄. */}
+          {/* 변화 노트 미리보기 — 최신 정의에 노트가 있을 때만(위 줄의 정의와 짝). point 톤 한 줄. */}
           {item.changeNote ? (
             <View style={styles.notePreview}>
               <Icon name="arrowUp" size={12} color={theme.colors.point.p600} />
@@ -56,16 +69,14 @@ export function WordRow({ item, onPress }: WordRowProps) {
         {/* 우측 메타 — 위: 개수/화살표, 아래: 마지막 날짜(우하단) */}
         <View style={styles.side}>
           <View style={styles.metaRow}>
-            <View
-              style={[
-                styles.countCircle,
-                { backgroundColor: theme.colors.surface.nested },
-              ]}
-            >
-              <ThemedText variant="caption" tone="placeholder">
-                {item.entries.length}
-              </ThemedText>
-            </View>
+            {/* 다시 정의한 단어만 표시 — 한 번뿐인 단어까지 "1"을 달면 신호가 묽어진다. */}
+            {count >= 2 ? (
+              <View style={[styles.badge, { backgroundColor: theme.colors.point.p050 }]}>
+                <ThemedText variant="caption" style={{ color: theme.colors.point.p700, fontWeight: '600' }}>
+                  {count}번
+                </ThemedText>
+              </View>
+            ) : null}
             <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} />
           </View>
           {item.entries[0]?.date ? (
@@ -94,11 +105,6 @@ const styles = StyleSheet.create({
   },
   side: { alignItems: 'flex-end', justifyContent: 'space-between', gap: 6 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  countCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badge: { ...controlPresets.badge, borderRadius: 999 },
 });

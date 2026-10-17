@@ -57,12 +57,19 @@ const VILLAGE_OPEN = false;
 
 export default function VillageScreen() {
   if (!VILLAGE_OPEN) {
+    // 다른 탭처럼 헤더를 두고 "준비 중" 배지를 단다 — 헤더 없이 문구만 있으면 고장 난 화면으로 읽혔다.
     return (
-      <ScreenPlaceholder
-        iconName="village"
-        title="마을"
-        subtitle={'이웃의 집을 거니는 곳이에요.\n조금 더 다듬어서 찾아올게요.'}
-      />
+      <ThemedView bg="paper" style={{ flex: 1 }}>
+        <View style={styles.headerWrap}>
+          <AppHeader />
+        </View>
+        <ScreenPlaceholder
+          iconName="village"
+          badge="준비 중"
+          title="마을"
+          subtitle={'이웃의 집을 거니는 곳이에요.\n곧 문을 열게요.'}
+        />
+      </ThemedView>
     );
   }
   return (
@@ -117,7 +124,7 @@ function VillageMap() {
         // 비치명적 — 이웃을 못 받아도 마을은 걸어다닐 수 있어야 한다. 다만 말은 해준다:
         // 빈 마을만 보이면 "이웃이 없다"로 읽히는데, 실제로는 못 받아온 것이다.
         // 복구 수단(새로고침)은 같은 바에 이미 보이므로 문구에 넣지 않는다 — 토스트는 한 줄로.
-        show('이웃을 불러오지 못했어요');
+        show('이웃을 불러오지 못했어요', { tone: 'error' });
       })
       .finally(() => setLoadingNeighbors(false));
   }, [token, show]);
@@ -228,10 +235,14 @@ function VillageMap() {
     <ThemedView bg="paper" style={styles.root}>
       <View style={styles.headerWrap}>
         <AppHeader />
+        {/* 제목 모양은 광장·회상과 같게(h1) — 지금 있는 구역은 그 아래 캡션으로. 지도 위에 겹치지 않는 헤더 안이다. */}
         <View style={styles.bar}>
-          <ThemedText variant="bodyMd" tone="strong">
-            {zone.title}
-          </ThemedText>
+          <View>
+            <ThemedText variant="h1">마을</ThemedText>
+            <ThemedText variant="caption" tone="secondary">
+              {zone.title}
+            </ThemedText>
+          </View>
           {loadingNeighbors ? (
             <View style={styles.refresh}>
               <Loading message="이웃을 부르는 중" inline />
@@ -318,7 +329,7 @@ function assign(list: VillageNeighbor[]): Record<string, VillageNeighbor> {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12 },
+  bar: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingBottom: 12 },
   refresh: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   board: { flex: 1 },
   enterWrap: { position: 'absolute', left: 0, right: 0, bottom: 156, alignItems: 'center' },
