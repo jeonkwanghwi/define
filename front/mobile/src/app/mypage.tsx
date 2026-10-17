@@ -136,6 +136,23 @@ export default function MyPageScreen() {
   // 탈퇴 실패는 조용히 넘기면 안 된다 — 사용자는 지워진 줄 안다.
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  /**
+   * 로그아웃 — 인증만 비우고 **기록 탭으로 보낸다.**
+   *
+   * 전에는 상태만 비우고 이 화면에 그대로 머물렀다. 그러면 계정·잉크·기타 섹션이
+   * 한꺼번에 사라지면서 **화면만 휑해지고 무슨 일이 일어났는지는 안 보인다.**
+   * 탈퇴는 이미 기록 탭으로 보내고 있어 둘이 어긋나 있기도 했다.
+   *
+   * 기록 탭인 이유: 로그인 없이 쓸 수 있는 유일한 핵심 화면이다 —
+   * 광장·회상은 로그아웃 직후 가입 유도 화면이 되어 쫓아내는 꼴이 된다.
+   */
+  function handleLogout() {
+    logout();
+    hapticSuccess();
+    show('로그아웃했어요');
+    router.replace('/');
+  }
+
   async function handleDeleteAccount() {
     if (deleting) return;
     setDeleting(true);
@@ -614,7 +631,7 @@ export default function MyPageScreen() {
         title="로그아웃할까요?"
         message="기록한 단어는 이 폰에 그대로 남아요."
         confirmLabel="로그아웃"
-        onConfirm={logout}
+        onConfirm={handleLogout}
         onClose={() => setLogoutOpen(false)}
       />
     </ThemedView>
