@@ -279,6 +279,7 @@ export default function AuthScreen() {
                 fullWidth
                 leftIcon={<Icon name="mail" size={18} color="#FFFFFF" />}
                 onPress={() => goEmail('login')}
+                style={{ height: SOCIAL_BTN_HEIGHT }}
               />
 
               <PressableScale
@@ -591,6 +592,17 @@ function mapAuthError(e: unknown): string {
 const KAKAO_INK = '#191600';
 
 /**
+ * 로그인 버튼 셋의 공통 높이.
+ *
+ * 셋은 출처가 다르다 — 이메일은 우리 Button 프리미티브, 카카오는 직접 그린 Pressable,
+ * Apple은 expo가 주는 네이티브 버튼. 각자 패딩으로 높이가 정해지면 58·60·56처럼
+ * 어긋나고, 셋이 세로로 붙어 있으니 그 차이가 그대로 보인다. Apple 버튼은 높이를
+ * 우리가 주는 수밖에 없으므로, 그 값을 셋의 기준으로 삼는다.
+ * (bodyMd lineHeight 28 + 위아래 14 = 56 — 글자가 눌리지 않는 최소값이기도 하다.)
+ */
+const SOCIAL_BTN_HEIGHT = 56;
+
+/**
  * 카카오 말풍선. 카카오 브랜드 가이드의 글자색(#191600)에 맞춘 채움 도형이라
  * 선 기반인 우리 아이콘 셋에 넣지 않고 여기 둔다 — 섞으면 아이콘 셋의 결이 깨진다.
  */
@@ -627,7 +639,7 @@ const styles = StyleSheet.create({
   },
   // 소셜 로그인 버튼 — 브랜드색(카카오 노랑/애플 검정). 이메일 Button과 높이 맞춤.
   socialBtn: {
-    paddingVertical: 16,
+    height: SOCIAL_BTN_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -635,7 +647,7 @@ const styles = StyleSheet.create({
   socialRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // 네이티브 Apple 버튼은 높이를 직접 줘야 한다(내용에 맞춰 늘어나지 않는다).
   // 카카오 버튼(패딩 16 + 본문 24)과 같은 56으로 맞춘다.
-  appleBtn: { width: '100%', height: 56 },
+  appleBtn: { width: '100%', height: SOCIAL_BTN_HEIGHT },
   emailRow: { flexDirection: 'row', alignItems: 'center' },
   // minWidth:0 — 웹 <input>이 min-content 밑으로 안 줄어들어 행이 오버플로우하는 것 방지(네이티브 무해).
   emailLocal: { flex: 1, minWidth: 0 },
