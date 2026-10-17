@@ -32,13 +32,18 @@ export class PrismaPlazaRepository extends PlazaRepository {
           SELECT "blockedId" FROM blocks WHERE "blockerId" = ${userId}
         )`
       : Prisma.empty;
+    // 비로그인이면 null — `= NULL`은 참이 되지 않으니 myCount 0, isMine false로 자연히 떨어진다.
+    const me = userId ?? null;
 
     // ① 단어별 집계 → 활동순 상위 N. 정렬은 기존 JS와 같다: 마지막 정의 추가가 위로,
     //    동률이면 정의 많은 순. 상한이 있어야 단어가 늘어도 전송량이 고정된다.
     const words = await this.prisma.$queryRaw<
-      { word: string; count: number; lastActivityAt: Date }[]
+      { word: string; count: number; myCount: number; lastActivityAt: Date }[]
     >`
-      SELECT e.word, COUNT(*)::int AS count, MAX(e."savedAt") AS "lastActivityAt"
+      SELECT e.word, COUNT(*)::int AS count,
+             -- 카드에 "내 정의" 표시용. 같은 WHERE 안이라 숨김 규칙이 목록과 어긋나지 않는다.
+             (COUNT(*) FILTER (WHERE e."userId" = ${me}))::int AS "myCount",
+             MAX(e."savedAt") AS "lastActivityAt"
       FROM entries e
       WHERE e.hidden = false ${notBlocked}
       GROUP BY e.word
@@ -56,8 +61,9 @@ export class PrismaPlazaRepository extends PlazaRepository {
     const previewRows = await this.prisma.$queryRaw<
       (PlazaPreviewRow & { word: string })[]
     >`
-      SELECT id, word, nickname, text, "likeCount" FROM (
+      SELECT id, word, nickname, text, "likeCount", "isMine" FROM (
         SELECT e.id, e.word, u.nickname, e.text,
+               (e."userId" = ${me}) IS TRUE AS "isMine",
                COUNT(l.id)::int AS "likeCount",
                ROW_NUMBER() OVER (
                  PARTITION BY e.word
@@ -67,7 +73,7 @@ export class PrismaPlazaRepository extends PlazaRepository {
         JOIN users u ON u.id = e."userId"
         LEFT JOIN likes l ON l."entryId" = e.id
         WHERE e.word = ANY(${wordList}) AND e.hidden = false ${notBlocked}
-        GROUP BY e.id, e.word, u.nickname, e.text, e."savedAt"
+        GROUP BY e.id, e.word, e."userId", u.nickname, e.text, e."savedAt"
       ) t
       WHERE rn <= 2
       ORDER BY rn
@@ -80,6 +86,7 @@ export class PrismaPlazaRepository extends PlazaRepository {
         nickname: r.nickname,
         text: r.text,
         likeCount: r.likeCount,
+        isMine: r.isMine,
       };
       const bucket = previewsByWord.get(r.word);
       if (bucket) bucket.push(preview);
@@ -90,6 +97,7 @@ export class PrismaPlazaRepository extends PlazaRepository {
     return words.map((w) => ({
       word: w.word,
       count: w.count,
+      myCount: w.myCount,
       previews: previewsByWord.get(w.word) ?? [],
       lastActivityAt: w.lastActivityAt,
     }));

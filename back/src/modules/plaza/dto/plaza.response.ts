@@ -8,11 +8,13 @@ export type PlazaPreviewResponse = {
   nickname: string; // 없으면 '익명'
   text: string;
   likeCount: number;
+  isMine: boolean; // 목록에서 내 정의를 구분해 보이려고
 };
 
 export type PlazaWordResponse = {
   word: string;
   count: number;
+  myCount: number; // 내 정의가 미리보기 2개 밖에 있어도 카드에 표시하려고
   previews: PlazaPreviewResponse[]; // 추천순(동률 최신순) 상위 2개
 };
 

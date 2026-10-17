@@ -8,11 +8,13 @@ export type PlazaPreviewRow = {
   nickname: string | null;
   text: string;
   likeCount: number;
+  isMine: boolean; // 요청자 본인 글인지(비로그인이면 false)
 };
 
 export type PlazaWordCount = {
   word: string;
   count: number;
+  myCount: number; // 그중 요청자 본인 정의 수
   previews: PlazaPreviewRow[]; // 추천순 tie 최신순 상위 2
   lastActivityAt: Date; // 활동순 정렬용(응답엔 미포함)
 };
