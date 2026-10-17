@@ -15,7 +15,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { WordRow } from '@/components/domain/word-row';
-import { FadeIn } from '@/components/primitives';
+import { Button, FadeIn } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
@@ -75,6 +75,13 @@ export default function JournalListScreen() {
           >
             가운데 ‘기록’ 탭에서{'\n'}오늘의 단어를 정의해보세요
           </ThemedText>
+          {/* 글로만 "탭을 누르세요"라고 하면 빈 화면이 막다른 길이다 — 여기서 바로 가게 한다. */}
+          <Button
+            label="단어 정의하기"
+            variant="soft"
+            onPress={() => router.replace('/')}
+            style={{ marginTop: theme.spacing.s6 }}
+          />
         </View>
       </ThemedView>
     );

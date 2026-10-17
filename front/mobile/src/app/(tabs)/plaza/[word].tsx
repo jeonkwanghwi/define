@@ -131,7 +131,8 @@ export default function PlazaWordDetailScreen() {
         );
       })
       .catch(() => {
-        // 실패 시 optimistic 되돌림(조용히)
+        // optimistic 되돌림. 하트가 켜졌다 꺼지는 것만 보이면 사용자는 앱이 고장났다고 읽는다
+        // — 되돌린 이유를 같이 말해준다.
         setData((prev) =>
           prev
             ? {
@@ -144,6 +145,8 @@ export default function PlazaWordDetailScreen() {
               }
             : prev,
         );
+        hapticError();
+        show('좋아요를 저장하지 못했어요');
       });
   }
 
@@ -235,9 +238,14 @@ export default function PlazaWordDetailScreen() {
         }
       >
         {failed ? (
-          <ThemedText variant="body" tone="secondary" style={styles.centerText}>
-            정의를 불러오지 못했어요.
-          </ThemedText>
+          // 실패 문구만 두면 막다른 길이다. 당겨서 새로고침은 글자 한 줄뿐인 화면에서
+          // 찾아낼 수 없으니, 빠져나갈 버튼을 눈에 보이게 둔다.
+          <View style={styles.failWrap}>
+            <ThemedText variant="body" tone="secondary">
+              정의를 불러오지 못했어요.
+            </ThemedText>
+            <Button label="다시 시도" variant="soft" size="sm" loading={refreshing} onPress={onRefresh} />
+          </View>
         ) : data === null ? (
           <View style={styles.loadingWrap}>
             <Loading message="정의를 불러오고 있어요" />
@@ -361,6 +369,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32, gap: 12 },
   centerText: { textAlign: 'center', marginTop: 80 },
+  failWrap: { marginTop: 80, alignItems: 'center', gap: 16 },
   // ScrollView 안이라 flex:1이 안 먹는다 → 높이를 줘 Loading이 중앙에 오게.
   loadingWrap: { height: 200, justifyContent: 'center' },
   gate: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },

@@ -13,7 +13,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
-import { FadeIn, Loading, PressableScale } from '@/components/primitives';
+import { Button, FadeIn, Loading, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
@@ -82,7 +82,10 @@ function PlazaWordList() {
   const openWord = (word: string) =>
     router.push({ pathname: '/plaza/[word]', params: { word } });
 
-  if (failed) return <CenterMessage text="광장을 불러오지 못했어요." />;
+  if (failed)
+    return (
+      <CenterMessage text="광장을 불러오지 못했어요." onRetry={onRefresh} retrying={refreshing} />
+    );
   if (words === null) return <CenterMessage loading="광장을 불러오고 있어요" />;
 
   return (
@@ -300,8 +303,20 @@ function WordCard({ word, onPress }: { word: PlazaWord; onPress: () => void }) {
 /**
  * 로딩/에러 상태 — 헤더는 유지해 잉크·마이페이지 접근을 잃지 않게.
  * loading을 주면 공통 Loading(스피너+문구), text를 주면 정적 메시지.
+ * onRetry를 주면 "다시 시도" 버튼이 붙는다 — 실패 화면에선 리스트가 없어
+ * 당겨서 새로고침을 쓸 수 없으니, 이 버튼이 유일한 복구 수단이다.
  */
-function CenterMessage({ text, loading }: { text?: string; loading?: string }) {
+function CenterMessage({
+  text,
+  loading,
+  onRetry,
+  retrying,
+}: {
+  text?: string;
+  loading?: string;
+  onRetry?: () => void;
+  retrying?: boolean;
+}) {
   return (
     <ThemedView bg="paper" style={styles.root}>
       <View style={styles.headerWrap}>
@@ -314,6 +329,16 @@ function CenterMessage({ text, loading }: { text?: string; loading?: string }) {
           <ThemedText variant="body" tone="secondary">
             {text}
           </ThemedText>
+          {onRetry ? (
+            <Button
+              label="다시 시도"
+              variant="soft"
+              size="sm"
+              loading={retrying}
+              onPress={onRetry}
+              style={styles.retryBtn}
+            />
+          ) : null}
         </View>
       )}
     </ThemedView>
@@ -325,6 +350,7 @@ const styles = StyleSheet.create({
   headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
   scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  retryBtn: { marginTop: 16 },
   list: { gap: 12 },
 
   summaryCard: { marginTop: 24, borderWidth: 1, padding: 16, alignItems: 'center' },

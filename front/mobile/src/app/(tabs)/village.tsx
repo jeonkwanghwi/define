@@ -14,7 +14,7 @@ import { Animated, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
-import { FadeIn, Loading, PressableScale } from '@/components/primitives';
+import { FadeIn, Loading, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ScreenPlaceholder } from '@/components/domain/screen-placeholder';
@@ -79,6 +79,7 @@ export default function VillageScreen() {
 function VillageMap() {
   const theme = useTheme();
   const token = useAuthStore((s) => s.token);
+  const { show } = useToast();
 
   const [zoneId, setZoneId] = useState<ZoneId>('center');
   const zone = ZONES[zoneId];
@@ -113,10 +114,13 @@ function VillageMap() {
     getNeighbors(token, TOTAL_SLOTS)
       .then((list) => setBySlot(assign(list)))
       .catch(() => {
-        /* 비치명적 — 이웃을 못 받아도 마을은 걸어다닐 수 있어야 한다. */
+        // 비치명적 — 이웃을 못 받아도 마을은 걸어다닐 수 있어야 한다. 다만 말은 해준다:
+        // 빈 마을만 보이면 "이웃이 없다"로 읽히는데, 실제로는 못 받아온 것이다.
+        // 복구 수단(새로고침)은 같은 바에 이미 보이므로 문구에 넣지 않는다 — 토스트는 한 줄로.
+        show('이웃을 불러오지 못했어요');
       })
       .finally(() => setLoadingNeighbors(false));
-  }, [token]);
+  }, [token, show]);
 
   useEffect(() => {
     load();
