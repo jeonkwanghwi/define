@@ -90,7 +90,14 @@ export default function MyPageScreen() {
   const logout = useAuthStore((s) => s.logout);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  /**
+   * 탈퇴 확인 단계. 0 = 닫힘 · 1 = 첫 확인 · 2 = 마지막 확인.
+   *
+   * 두 번 묻는 이유: 되돌릴 수 없는 유일한 행동인데 한 번 더 누르면 끝이었다.
+   * 1단계는 **무엇을 잃는지**, 2단계는 **되돌릴 수 없다**만 말한다 — 같은 말을 두 번
+   * 하면 두 번째가 요식이 되어 그냥 누르게 된다.
+   */
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleting, setDeleting] = useState(false);
   // 탈퇴 실패는 조용히 넘기면 안 된다 — 사용자는 지워진 줄 안다.
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -101,7 +108,7 @@ export default function MyPageScreen() {
     setDeleteError(null);
     try {
       const { failed } = await deleteAccount();
-      setDeleteOpen(false);
+      setDeleteStep(0);
       // 제공자 연결을 못 끊었으면 사용자가 직접 끊도록 알려야 한다(조용히 삼키면 연결이 남는다).
       if (failed.length > 0) {
         setDeleteError(
@@ -452,7 +459,7 @@ export default function MyPageScreen() {
                 // 되돌릴 수 없는 행동 직전 — 확인 다이얼로그를 띄우는 순간에 한 번 경고한다.
                 onPress={() => {
                   hapticWarning();
-                  setDeleteOpen(true);
+                  setDeleteStep(1);
                 }}
                 disabled={deleting}
               />
@@ -537,19 +544,34 @@ export default function MyPageScreen() {
         onClose={() => setBugSheetOpen(false)}
       />
 
-      {/* 로그아웃 확인 (시스템 Alert X) */}
+      {/* ─── 탈퇴 1단계: 무엇을 잃는지 ───
+          여기서는 아직 지우지 않는다. '다음'이라 적어 **이게 끝이 아님**을 알린다 —
+          '탈퇴'라고 적으면 여기서 끝나는 줄 알고 누른다. */}
       <ConfirmDialog
-        visible={deleteOpen}
+        visible={deleteStep === 1}
         title="정말 탈퇴할까요?"
         message={
           '기록한 정의가 모두 사라져요.\n' +
-          '이 폰에 저장된 것까지요.\n' +
-          '되돌릴 수 없어요.'
+          '이 폰에 저장된 것까지요.'
         }
-        // 버튼 폭이 좁아 '탈퇴하기'는 '탈퇴…'로 잘렸다. '취소'와 같은 두 글자로 맞춘다.
+        confirmLabel="다음"
+        onConfirm={() => setDeleteStep(2)}
+        onClose={() => setDeleteStep(0)}
+      />
+
+      {/* ─── 탈퇴 2단계: 되돌릴 수 없다는 것만 ───
+          1단계와 같은 말을 반복하면 두 번째가 요식이 되어 그냥 누른다.
+          여기서는 **복구 불가** 하나만 말하고, 되돌아갈 길('아니요')을 기본으로 둔다. */}
+      <ConfirmDialog
+        visible={deleteStep === 2}
+        title="되돌릴 수 없어요"
+        message={'지운 기록은 다시 찾을 수 없어요.\n그래도 탈퇴할까요?'}
+        destructive
+        cancelLabel="아니요"
+        // 버튼 폭이 좁아 '탈퇴하기'는 '탈퇴…'로 잘렸다. 두 글자로 맞춘다.
         confirmLabel={deleting ? '탈퇴 중…' : '탈퇴'}
         onConfirm={handleDeleteAccount}
-        onClose={() => setDeleteOpen(false)}
+        onClose={() => setDeleteStep(0)}
       />
 
       {/* 앱 안에서는 '기기'가 아니라 '폰'으로 쓴다 — 한 화면에서 둘이 섞여 있었다. */}
