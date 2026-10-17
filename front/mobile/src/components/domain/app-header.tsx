@@ -1,5 +1,5 @@
 /**
- * AppHeader — 탭 공통 상단 헤더(워드마크 + 로그인 신호등 + 잉크칩 + 마이페이지 아바타).
+ * AppHeader — 탭 공통 상단 헤더(워드마크 + 예외 상태 칩 + 잉크칩 + 마이페이지 아바타).
  *
  * 어느 탭에서든 잉크 잔액·마이페이지에 접근할 수 있게 각 탭 루트 화면 최상단에 렌더한다.
  * (단어 상세 등 push된 깊은 화면엔 넣지 않음 — 그쪽은 자체 뒤로가기 헤더만.)
@@ -11,9 +11,12 @@
  *   - 신규 사용자  — 포인트색 "로그인하기" 칩만 (조용한 유도, 강요 아님)
  *   - 재방문 사용자(로그인 이력 있음) — 칩 아래에 리마인드 말풍선 1회 노출(앱 실행당)
  *
- * 로그인 상태의 신호등은 동기화 상태도 겸한다 — 서버 반영이 실패하면 초록불 대신
- * 루비색 "동기화 안 됨"으로 바뀌고, 누르면 재시도할 수 있는 마이페이지로 보낸다.
- * (실패를 숨기면 서버가 죽어도 사용자는 기록이 안전하다고 믿는다.)
+ * 로그인 + 동기화 정상이면 워드마크 옆엔 **아무것도 없다.** 전에는 "● 로그인됨" 초록불이
+ * 늘 떠 있었는데, 항상 같은 신호는 신호가 아니라 소음이다(그리고 토큰 밖의 초록이었다).
+ * 칩은 예외 상태에서만 나타난다:
+ *   - 동기화 실패 — 루비 "동기화 안 됨". 누르면 재시도할 수 있는 마이페이지로.
+ *     (실패를 숨기면 서버가 죽어도 사용자는 기록이 안전하다고 믿는다.)
+ *   - 로그아웃 — 포인트색 "로그인하기". 경보가 아니라 권유라 루비 점은 뺐다(루비 = 경보).
  */
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -26,7 +29,7 @@ import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { useAuthStore } from '@/store/auth-store';
-import { useTheme } from '@/theme';
+import { controlPresets, motion, radii, spacing, useTheme } from '@/theme';
 
 // 앱 실행(JS 세션)당 1회만 노출 — 탭마다 AppHeader 인스턴스가 따로라 모듈 스코프로 공유.
 // 매 화면 다시 뜨면 잔소리가 되므로, 닫으면 다음 실행 때까지 침묵.
@@ -55,7 +58,7 @@ export function AppHeader() {
       <View style={styles.appHeader}>
         <View style={styles.headerLeft}>
           <ThemedText style={styles.wordmark}>define</ThemedText>
-          {/* 로그인 상태 신호등 — 로그아웃이면 "로그인하기" CTA 칩, 로그인이면 초록불. */}
+          {/* 예외 상태 칩 — 동기화 실패 / 로그아웃일 때만. 정상 로그인이면 아무것도 안 그린다. */}
           {isLoggedIn ? (
             syncFailed ? (
               // 동기화 실패 — 마이페이지에서 재시도할 수 있으니 눌러서 갈 수 있게 한다.
@@ -72,26 +75,13 @@ export function AppHeader() {
                   동기화 안 됨
                 </ThemedText>
               </PressableScale>
-            ) : (
-              <View style={styles.authPill}>
-                <View
-                  style={[
-                    styles.authDot,
-                    { backgroundColor: theme.mode === 'dark' ? '#4ABF8A' : '#2E9E6B' },
-                  ]}
-                />
-                <ThemedText variant="caption" tone="secondary">
-                  로그인됨
-                </ThemedText>
-              </View>
-            )
+            ) : null
           ) : (
             <PressableScale
               onPress={() => router.push('/auth')}
               hitSlop={6}
               style={[styles.loginChip, { backgroundColor: theme.colors.point.p050 }]}
             >
-              <View style={[styles.authDot, { backgroundColor: theme.colors.ruby.base }]} />
               <ThemedText variant="caption" style={{ color: theme.colors.point.p600, fontWeight: '700' }}>
                 로그인하기
               </ThemedText>
@@ -125,7 +115,10 @@ export function AppHeader() {
 
       {/* 로그인 리마인드 말풍선 — 이 기기에서 로그인한 적 있는 사람이 로그아웃 상태일 때만. */}
       {showReminder ? (
-        <Animated.View entering={FadeInDown.duration(280)} exiting={FadeOut.duration(150)}>
+        <Animated.View
+          entering={FadeInDown.duration(motion.duration.slow)}
+          exiting={FadeOut.duration(motion.duration.fast)}
+        >
           {/* 꼬리(▲) — 위의 "로그인하기" 칩을 가리킴 */}
           <View
             style={[
@@ -159,22 +152,20 @@ export function AppHeader() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 20 },
+  wrap: { marginBottom: spacing.s5 },
   appHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   wordmark: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  authPill: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
   loginChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    ...controlPresets.pill,
+    borderRadius: radii.pill,
   },
   authDot: { width: 8, height: 8, borderRadius: 4 },
   bubbleTail: {
@@ -207,5 +198,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
 });

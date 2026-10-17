@@ -2,7 +2,7 @@
  * ConfirmDialog — 우리 톤의 확인 다이얼로그 (시스템 Alert 대체).
  *
  * 가운데 카드가 spring으로 등장 + fade-in.
- * 위험 액션(destructive)은 ruby 색 강조.
+ * 위험 액션(destructive)은 Button variant="dangerSolid"(꽉 찬 루비).
  *
  * 사용:
  *   <ConfirmDialog
@@ -20,7 +20,7 @@ import { Animated, Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/primitives/button';
 import { ThemedText } from '@/components/themed-text';
-import { useTheme } from '@/theme';
+import { motion, spacing, useTheme } from '@/theme';
 
 export type ConfirmDialogProps = {
   visible: boolean;
@@ -59,7 +59,8 @@ export function ConfirmDialog({
         }),
         Animated.timing(opacity, {
           toValue: 1,
-          duration: 180,
+          duration: motion.duration.base,
+          easing: motion.easing.standard,
           useNativeDriver: true,
         }),
       ]).start();
@@ -71,7 +72,8 @@ export function ConfirmDialog({
 
   function handleConfirm() {
     onClose();
-    setTimeout(onConfirm, 180);
+    // 모달이 닫히는(fade) 동안 기다렸다가 실행 — 다이얼로그 위로 다음 화면이 겹치지 않게.
+    setTimeout(onConfirm, motion.duration.base);
   }
 
   return (
@@ -127,33 +129,13 @@ export function ConfirmDialog({
                 />
               </View>
               <View style={styles.flex1}>
-                {/* 위험 액션은 ruby 색 primary 느낌 — 표준 Button.variant에 없어 inline 처리 */}
-                {destructive ? (
-                  <Pressable
-                    onPress={handleConfirm}
-                    style={({ pressed }) => [
-                      styles.destructive,
-                      {
-                        backgroundColor: theme.colors.ruby.base,
-                        opacity: pressed ? 0.85 : 1,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      variant="bodyMd"
-                      style={{ color: '#FFFFFF' }}
-                    >
-                      {confirmLabel}
-                    </ThemedText>
-                  </Pressable>
-                ) : (
-                  <Button
-                    label={confirmLabel}
-                    onPress={handleConfirm}
-                    fullWidth
-                    style={styles.actionBtn}
-                  />
-                )}
+                <Button
+                  label={confirmLabel}
+                  variant={destructive ? 'dangerSolid' : 'primary'}
+                  onPress={handleConfirm}
+                  fullWidth
+                  style={styles.actionBtn}
+                />
               </View>
             </View>
           </Animated.View>
@@ -168,13 +150,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.s8,
   },
   card: {
     width: '100%',
     maxWidth: 360,
-    paddingVertical: 24,
-    paddingHorizontal: 24,
+    padding: spacing.s6,
   },
   actions: {
     flexDirection: 'row',
@@ -183,12 +164,5 @@ const styles = StyleSheet.create({
   flex1: { flex: 1 },
   // 반반 나눈 좁은 칸에서 "계속 대화" 같은 라벨이 줄바꿈되지 않게 —
   // 내용이 가운데 정렬이라 좌우 패딩을 줄여도 시각 변화 없이 텍스트 공간만 넓어진다.
-  actionBtn: { paddingHorizontal: 8 },
-  destructive: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  actionBtn: { paddingHorizontal: spacing.s2 },
 });

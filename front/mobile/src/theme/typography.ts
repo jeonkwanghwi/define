@@ -79,6 +79,14 @@ export const typography = {
     fontWeight: '400',
   } satisfies TextStyle,
 
+  /** 버튼 라벨 — 누르는 글이라 크기가 커도 산세리프. 명조 bodyMd를 쓰던 자리를 대신한다. */
+  label: {
+    fontFamily: fontFamily.sans,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
+  } satisfies TextStyle,
+
   caption: {
     fontFamily: fontFamily.sans,
     fontSize: 12,

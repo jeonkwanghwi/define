@@ -2,12 +2,18 @@
  * Button — 디자인 토큰을 적용한 누름 가능 버튼.
  *
  * variant:
- *   - primary: 포인트 색 배경 + 흰 텍스트 + point 글로우 (강조 액션)
+ *   - primary: 포인트 색 배경 + ink.onPoint 텍스트 + point 글로우 (강조 액션)
  *   - soft:    옅은 포인트 배경 + 진한 포인트 텍스트 (부드러운 액션)
  *   - ghost:   투명 배경 + 포인트 텍스트 + 라인 보더 (보조 액션)
  *   - danger:  옅은 루비 배경 + 진한 루비 텍스트 (되돌리기 어려운 액션)
  *              꽉 찬 빨강이 아닌 이유: 로그아웃처럼 **되돌릴 수 있는** 일까지
  *              비명을 지르면, 정작 탈퇴 같은 진짜 경고가 묻힌다.
+ *   - dangerSolid: 꽉 찬 루비 + ink.onRuby 텍스트 — 확인 다이얼로그의 "삭제"처럼
+ *              **마지막 한 번**만. 평소 화면엔 danger를 쓴다.
+ *
+ * disabled:    variant와 무관하게 회색(nested 바탕 + placeholder 글자)으로 바뀐다.
+ *              흐림(opacity)만 주면 비활성 primary가 옅은 보라 덩어리로 남아
+ *              옆의 활성 soft 버튼보다 더 눈에 띄었다 — "못 누른다"는 색으로 말한다.
  *
  * size:        md(기본) | sm
  * fullWidth:   가로 100% (행 끝까지 채울 때)
@@ -29,11 +35,11 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { useTheme } from '@/theme';
+import { radii, useTheme } from '@/theme';
 
 import { PressableScale } from './pressable-scale';
 
-type Variant = 'primary' | 'soft' | 'ghost' | 'danger';
+type Variant = 'primary' | 'soft' | 'ghost' | 'danger' | 'dangerSolid';
 type Size = 'md' | 'sm';
 
 export type ButtonProps = Omit<PressableProps, 'children' | 'style'> & {
@@ -43,7 +49,7 @@ export type ButtonProps = Omit<PressableProps, 'children' | 'style'> & {
   fullWidth?: boolean;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
-  /** 진행 중 상태 — 눌림을 막고 라벨 자리에 스피너를 표시. disabled와 달리 흐림(opacity) 처리는 안 함. */
+  /** 진행 중 상태 — 눌림을 막고 라벨 자리에 스피너를 표시. disabled와 달리 회색 처리는 안 함. */
   loading?: boolean;
   /** 컨테이너에 추가할 외부 스타일 (margin, flex 등). 내부 디자인 스타일은 보존되고 뒤에 머지된다. */
   style?: StyleProp<ViewStyle>;
@@ -69,14 +75,15 @@ export function Button({
     size === 'sm'
       ? { paddingVertical: 10, paddingHorizontal: 16 }
       : { paddingVertical: 14, paddingHorizontal: 22 };
-  const textVariant = size === 'sm' ? 'caption' : 'bodyMd';
+  // 버튼은 "조작하는 글"이라 크기와 무관하게 산세리프(typography.ts의 역할 구분).
+  const textVariant = size === 'sm' ? 'caption' : 'label';
 
   // variant별 배경·보더·텍스트 색 + 강조 액션의 글로우 섀도우
   const palette = {
     primary: {
       backgroundColor: theme.colors.point.p600,
       borderColor: 'transparent',
-      textColor: '#FFFFFF',
+      textColor: theme.colors.ink.onPoint,
       shadow: theme.shadows.point,
     },
     soft: {
@@ -97,7 +104,23 @@ export function Button({
       textColor: theme.colors.ruby.base,
       shadow: undefined,
     },
+    dangerSolid: {
+      backgroundColor: theme.colors.ruby.base,
+      borderColor: 'transparent',
+      textColor: theme.colors.ink.onRuby,
+      shadow: undefined,
+    },
   }[variant];
+
+  // 비활성은 모든 variant가 같은 회색 — 보더도 그려서 라이트(nested≈paper)에서도 모양이 남게.
+  const look = disabled
+    ? {
+        backgroundColor: theme.colors.surface.nested,
+        borderColor: theme.colors.line.base,
+        textColor: theme.colors.ink.placeholder,
+        shadow: undefined,
+      }
+    : palette;
 
   return (
     <PressableScale
@@ -108,12 +131,11 @@ export function Button({
         styles.base,
         sizeStyle,
         {
-          backgroundColor: palette.backgroundColor,
-          borderColor: palette.borderColor,
+          backgroundColor: look.backgroundColor,
+          borderColor: look.borderColor,
         },
-        palette.shadow,
+        look.shadow,
         fullWidth && styles.fullWidth,
-        disabled && { opacity: 0.4 },
         // 외부 style은 마지막 — margin/flex 등 컨테이너 배치 prop을 호출 측이 덮어쓸 수 있게
         style,
       ]}
@@ -127,14 +149,19 @@ export function Button({
         numberOfLines={1}
         maxFontSizeMultiplier={1.2}
         // loading 중엔 라벨을 투명 처리로 자리만 유지 — 스피너 전환 시 버튼 크기가 튀지 않게
-        style={{ color: palette.textColor, opacity: loading ? 0 : 1 }}
+        style={{
+          color: look.textColor,
+          // sm(caption)은 기본 500이라 라벨로는 가볍다 — label 토큰과 같은 600으로 맞춘다.
+          fontWeight: '600',
+          opacity: loading ? 0 : 1,
+        }}
       >
         {label}
       </ThemedText>
       {rightIcon ? <View>{rightIcon}</View> : null}
       {loading ? (
         <View style={styles.spinnerOverlay}>
-          <ActivityIndicator size="small" color={palette.textColor} />
+          <ActivityIndicator size="small" color={look.textColor} />
         </View>
       ) : null}
     </PressableScale>
@@ -147,7 +174,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    borderRadius: 999, // pill — design-source의 모든 .btn 공통
+    borderRadius: radii.pill, // design-source의 모든 .btn 공통
     borderWidth: 1,
   },
   fullWidth: { width: '100%' },
