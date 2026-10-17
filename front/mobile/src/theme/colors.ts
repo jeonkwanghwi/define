@@ -40,7 +40,10 @@ export const lightColors: Colors = {
     primary: '#211E1A', // 본문 텍스트 — 따뜻한 거의 검정
     strong: '#423D36',
     secondary: '#5C564D', // 2차 정보
-    placeholder: '#918A7D', // 3차/플레이스홀더
+    // 3차/플레이스홀더. 캡션(12px) 34곳이 이 색을 쓴다 — 장식이 아니라 **정보를 나르는 글자**다.
+    // 전에는 #918A7D(3.2:1)라 WCAG AA(작은 글자 4.5:1)에 못 미쳤다. 색조·채도는 그대로 두고
+    // 명도만 낮춰 4.5:1을 넘겼다. primary·strong·secondary와의 위계는 그대로다.
+    placeholder: '#736C61',
   },
   line: {
     base: '#EAE3D7', // 헤어라인 보더 (따뜻한 톤)
@@ -55,9 +58,11 @@ export const lightColors: Colors = {
     p100: '#E4E4F1',
     p050: '#F2F2F8',
   },
-  // 루비 (재화) — 포인트와 명확히 구분된 별도 액센트
+  // 루비 (재화) — 포인트와 명확히 구분된 별도 액센트.
+  // 실제로는 **에러 문구가 이 색의 주 사용처**다(동기화 실패·탈퇴 실패·인증번호 오류…).
+  // 전에는 #D6456A(4.1:1)라 가장 읽혀야 할 글자가 기준 미달이었다 → 4.5:1을 넘기게 낮췄다.
   ruby: {
-    base: '#D6456A',
+    base: '#CC2D56',
     soft: '#FBE6EC',
   },
   scrim: 'rgba(20,18,15,0.45)',
@@ -77,7 +82,8 @@ export const darkColors: Colors = {
     primary: '#EFEAE0', // warm off-white
     strong: '#CFC8BB',
     secondary: '#A59E90',
-    placeholder: '#7C7568',
+    // 라이트와 같은 이유로 올렸다(3.1~3.9:1 → 4.5:1 이상).
+    placeholder: '#989184',
   },
   line: {
     base: '#38332C',
