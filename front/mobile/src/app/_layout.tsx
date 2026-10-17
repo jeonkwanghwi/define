@@ -11,7 +11,7 @@
  * 화면 위에서 날짜 칩을 가렸기 때문이고, 지금 토스트는 탭바 위 하단이라 가리는 것이 없다.
  */
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ToastProvider, useToast } from '@/components/primitives';
 import * as SplashScreen from 'expo-splash-screen';
@@ -22,11 +22,13 @@ import { startAutoSync } from '@/lib/auto-sync';
 import { startForegroundSync } from '@/lib/foreground-sync';
 import { claimLocalOwner, getLocalOwner } from '@/lib/sync-journal';
 import { useAuthStore } from '@/store/auth-store';
+import { useTheme } from '@/theme';
 
 // 폰트 로드 완료까지 스플래시 화면 자동 해제 막기 (깜빡임 방지)
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const theme = useTheme();
   // require의 상대 경로: src/app/_layout.tsx → ../../assets/fonts/...
   const [loaded, error] = useFonts({
     PretendardVariable: require('../../assets/fonts/PretendardVariable.ttf'),
@@ -92,9 +94,25 @@ export default function RootLayout() {
         {/* 출석 적립은 Provider 안쪽에서 — 이 컴포넌트가 ToastProvider를 렌더하므로
             여기서는 자기 Context를 읽을 수 없다(useToast가 터진다). 자식으로 내린다. */}
         <AttendanceClaim />
-        <View style={{ flex: 1 }}>
-          <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
-        </View>
+        {/* 네비게이터가 화면 뒤에 칠하는 바탕색을 우리 종이색으로 바꾼다.
+            기본값은 React Navigation의 중립 회색(rgb(242,242,242))이라, 화면이 아직
+            안 그려졌거나 틈이 생기는 순간 **따뜻한 종이 톤이 아닌 회색**이 드러난다
+            (탭 백지 버그 영상에서 실제로 드러난 색이 이것이었다).
+            background만 바꾸고 나머지(card·text·border·primary)는 기본값을 쓴다 —
+            헤더는 끄고 탭 색은 직접 지정하므로 쓰이는 곳이 없다. */}
+        <ThemeProvider
+          value={{
+            ...(theme.mode === 'dark' ? DarkTheme : DefaultTheme),
+            colors: {
+              ...(theme.mode === 'dark' ? DarkTheme : DefaultTheme).colors,
+              background: theme.colors.paper.base,
+            },
+          }}
+        >
+          <View style={{ flex: 1, backgroundColor: theme.colors.paper.base }}>
+            <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
+          </View>
+        </ThemeProvider>
       </ToastProvider>
     </SafeAreaProvider>
   );

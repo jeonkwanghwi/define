@@ -46,9 +46,30 @@ export default function TabsLayout() {
       backBehavior="initialRoute"
       screenOptions={{
         headerShown: false,
-        // 좌우 슬라이드(책장 넘김 느낌). 헤더가 화면 안에 있어 같이 넘어가지만,
-        // 모든 탭에서 동일해 "러닝 헤더"처럼 자연스럽다. (완전 고정하려면 상세에 바 2줄)
-        animation: 'shift',
+        /**
+         * 씬 전환 애니메이션 없음. 원래 'shift'(좌우 슬라이드 + 크로스페이드)였는데
+         * **탭을 빠르게 연달아 누르면 화면이 백지로 굳는 버그**가 났다(2026-10-17 영상).
+         *
+         * 왜 그런가: bottom-tabs는 animation이 'none'이 아닐 때만
+         *   (1) 씬에 `opacity` 보간을 입히고
+         *   (2) 화면의 attach/detach 상태(activityState)를 Animated 값으로 만든다.
+         * 둘 다 `Animated.parallel(...).start()`로 돌고, parallel의 기본값
+         * `stopTogether: true`는 자식 하나가 멈추면 나머지를 전부 멈춘다. 전환(150ms)
+         * 중에 다시 누르면 두 번째 애니메이션이 같은 Animated.Value를 가로채 첫 번째를
+         * 중단시키고, 그러면 첫 그룹이 **두 번째 그룹까지 같이 죽인다**. 값이 1에 멈추면
+         * 포커스된 화면이 opacity 0으로 남고, 스스로 돌아오지 않는다 — 다른 탭을 눌러
+         * effect가 다시 돌 때까지. 영상에서 3.5초·2초씩 백지였고, 그 백지는 우리 종이색
+         * (#FAF9F5)이 아니라 React Navigation 기본 배경(rgb(242,242,242))이었다.
+         * = 화면이 안 그려져 네비게이터 바탕이 드러난 것.
+         *
+         * 'none'이면 sceneStyleInterpolator가 undefined라 **opacity 스타일이 아예 안 붙고**,
+         * activityState도 Animated가 아닌 상수가 된다. 멈출 값 자체가 사라진다.
+         *
+         * 부드러움을 잃는 것 아닌가: 탭 전환은 하루에 수십 번 하는 동작이라 원래
+         * 애니메이션을 빼는 쪽이 맞다(iOS 기본 탭바도 씬을 전환하지 않는다). 손끝의
+         * 반응은 탭 알약(TabIcon, 180ms)이 그대로 맡는다.
+         */
+        animation: 'none',
         tabBarActiveTintColor: theme.colors.point.p600,
         tabBarInactiveTintColor: theme.colors.ink.placeholder,
         // 라벨은 항상 아이콘 아래로. (넓은 뷰포트/웹에선 기본이 beside-icon이 되어
