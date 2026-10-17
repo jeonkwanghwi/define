@@ -9,11 +9,20 @@
  */
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // trust proxy 2 — req.ip를 "사용자 IP"로 만든다(IP 레이트 리밋이 이 값을 쓴다).
+  // 요청은 사용자 → CloudFront → ALB → 여기로 온다. X-Forwarded-For는 끝에서부터
+  //   [..., 사용자 IP(CloudFront가 붙임), CloudFront IP(ALB가 붙임)]
+  // 라서 오른쪽에서 두 칸을 믿으면 사용자 IP가 나온다. 그보다 왼쪽은 사용자가 마음대로
+  // 써 보낼 수 있는 값이라 믿으면 안 된다. 로컬처럼 프록시가 없으면 소켓 주소가 그대로 쓰인다.
+  // ⚠️ ALB가 CloudFront에서만 요청을 받도록 잠겨 있어야 성립한다(보안그룹 = CloudFront 프리픽스 리스트).
+  app.set('trust proxy', 2);
 
   // CORS — 브라우저(expo web :8081 등)에서 교차 출처로 API 호출 허용.
   // 운영에선 CORS_ORIGINS에 프론트 도메인만 콤마로 나열(화이트리스트).

@@ -17,6 +17,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { DAY_MS, IpRateLimit, MINUTE_MS } from '../../common/ip-rate-limit.guard';
+
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { AppleLoginDto } from './dto/apple-login.dto';
@@ -42,6 +44,9 @@ export class AuthController {
    */
   @Post('email/code')
   @HttpCode(204)
+  // IP당 하루 20통 — 정상 사용자는 가입·재설정을 합쳐도 몇 통이면 끝난다.
+  // 통신사 공인 IP를 여러 명이 나눠 쓰는 경우(CGNAT)를 생각해 넉넉히 잡았다.
+  @UseGuards(new IpRateLimit(20, DAY_MS))
   requestEmailCode(@Body() dto: RequestCodeDto): Promise<void> {
     return this.auth.requestEmailCode(dto);
   }
@@ -56,6 +61,8 @@ export class AuthController {
   /** POST /api/auth/login — 로그인. */
   @Post('login')
   @HttpCode(200)
+  // IP당 10분에 20번 — 오타 몇 번은 넉넉하고, 비밀번호 대입은 사실상 막힌다.
+  @UseGuards(new IpRateLimit(20, 10 * MINUTE_MS))
   login(@Body() dto: LoginDto): Promise<AuthResponse> {
     return this.auth.login(dto);
   }
