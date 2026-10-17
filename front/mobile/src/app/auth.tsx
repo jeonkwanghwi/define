@@ -317,7 +317,12 @@ export default function AuthScreen() {
               {appleAvailable ? (
                 <AppleAuthentication.AppleAuthenticationButton
                   buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  // 어두운 바탕에 검은 버튼은 구멍으로 보인다 — HIG도 다크에선 흰 버튼을 쓰라고 한다.
+                  buttonStyle={
+                    theme.mode === 'dark'
+                      ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                      : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                  }
                   cornerRadius={theme.radii.pill}
                   style={[styles.appleBtn, { marginTop: theme.spacing.s4 }]}
                   onPress={submitting ? () => {} : handleApple}
@@ -329,7 +334,8 @@ export default function AuthScreen() {
                   style={[
                     styles.socialBtn,
                     {
-                      backgroundColor: '#000000',
+                      // 네이티브 버튼과 같은 규칙 — 다크에선 흑백을 뒤집는다.
+                      backgroundColor: theme.mode === 'dark' ? '#FFFFFF' : '#000000',
                       borderRadius: theme.radii.pill,
                       borderWidth: 1,
                       borderColor: theme.colors.line.base,
@@ -337,7 +343,13 @@ export default function AuthScreen() {
                     },
                   ]}
                 >
-                  <ThemedText variant="bodyMd" style={{ color: '#FFFFFF', fontWeight: '700' }}>
+                  <ThemedText
+                    variant="bodyMd"
+                    style={{
+                      color: theme.mode === 'dark' ? '#000000' : '#FFFFFF',
+                      fontWeight: '700',
+                    }}
+                  >
                     Apple로 로그인
                   </ThemedText>
                 </PressableScale>
