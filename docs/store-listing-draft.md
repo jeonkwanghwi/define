@@ -126,7 +126,7 @@ define은 사전이 정해준 뜻 대신,
 ─────────────────────
 
 개인정보처리방침
-https://d2kejc3sjm91mt.cloudfront.net/privacy.html
+https://defineink.com/privacy.html
 
 문의 definepjt@gmail.com
 ```
@@ -202,14 +202,21 @@ ASC의 설문에 이렇게 답하면 됩니다. 대부분 "없음"입니다.
 
 | 항목 | 값 | 상태 |
 |---|---|---|
-| 지원 URL | (만들어야 함) | ⬜ |
-| 마케팅 URL | 비워도 됨 | — |
-| 개인정보처리방침 URL | `https://d2kejc3sjm91mt.cloudfront.net/privacy.html` | ✅ |
+| 지원 URL | `https://defineink.com/support.html` | ✅ |
+| 마케팅 URL | `https://defineink.com` | ✅ |
+| 개인정보처리방침 URL | `https://defineink.com/privacy.html` | ✅ |
 | 저작권 | `2026 전광휘` | ⬜ |
 | 심사 연락처 | TestFlight에 입력한 것과 동일 | ✅ |
 | 데모 계정 | **불필요** (로그인 없이 핵심 기능 사용 가능) | ✅ |
 
-**지원 URL은 필수입니다.** `defineink.com`에 문의 메일과 자주 묻는 질문 몇 줄만 있는 간단한 페이지를 만들면 됩니다. 제가 만들어 배포할 수 있습니다.
+**마케팅 URL을 반드시 `defineink.com`으로 적을 것.** 구글이 `app-ads.txt`를
+**이 칸에 적힌 도메인** 루트에서 찾는다. 비워두거나 다른 주소를 적으면 그 파일이
+있어도 못 찾고, 사칭 인벤토리를 막지 못한 채 광고 단가만 깎인다.
+
+세 주소 모두 2026-10-17에 도메인을 CloudFront에 붙여 살아났다.
+**앱↔서버 통신 주소는 여전히 `d2kejc3sjm91mt.cloudfront.net`이다** — 카카오 콘솔에
+등록된 redirect URI가 그 주소라 바꾸면 카카오 로그인이 깨진다. 옮기려면
+카카오 콘솔 등록 + 앱 재빌드를 함께 해야 한다.
 
 ---
 

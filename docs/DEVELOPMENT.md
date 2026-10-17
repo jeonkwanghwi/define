@@ -275,6 +275,31 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### 2026-10-12 — "준비 중" 세 자리를 가린다 (심사 2.1 대비)
 
+### 2026-10-17 — defineink.com을 CloudFront에 붙이고 app-ads.txt를 올린다
+
+- **왜**: 도메인은 2026-10-05에 샀지만 **메일용으로만** 세팅돼 있었다(NS·MX·DKIM·DMARC는 있는데 **A 레코드가 없어** 웹은 아무것도 안 떴다). 그래서 ⒜ `app-ads.txt`를 올릴 자리가 없고 ⒝ 스토어에 적을 지원·방침 URL이 `d2kejc3sjm91mt.cloudfront.net`이라는 랜덤 문자열이었다. **스토어 등록 정보를 적기 전에** 끝내야 했다 — 나중에 바꾸면 심사를 다시 받는다.
+- **무엇을**:
+  - ACM 인증서(`defineink.com` + `www`)를 **us-east-1**에 발급. CloudFront는 서울 인증서를 받지 않는다 — 리전 선택을 틀리면 붙일 수가 없다.
+  - Route 53에 DNS 검증 CNAME 2개 → 발급까지 약 20분.
+  - **기존 배포(E2CH8Q63FJ0LS0)에 대체 도메인을 추가**했다. 새 배포를 만들지 않은 이유: `d2kejc3sjm91mt.cloudfront.net`이 `eas.json`에 박혀 **이미 출시된 앱들이 그 주소를 쓴다.** 대체 도메인을 더해도 기본 주소는 그대로 살아 있다(실측 확인).
+  - 이 참에 **TLS 최저 버전을 `TLSv1` → `TLSv1.2_2021`로** 올렸다. 기본 인증서 시절의 값이 그대로 남아 있었다. `SSLSupportMethod`는 `sni-only` — `vip`는 월 $600이다.
+  - apex는 CNAME을 쓸 수 없어 **A/ALIAS**로 걸었다(`Z2FDTNDATAQYW2`는 CloudFront 전역 고정 호스티드존 ID — 우리 존 ID가 아니다).
+  - `app-ads.txt`를 `front/mobile/public/`에 뒀다. `expo export`가 `dist/`로 그대로 실어 **웹 재배포만 하면 같이 올라가고** `s3 sync --delete`에도 안 날아간다(S3에 수동으로 올렸다면 날아간다). privacy·support와 같은 자리·같은 이유.
+- **확인**(실측): `defineink.com`의 `/` `/privacy.html` `/support.html` `/app-ads.txt` `/api/words` **모두 200**. 기존 CloudFront 주소의 `/api/words`도 **200 유지**. 인증서 CN=defineink.com, 2027-05-02까지.
+- **🔴 앱↔서버 주소는 옮기지 않았다**: 앱의 카카오 redirect URI가 `${API_BASE}/auth/kakao/callback`으로 조립되는데 **카카오 콘솔에 등록된 주소가 CloudFront**다. `eas.json`의 `EXPO_PUBLIC_API_URL`을 바꾸면 **카카오 로그인이 깨진다**. 옮기려면 카카오 콘솔 등록 + 앱 재빌드를 함께. 지금 `defineink.com`은 **스토어에 적을 공개 얼굴**(지원·방침·app-ads.txt) 역할만 한다.
+- **스토어 등록 초안 갱신**: 지원/마케팅/방침 URL 세 칸을 새 도메인으로. **마케팅 URL을 반드시 `defineink.com`으로 적어야** 구글이 거기서 `app-ads.txt`를 찾는다 — 비워두면 파일이 있어도 못 찾는다.
+
+### 2026-10-16 — 마을 배경 10MB → 1.2MB (WebP)
+
+- **왜**: `assets/`가 17MB인데 그중 **10.03MB가 잠겨서 들어갈 수도 없는 탭의 배경 5장**이었다(848×1264 RGBA PNG).
+- **재보고 골랐다**(bg-center, 원본 대비 크기 / PSNR): PNG RGB 최적화 82%(무손실) · PNG 256색 26%(34.7dB, 고유색이 7~22만이라 띠가 생긴다) · JPEG q92 21%(40.9dB) · **WebP q90 13%(41.2dB)** · WebP 무손실 57%. WebP가 JPEG보다 **작으면서 품질도 높다.**
+- 알파는 다섯 장 모두 전 픽셀이 255였다 — 안 쓰이는 채널이 25%를 먹고 있었다. RGB로 버렸다.
+- 바꾸기 전에 두 전제를 확인했다: Metro 기본 `assetExts`에 `webp`가 있는가, `image-size`가 webp 해상도를 읽는가(`Image.resolveAssetSource`가 크기를 못 주면 `containFit`이 깨진다).
+- 픽셀아트라 손실 압축이 불리한 종류여서 원본·q95·q90을 **3배 확대해 나란히** 봤다. q90에서 눈에 띄는 열화 없음.
+- **🔴 하마터면 조용히 망가질 뻔한 것**: webp로 바꾸고 격자를 다시 뽑으니 **0.4~3.1% 달라졌다**(east는 걸을 수 있는 칸이 9% 감소). 화질 문제가 아니라 `gen-village-grid.mjs`가 **그림의 길 색을 집어** 격자를 만들기 때문이다 — 손실 압축이 색 경계를 번지게 하는데 하필 그 색이 판정 기준이다. → **원본 PNG를 `front/design-source/village-art/`로 옮기고** 스크립트가 거기서 읽게 했다. 거기서 뽑은 격자가 커밋된 `village-grid.ts`와 **바이트 단위로 동일**한 것을 확인했다. 그 폴더는 Metro 루트(`front/mobile`) 바깥이라 번들에도 EAS 업로드에도 안 들어간다. 이유는 그 폴더 `README.md`에 적었다.
+- **미검증**: 마을이 잠겨 있어 **RN `Image`가 실제로 그리는 것**은 못 봤다(기능 플래그 수정이 차단됨). webp 디코딩과 Metro 번들 포함까지는 확인. 마을을 여는 날 같이 볼 것.
+
+
 ### 2026-10-12 (4) — Apple 연결 해제·메일 차단기·CORS: 출시 전 구멍 셋을 메운다
 
 - **왜 지금**: 빌드를 올리기 전에 남은 구멍을 훑다가 **심사 리젝 사유 하나**와 **되돌릴 수 없는 사고 하나**를 찾았다. 둘 다 빌드에 들어가야 해서 먼저 처리했다.
