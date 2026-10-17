@@ -29,4 +29,4 @@ for f in glob.glob('front/design-source/village-art/bg-*.png'):
 ## avatar/
 
 나그네 아바타 원본(1024², 마젠타 배경 — 키잉 전). 앱은 `front/mobile/assets/village/avatar.png`(base를 키잉한 것) 하나만 쓴다.
-`spring`·`summer`·`autumn`·`winter`는 계절 의상 시안으로 **아직 앱에 안 쓴다** — 맵별 의상을 넣게 되면 여기서 키잉해 쓴다.
+`spring`·`summer`·`autumn`·`winter`는 계절 의상 시안으로 **아직 앱에 안 쓴다.** 맵마다 옷을 갈아입히는 건 확정(마을 재개 때 구현, PLANNING 2026-10-17).
