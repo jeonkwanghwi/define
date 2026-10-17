@@ -40,6 +40,8 @@ export type PlazaDefinition = {
 export type PlazaWordDetail = {
   word: string;
   definitions: PlazaDefinition[];
+  /** 다음 쪽이 더 있는가. 옛 서버는 이 값을 안 준다 → undefined = 더 없음으로 읽는다. */
+  hasMore?: boolean;
 };
 
 /** GET /api/plaza/words */
@@ -52,9 +54,12 @@ export function getPlazaStats(token: string): Promise<PlazaStats> {
   return apiRequest<PlazaStats>('/plaza/stats', { method: 'GET', token });
 }
 
-/** GET /api/plaza/words/:word */
-export function getPlazaWord(token: string, word: string): Promise<PlazaWordDetail> {
-  return apiRequest<PlazaWordDetail>(`/plaza/words/${encodeURIComponent(word)}`, {
+/**
+ * GET /api/plaza/words/:word?offset=N — 정의 한 쪽(10개씩, 좋아요 많은 순).
+ * offset 0(첫 쪽)에만 내 정의가 맨 위에 붙어 온다. offset은 "지금까지 받은 남의 정의 수".
+ */
+export function getPlazaWord(token: string, word: string, offset = 0): Promise<PlazaWordDetail> {
+  return apiRequest<PlazaWordDetail>(`/plaza/words/${encodeURIComponent(word)}?offset=${offset}`, {
     method: 'GET',
     token,
   });

@@ -153,6 +153,7 @@ export class PrismaPlazaRepository extends PlazaRepository {
   async findDefinitionsByWord(
     word: string,
     userId: string,
+    page: { mine: true } | { mine: false; skip: number; take: number },
   ): Promise<PlazaDefinitionRow[]> {
     const rows = await this.prisma.entry.findMany({
       // 숨겨진 정의는 광장에서만 사라진다(작성자 단어장엔 남는다).
@@ -162,8 +163,13 @@ export class PrismaPlazaRepository extends PlazaRepository {
         word,
         hidden: false,
         user: { blocksReceived: { none: { blockerId: userId } } },
+        userId: page.mine ? userId : { not: userId },
       },
-      orderBy: { savedAt: 'desc' },
+      // 정렬을 DB가 해야 skip/take가 "좋아요 상위 N개"가 된다. id는 동점 순서를 고정하는 마지막 기준.
+      orderBy: page.mine
+        ? { savedAt: 'desc' }
+        : [{ likes: { _count: 'desc' } }, { savedAt: 'desc' }, { id: 'desc' }],
+      ...(page.mine ? {} : { skip: page.skip, take: page.take }),
       include: {
         user: { select: { nickname: true } },
         _count: { select: { likes: true } },

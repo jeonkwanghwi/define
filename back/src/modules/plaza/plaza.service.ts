@@ -4,7 +4,7 @@
  *   - getWord: 한 단어의 정의들에 isMine 표시 + 내 정의를 맨 위로.
  *   - toggleLike: 좋아요 토글(멱등). 내 정의 불가(400)·없는 정의(404).
  *   - report/block/unblock/listBlocked: 중재(Apple 심사 가이드 1.2). 전부 멱등.
- * 닉네임 없으면 '익명'. 내 정의 맨 위 정렬은 V8 안정 정렬에 의존(그 외 savedAt 역순 유지).
+ * 닉네임 없으면 '익명'.
  */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -33,6 +33,9 @@ const PLAZA_WORD_LIMIT = 100;
  */
 export const REPORT_HIDE_THRESHOLD = 3;
 
+/** 단어 상세에서 한 번에 내려보낼 남의 정의 수. 앱은 바닥에 닿으면 다음 쪽을 부른다. */
+export const PLAZA_DEFINITION_PAGE = 10;
+
 @Injectable()
 export class PlazaService {
   constructor(private readonly repo: PlazaRepository) {}
@@ -56,8 +59,23 @@ export class PlazaService {
     return this.repo.getStats(userId, since);
   }
 
-  async getWord(word: string, userId: string): Promise<PlazaWordDetailResponse> {
-    const rows = await this.repo.findDefinitionsByWord(word, userId);
+  /**
+   * 한 단어의 정의 한 쪽. offset 0(첫 쪽)에만 내 정의를 맨 위에 붙인다 — 몇 개 안 되고,
+   * 쪽마다 끼면 중복된다. 남의 정의는 좋아요 많은 순으로 PLAZA_DEFINITION_PAGE개씩.
+   *
+   * ponytail: offset 방식이라 쪽을 넘기는 사이 좋아요 순위가 바뀌면 한 장이 겹치거나 빠질 수 있다.
+   *   겹침은 앱이 id로 걸러낸다. 빠짐이 문제가 될 만큼 커지면 (좋아요 수, savedAt, id) 커서로 바꿀 것.
+   */
+  async getWord(word: string, userId: string, offset = 0): Promise<PlazaWordDetailResponse> {
+    // 한 장 더 받아 보고 넘치면 "더 있다" — 개수를 따로 세는 쿼리가 필요 없다.
+    const others = await this.repo.findDefinitionsByWord(word, userId, {
+      mine: false,
+      skip: offset,
+      take: PLAZA_DEFINITION_PAGE + 1,
+    });
+    const hasMore = others.length > PLAZA_DEFINITION_PAGE;
+    const mine = offset === 0 ? await this.repo.findDefinitionsByWord(word, userId, { mine: true }) : [];
+    const rows = [...mine, ...others.slice(0, PLAZA_DEFINITION_PAGE)];
     const definitions = rows.map((r) => ({
       id: r.id,
       authorId: r.userId,
@@ -68,11 +86,7 @@ export class PlazaService {
       likeCount: r.likeCount,
       isLiked: r.likedByMe,
     }));
-    // 내 정의 맨 위 → 좋아요 많은 순. repo가 savedAt 역순이라 동점은 안정 정렬로 최신 우선 유지.
-    definitions.sort(
-      (a, b) => Number(b.isMine) - Number(a.isMine) || b.likeCount - a.likeCount,
-    );
-    return { word, definitions };
+    return { word, definitions, hasMore };
   }
 
   async toggleLike(userId: string, entryId: string): Promise<PlazaLikeResponse> {
