@@ -57,6 +57,11 @@ export type TimelineNodeProps = {
   onAddNote?: () => void;
   /** 방금 수정 저장됨 — 테두리를 잠깐 물들여 "바뀐 곳"을 짚어 준다. 부모가 잠시 뒤 끈다. */
   justSaved?: boolean;
+  /**
+   * 본문을 이 줄 수로 접어 둔다(+ "더 보기"). 리빌에서 막 쓴 긴 정의가 화면을 다 덮어
+   * 비교할 옛 카드가 밀려나지 않게 — 부모가 필요할 때만 준다.
+   */
+  clampLines?: number;
 };
 
 export function TimelineNode({
@@ -73,6 +78,7 @@ export function TimelineNode({
   onCancelNote,
   onAddNote,
   justSaved,
+  clampLines,
 }: TimelineNodeProps) {
   const theme = useTheme();
   const dotBorderColor = isNow ? theme.colors.point.p600 : theme.colors.point.p300;
@@ -119,6 +125,8 @@ export function TimelineNode({
         );
   }, [justSaved, reduceMotion, flash, theme.motion]);
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
+
+  const [expanded, setExpanded] = useState(false);
 
   // ─── 텍스트 편집 상태 ───
   const [draft, setDraft] = useState(entry.text);
@@ -177,7 +185,12 @@ export function TimelineNode({
       radius="md"
       elevation={isNow ? 'sm' : 'none'}
     >
-      <ThemedText variant="body" tone="strong" style={{ lineHeight: 26 }}>
+      <ThemedText
+        variant="body"
+        tone="strong"
+        style={{ lineHeight: 26 }}
+        numberOfLines={clampLines && !expanded ? clampLines : undefined}
+      >
         {entry.text}
       </ThemedText>
       <Animated.View
@@ -323,6 +336,15 @@ export function TimelineNode({
               ) : null}
               {definitionCard}
             </PressableScale>
+            {clampLines ? (
+              <Button
+                label={expanded ? '접기' : '더 보기'}
+                variant="ghost"
+                size="sm"
+                onPress={() => setExpanded((v) => !v)}
+                style={[styles.addNote, { marginTop: theme.spacing.s1 }]}
+              />
+            ) : null}
             {/* 노트는 숨은 제스처로만 열면 아무도 모른다 — 남길 수 있는 자리엔 버튼을 보인다.
                 첫 정의(isLast)는 비교 대상이 없어 노트가 없다. */}
             {!isLast && !entry.changeNote && onAddNote ? (

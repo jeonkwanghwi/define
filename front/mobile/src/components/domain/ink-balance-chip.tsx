@@ -6,11 +6,16 @@
  *   - 줄어들 때(회상 소비): 부풀지 않고 숫자만 잠깐 루비색으로 물들었다 돌아온다.
  *     전에는 숫자만 즉시 바뀌어 "방금 잉크를 썼다"는 걸 알아채기 어려웠다.
  *
+ * 누르면 마이페이지의 잉크 섹션으로 간다 — 숫자만 있고 눌러도 아무 일이 없으면
+ * "이게 뭐고 어디서 더 모으지?"에 답할 곳이 없었다.
+ *
  * 사용: <InkBalanceChip balance={inkBalance} />
  */
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
+import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { controlPresets, motion, radii, useTheme } from '@/theme';
@@ -20,6 +25,7 @@ const COUNT_MS = 500;
 
 export function InkBalanceChip({ balance }: { balance: number }) {
   const theme = useTheme();
+  const router = useRouter();
   const scale = useRef(new Animated.Value(1)).current;
   // 0~1: 루비색 숫자 레이어의 불투명도(차감 표시).
   const tint = useRef(new Animated.Value(0)).current;
@@ -62,25 +68,32 @@ export function InkBalanceChip({ balance }: { balance: number }) {
   const numberStyle = { fontWeight: '700' } as const;
 
   return (
-    <Animated.View
-      style={[
-        styles.chip,
-        { backgroundColor: theme.colors.surface.nested, transform: [{ scale }] },
-      ]}
+    <PressableScale
+      onPress={() => router.push({ pathname: '/mypage', params: { section: 'ink' } })}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`잉크 ${balance}개, 잉크 자세히 보기`}
     >
-      <Icon name="ink" size={14} color={theme.colors.ruby.base} />
-      {/* 같은 숫자를 두 겹 — 위의 루비 겹을 opacity로 켜고 끈다(색 보간은 네이티브 드라이버 불가). */}
-      <View>
-        <ThemedText variant="sm" style={[numberStyle, { color: theme.colors.ink.secondary }]}>
-          {display}
-        </ThemedText>
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: tint }]}>
-          <ThemedText variant="sm" style={[numberStyle, { color: theme.colors.ruby.base }]}>
+      <Animated.View
+        style={[
+          styles.chip,
+          { backgroundColor: theme.colors.surface.nested, transform: [{ scale }] },
+        ]}
+      >
+        <Icon name="ink" size={14} color={theme.colors.ruby.base} />
+        {/* 같은 숫자를 두 겹 — 위의 루비 겹을 opacity로 켜고 끈다(색 보간은 네이티브 드라이버 불가). */}
+        <View>
+          <ThemedText variant="sm" style={[numberStyle, { color: theme.colors.ink.secondary }]}>
             {display}
           </ThemedText>
-        </Animated.View>
-      </View>
-    </Animated.View>
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: tint }]}>
+            <ThemedText variant="sm" style={[numberStyle, { color: theme.colors.ruby.base }]}>
+              {display}
+            </ThemedText>
+          </Animated.View>
+        </View>
+      </Animated.View>
+    </PressableScale>
   );
 }
 

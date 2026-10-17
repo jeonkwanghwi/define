@@ -6,13 +6,13 @@
  * 인증 후 프로필 미완성이면 /profile-setup으로 replace(설계: 단일 프로필 게이트).
  * 시스템 다이얼로그 X — 검증/서버 에러는 인라인 메시지.
  */
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Button, FadeIn, PressableScale, TextField, useToast } from '@/components/primitives';
-import { EmailDomainDropdown } from '@/components/domain/email-domain-dropdown';
+import { COMMON_EMAIL_DOMAINS, EmailDomainDropdown } from '@/components/domain/email-domain-dropdown';
 import { EmailCodeForm } from '@/components/domain/email-code-form';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemedText } from '@/components/themed-text';
@@ -62,7 +62,10 @@ export default function AuthScreen() {
     };
   }, []);
 
-  const [mode, setMode] = useState<Mode>('login');
+  // AuthGate의 "가입하고 시작하기"는 ?mode=signup으로 들어온다 — 가입하러 왔는데 "로그인"
+  // 화면이 뜨면 잘못 눌렀나 싶다. 파라미터가 없으면(헤더·마이페이지 진입) 기존대로 로그인.
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const [mode, setMode] = useState<Mode>(params.mode === 'signup' ? 'signup' : 'login');
   const [step, setStep] = useState<Step>('chooser');
   // 미구현 소셜(카카오/애플) 탭 시 우리 톤 인라인 안내.
   const [socialNotice, setSocialNotice] = useState<string | null>(null);
@@ -98,6 +101,23 @@ export default function AuthScreen() {
       useNativeDriver: true,
     }).start();
   }, [mode, swap]);
+
+  // 아이디 칸에 이메일 전체(me@gmail.com)를 붙여넣는 경우가 흔하다 — 그대로 두면
+  // "me@gmail.com@선택"이 돼 형식 에러가 난다. "@" 뒤를 도메인 칸으로 옮겨 준다.
+  function handleEmailLocalChange(t: string) {
+    const at = t.indexOf('@');
+    if (at < 0) {
+      setEmailLocal(t);
+      return;
+    }
+    const domain = t.slice(at + 1).trim();
+    setEmailLocal(t.slice(0, at));
+    if (!domain) return; // "@"만 친 상태 — 도메인은 드롭다운에서 고르게 둔다
+    setEmailDomain(domain);
+    // 목록에 없는 도메인은 직접 입력 칸으로 보여줘야 고칠 수 있다.
+    setDomainCustom(!COMMON_EMAIL_DOMAINS.includes(domain));
+    setDomainOpen(false);
+  }
 
   function validate(): string | null {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail)) return '올바른 이메일 형식이 아니에요.';
@@ -268,7 +288,7 @@ export default function AuthScreen() {
         {/* 제목은 지금 하는 일(로그인/회원가입)을 단계와 무관하게 늘 말한다 —
             인증번호 단계에서만 제목이 생기면 헤더가 튀어 보였다. */}
         <ScreenHeader
-          title={isSignup && step !== 'chooser' ? '회원가입' : '로그인'}
+          title={isSignup ? '회원가입' : '로그인'}
           onBack={handleBack}
         />
 
@@ -285,18 +305,25 @@ export default function AuthScreen() {
         ) : step === 'chooser' ? (
           <View style={styles.body}>
             {/* 헤딩은 상단 고정, 버튼 3개만 남은 공간에서 세로 중앙. */}
-            <FadeIn style={{ marginTop: theme.spacing.s8 }}>
+            {/* key=mode — 하단 링크로 로그인↔가입을 바꾸면 헤딩이 다시 스르륵 떠서 바뀐 걸 알린다. */}
+            <FadeIn key={mode} style={{ marginTop: theme.spacing.s8 }}>
               <ThemedText variant="h1">
                 {'나만의 단어를\n정의해보세요'}
               </ThemedText>
+              {isSignup ? (
+                // 가입 시 비로그인 때 쓴 정의가 광장에 올라간다(가져오기) — 모른 채 공개되지 않게 미리 말한다.
+                <ThemedText variant="sm" tone="secondary" style={{ marginTop: theme.spacing.s3 }}>
+                  {SIGNUP_PUBLISH_NOTE}
+                </ThemedText>
+              ) : null}
             </FadeIn>
 
             <View style={styles.chooserButtons}>
               <Button
-                label="이메일로 로그인"
+                label={isSignup ? '이메일로 가입하기' : '이메일로 로그인'}
                 fullWidth
                 leftIcon={<Icon name="mail" size={18} color="#FFFFFF" />}
-                onPress={() => goEmail('login')}
+                onPress={() => goEmail(mode)}
                 style={{ height: SOCIAL_BTN_HEIGHT }}
               />
 
@@ -320,7 +347,8 @@ export default function AuthScreen() {
                 <View style={styles.socialRow}>
                   <KakaoBubble />
                   <ThemedText variant="label" style={{ color: KAKAO_INK, fontWeight: '700' }}>
-                    카카오 로그인
+                    {/* 카카오·Apple은 계정이 없으면 만들어 준다 — 가입 화면에선 "시작하기"가 정직하다. */}
+                    {isSignup ? '카카오로 시작하기' : '카카오 로그인'}
                   </ThemedText>
                 </View>
               </PressableScale>
@@ -334,7 +362,12 @@ export default function AuthScreen() {
                   안내용 버튼을 대신 보여준다. */}
               {appleAvailable ? (
                 <AppleAuthentication.AppleAuthenticationButton
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  // CONTINUE = "Apple로 계속하기" — 로그인·가입 둘 다 되는 Apple의 공식 문구.
+                  buttonType={
+                    isSignup
+                      ? AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
+                      : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                  }
                   // 어두운 바탕에 검은 버튼은 구멍으로 보인다 — HIG도 다크에선 흰 버튼을 쓰라고 한다.
                   buttonStyle={
                     theme.mode === 'dark'
@@ -368,7 +401,7 @@ export default function AuthScreen() {
                       fontWeight: '700',
                     }}
                   >
-                    Apple로 로그인
+                    {isSignup ? 'Apple로 시작하기' : 'Apple로 로그인'}
                   </ThemedText>
                 </PressableScale>
               )}
@@ -401,17 +434,23 @@ export default function AuthScreen() {
               ) : null}
             </View>
 
-            {/* 회원가입은 로그인 방법 고르기 전 결정 → 방법 선택 화면 하단에. */}
+            {/* 반대 모드로 가는 작은 링크 — 회원가입은 로그인 방법 고르기 전 결정 → 하단에.
+                가입 화면에선 이미 계정 있는 사람이 로그인으로 넘어갈 길. */}
             <PressableScale
-              onPress={() => goEmail('signup')}
+              onPress={() => {
+                setSocialNotice(null);
+                setError(null);
+                if (isSignup) setMode('login');
+                else goEmail('signup');
+              }}
               hitSlop={8}
               style={styles.signupLink}
             >
               <ThemedText variant="sm" tone="secondary">
-                아직 회원이 아니신가요?{' '}
+                {isSignup ? '이미 계정이 있나요?' : '아직 회원이 아니신가요?'}{' '}
               </ThemedText>
               <ThemedText variant="sm" style={{ color: theme.colors.point.p600, fontWeight: '700' }}>
-                회원가입
+                {isSignup ? '로그인' : '회원가입'}
               </ThemedText>
             </PressableScale>
           </View>
@@ -426,9 +465,14 @@ export default function AuthScreen() {
                 ],
               }}
             >
-              <ThemedText variant="h1" style={{ marginBottom: theme.spacing.s8 }}>
+              <ThemedText variant="h1" style={{ marginBottom: isSignup ? theme.spacing.s3 : theme.spacing.s8 }}>
                 {isSignup ? '나만의 정의를\n저장해 보세요' : '다시 만나서\n반가워요'}
               </ThemedText>
+              {isSignup ? (
+                <ThemedText variant="sm" tone="secondary" style={{ marginBottom: theme.spacing.s8 }}>
+                  {SIGNUP_PUBLISH_NOTE}
+                </ThemedText>
+              ) : null}
 
               {isSignup ? (
                 // 도메인 드롭다운이 아래 필드 위로 겹쳐 내려오도록 relative + zIndex.
@@ -436,7 +480,7 @@ export default function AuthScreen() {
                   <View style={styles.emailRow}>
                     <TextField
                       value={emailLocal}
-                      onChangeText={setEmailLocal}
+                      onChangeText={handleEmailLocalChange}
                       onFocus={() => setDomainOpen(false)}
                       placeholder="아이디"
                       autoCapitalize="none"
@@ -618,6 +662,9 @@ function mapAuthError(e: unknown): string {
   return userFacingMessage(e) ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 }
 
+/** 가입하면 비로그인 때 쓴 정의가 광장으로 가져와진다 — 가입 화면 두 곳(방법 선택·이메일 폼)에서 같은 말. */
+const SIGNUP_PUBLISH_NOTE = '가입하면 지금까지 쓴 정의가 광장에 함께 올라가요';
+
 /** 카카오 브랜드 가이드가 정한 노란 배경 위 글자·로고 색. 배경은 #FEE500. */
 const KAKAO_INK = '#191600';
 
@@ -694,7 +741,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   domainBoxText: { flex: 1 },
-  domainBoxInput: { flex: 1, padding: 0 },
+  // minWidth:0 — emailLocal과 같은 이유. 긴 직접 입력 도메인(붙여넣기)이 박스 밖으로 넘치던 것 방지.
+  domainBoxInput: { flex: 1, minWidth: 0, padding: 0 },
   // 도메인 박스 아래로 붙어 내려오는 드롭다운 — 행(≈52) 바로 밑, 힌트/비번 위로 겹침.
   emailDropdown: {
     position: 'absolute',

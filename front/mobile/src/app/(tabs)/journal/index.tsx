@@ -121,8 +121,8 @@ export default function JournalListScreen() {
             value={streak.currentStreak > 0 ? `${streak.currentStreak}일` : '—'}
             empty={streak.currentStreak === 0}
           />
-          {/* 변화 노트를 남긴 횟수 — 사용자가 선언한 변화만 센다(재정의 횟수 아님). */}
-          <StatCard label="생각 변화" value={`${stats.changeNotes}`} />
+          {/* 변화 노트가 있는 단어 수 — 마이페이지와 같은 기준·같은 이름(재정의 횟수 아님). */}
+          <StatCard label="생각이 바뀐 단어" value={`${stats.changedWords}`} />
         </View>
 
         {/* ─── PDF 내보내기 (BM 로드맵) — 기능이 준비될 때까지 가린다 ─── */}

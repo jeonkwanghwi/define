@@ -65,17 +65,12 @@ export function AuthGate({ icon, title, description, children }: AuthGateProps) 
           {description}
         </ThemedText>
 
-        <View style={[styles.lockRow, { marginTop: theme.spacing.s6 }]}>
-          <Icon name="lock" size={15} color={theme.colors.ink.placeholder} />
-          <ThemedText variant="caption" tone="placeholder">
-            가입한 분들에게 열려요
-          </ThemedText>
-        </View>
-
+        {/* "가입한 분들에게 열려요" 잠금 줄은 뺐다 — 설명·버튼이 이미 가입을 말해 같은 말이 세 번이었다.
+            mode=signup: 가입하러 눌렀는데 "로그인" 화면이 뜨면 잘못 온 줄 안다. */}
         <Button
           label="가입하고 시작하기"
-          onPress={() => router.push('/auth')}
-          style={{ marginTop: theme.spacing.s5 }}
+          onPress={() => router.push('/auth?mode=signup')}
+          style={{ marginTop: theme.spacing.s6 }}
         />
       </View>
     </ThemedView>
@@ -90,10 +85,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
-  },
-  lockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
 });

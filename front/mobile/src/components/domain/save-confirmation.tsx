@@ -23,6 +23,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { Button } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
+import { useAuthStore } from '@/store/auth-store';
 import { useTheme } from '@/theme';
 
 export type SaveConfirmationProps = {
@@ -48,6 +49,7 @@ export function SaveConfirmation({
   autoDismissMs,
 }: SaveConfirmationProps) {
   const theme = useTheme();
+  const token = useAuthStore((s) => s.token);
   const reduceMotion = useReducedMotion();
 
   // 재정의 리빌 — 이 단어가 처음이 아니었음을 저장 후에야 공개.
@@ -156,6 +158,16 @@ export function SaveConfirmation({
                     단어장에 담았어요
                   </ThemedText>
                 </View>
+                {/* 비로그인이면 기록이 어디에 있는지가 곧 위험이다 — 폰을 잃으면 같이 사라진다. */}
+                {!token ? (
+                  <ThemedText
+                    variant="caption"
+                    tone="placeholder"
+                    style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
+                  >
+                    기록은 지금 이 폰에만 있어요 · 가입하면 안전하게 보관돼요
+                  </ThemedText>
+                ) : null}
               </>
             )}
           </Animated.View>

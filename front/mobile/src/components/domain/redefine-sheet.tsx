@@ -3,6 +3,9 @@
  * CustomWordSheet와 같은 껍데기(그립·surface 바탕·radii.xl·TextField)를 쓴다 —
  * 같은 "아래에서 올라오는 입력 시트"가 화면마다 다르게 생기면 다른 물건처럼 느껴진다.
  * 저장 시 onSave(text) → caller가 addEntry로 새 엔트리 기록.
+ * 쓰던 글이 있는데 바깥(scrim)·뒤로가기로 닫으려 하면 버릴지 먼저 묻는다.
+ * 확인창은 시트 Modal **안에** 띄운다 — iOS는 한 Modal이 닫히는(애니메이션) 중에 다른 Modal을
+ * 띄우면 두 번째가 안 뜬다. 시트는 열린 채로 두고 그 위에 겹치므로 그 경합이 없다.
  */
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -15,11 +18,12 @@ import {
   View,
 } from 'react-native';
 
-import { Button, TextField } from '@/components/primitives';
+import { Button, ConfirmDialog, FadeIn, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
+import { Icon } from '@/icons';
 import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { topicSuffix } from '@/lib/korean';
-import { useTheme } from '@/theme';
+import { controlPresets, useTheme } from '@/theme';
 
 export type RedefineSheetProps = {
   visible: boolean;
@@ -31,11 +35,13 @@ export type RedefineSheetProps = {
 export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetProps) {
   const theme = useTheme();
   const [text, setText] = useState('');
+  const [discardOpen, setDiscardOpen] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (visible) {
       setText('');
+      setDiscardOpen(false);
       // 시트 슬라이드업이 끝난 직후 포커스 (CustomWordSheet와 같은 이유).
       const t = setTimeout(() => inputRef.current?.focus(), 250);
       return () => clearTimeout(t);
@@ -51,15 +57,21 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
     onClose();
   };
 
+  /** 바깥 탭·뒤로가기 — 쓴 게 있으면 묻고, 없으면 바로 닫는다. */
+  const requestClose = () => {
+    if (text.trim().length > 0) setDiscardOpen(true);
+    else onClose();
+  };
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={requestClose}
       statusBarTranslucent
     >
-      <Pressable style={[styles.scrim, { backgroundColor: theme.colors.scrim }]} onPress={onClose}>
+      <Pressable style={[styles.scrim, { backgroundColor: theme.colors.scrim }]} onPress={requestClose}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.kbWrap}
@@ -96,14 +108,22 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
               style={styles.input}
             />
 
-            {/* 최소 글자 수 미만이면 버튼이 왜 안 눌리는지 카운터로 목표를 보여줌 */}
+            {/* 최소 글자 수 미만이면 버튼이 왜 안 눌리는지 카운터로 목표를 보여줌.
+                채우면 기록 화면과 같은 체크 뱃지로 모양·색이 함께 바뀐다(같은 일은 같은 모양). */}
             <View style={[styles.counterRow, { marginTop: theme.spacing.s2 }]}>
-              <ThemedText
-                variant="caption"
-                style={{ color: canSave ? theme.colors.ink.placeholder : theme.colors.point.p600 }}
-              >
-                {canSave ? `${text.length}자` : `${text.trim().length}/${MIN_DEFINITION_LENGTH}자`}
-              </ThemedText>
+              {canSave ? (
+                // key가 바뀌면 FadeIn이 다시 마운트돼 뱃지가 스르륵 나타난다.
+                <FadeIn key="ok" offset={4} style={[styles.counterOk, { backgroundColor: theme.colors.point.p100 }]}>
+                  <Icon name="check" size={12} color={theme.colors.point.p700} strokeWidth={2.4} />
+                  <ThemedText variant="caption" style={{ color: theme.colors.point.p700, fontWeight: '600' }}>
+                    {text.length}자
+                  </ThemedText>
+                </FadeIn>
+              ) : (
+                <ThemedText key="short" variant="caption" style={{ color: theme.colors.point.p600 }}>
+                  {text.trim().length}/{MIN_DEFINITION_LENGTH}자
+                </ThemedText>
+              )}
             </View>
 
             <Button
@@ -116,6 +136,17 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
           </Pressable>
         </KeyboardAvoidingView>
       </Pressable>
+
+      <ConfirmDialog
+        visible={discardOpen}
+        title="쓰던 글을 버릴까요?"
+        message="지금 닫으면 적은 내용이 사라져요."
+        confirmLabel="버리기"
+        cancelLabel="계속 쓰기"
+        destructive
+        onConfirm={onClose}
+        onClose={() => setDiscardOpen(false)}
+      />
     </Modal>
   );
 }
@@ -138,4 +169,12 @@ const styles = StyleSheet.create({
   },
   input: { minHeight: 96, maxHeight: 160 },
   counterRow: { alignItems: 'flex-end' },
+  // 기록 화면(tabs/index.tsx)의 counterOk와 같은 치수.
+  counterOk: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 999,
+    ...controlPresets.badge,
+  },
 });

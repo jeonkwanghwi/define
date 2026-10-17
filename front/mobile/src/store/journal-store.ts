@@ -167,9 +167,10 @@ function groupByWord(saved: SavedEntry[]): JournalWord[] {
       word,
       entries: wordEntries,
       changed: wordEntries.length >= 2,
-      // 단어 단위 요약 = 노트가 **있는** 가장 최근 정의의 변화 노트. 리스트/배너 미리보기용.
-      // entries[0]만 보면 노트 없이 새로 정의하는 순간 기존 노트가 사라져 보였다.
-      changeNote: wordEntries.find((e) => e.changeNote)?.changeNote,
+      // 단어 단위 요약 = **최신 정의의** 변화 노트(없으면 없음). 리스트/배너 미리보기용.
+      // "노트가 있는 가장 최근 것"으로 거슬러 올라가면 석 달 전 노트가 오늘 정의 밑에
+      // 붙어 오늘 얘기처럼 읽혔다(2026-10-17 감사). 옛 노트는 타임라인의 그 카드에 남아 있다.
+      changeNote: wordEntries[0]?.changeNote,
     });
   }
   return result;
@@ -200,24 +201,20 @@ export function useJournalWord(word: string): JournalWord | undefined {
  * 변화 기준은 "2회 이상 정의"가 아니라 **사용자가 남긴 변화 노트**(2026-07-17 변경).
  * 기계적 재정의 횟수는 쓸수록 전체에 수렴해 신호가 죽지만, 노트는 사용자가 직접
  * "생각이 변했다"고 선언한 것이라 시간이 지나도 의미가 유지된다.
- *   - changedWords: 변화 노트가 1개 이상 있는 단어 수 (마이페이지 문구용)
- *   - changeNotes:  변화 노트 총 개수 (단어장 "생각 변화" 카드용)
+ *   - changedWords: 변화 노트가 1개 이상 있는 단어 수 = "생각이 바뀐 단어".
+ *     단어장 통계·마이페이지가 **같은 이 값**을 쓴다 — 화면마다 다른 숫자(노트 개수 vs
+ *     단어 수)를 같은 '변화'라고 부르면 어느 쪽이 맞는지 헷갈린다(2026-10-17 통일).
  */
 export function useJournalStats(): {
   totalEntries: number;
   uniqueWords: number;
   changedWords: number;
-  changeNotes: number;
 } {
   const grouped = useGroupedByWord();
   return useMemo(() => {
     const total = grouped.reduce((sum, w) => sum + w.entries.length, 0);
     const changedWords = grouped.filter((w) => w.entries.some((e) => e.changeNote)).length;
-    const changeNotes = grouped.reduce(
-      (sum, w) => sum + w.entries.filter((e) => e.changeNote).length,
-      0,
-    );
-    return { totalEntries: total, uniqueWords: grouped.length, changedWords, changeNotes };
+    return { totalEntries: total, uniqueWords: grouped.length, changedWords };
   }, [grouped]);
 }
 

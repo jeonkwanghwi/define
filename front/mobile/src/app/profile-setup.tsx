@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChoiceChip } from '@/components/domain/choice-chip';
 import { YearPickerSheet } from '@/components/domain/year-picker-sheet';
-import { Button, PressableScale, useToast } from '@/components/primitives';
+import { Button, FadeIn, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { INTERESTS } from '@/constants/interests';
@@ -40,20 +40,16 @@ export default function ProfileSetupScreen() {
     );
   }
 
-  function validate(): string | null {
-    // 연도는 드롭다운 선택이라 범위 검증 불필요 — 선택 여부만 확인.
-    if (year == null) return '출생연도를 선택해 주세요.';
-    if (!gender) return '성별을 선택해 주세요.';
-    if (selected.length === 0) return '관심사를 1개 이상 골라 주세요.';
-    return null;
-  }
+  // 아직 안 고른 항목 — 누르고 나서 에러를 하나씩 맞는 대신, 버튼 위에 남은 걸 미리 보여주고
+  // 다 고르기 전엔 버튼을 잠근다. (연도는 드롭다운이라 범위 검증 불필요 — 선택 여부만.)
+  const missing = [
+    year == null && '출생연도',
+    !gender && '성별',
+    selected.length === 0 && '관심사',
+  ].filter(Boolean);
 
   async function handleSubmit() {
-    const v = validate();
-    if (v) {
-      setError(v);
-      return;
-    }
+    if (missing.length > 0) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -74,7 +70,7 @@ export default function ProfileSetupScreen() {
       <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: styles.scroll.paddingTop + insets.top }]} showsVerticalScrollIndicator={false}>
         <ThemedText variant="h1">조금만 더{'\n'}알려주세요</ThemedText>
         <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
-          이웃을 추천하고 마을을 채우는 데 쓰여요.
+          관심사에 맞는 단어를 골라 드릴게요.
         </ThemedText>
 
         {/* 출생연도 */}
@@ -140,12 +136,23 @@ export default function ProfileSetupScreen() {
           </ThemedText>
         ) : null}
 
+        {missing.length > 0 ? (
+          <FadeIn key={missing.join()} style={{ marginTop: theme.spacing.s6 }}>
+            <ThemedText variant="sm" tone="secondary" style={{ textAlign: 'center' }}>
+              {/* 조사는 마지막 항목 받침에 맞춘다 — 받침 있는 건 '성별'뿐. */}
+              {missing.join('·')}
+              {missing[missing.length - 1] === '성별' ? '을' : '를'} 골라주세요
+            </ThemedText>
+          </FadeIn>
+        ) : null}
+
         <Button
           label="시작하기"
           onPress={handleSubmit}
           loading={submitting}
+          disabled={missing.length > 0}
           fullWidth
-          style={{ marginTop: theme.spacing.s6 }}
+          style={{ marginTop: missing.length > 0 ? theme.spacing.s3 : theme.spacing.s6 }}
         />
       </ScrollView>
 

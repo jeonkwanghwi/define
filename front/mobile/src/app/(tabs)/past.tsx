@@ -3,8 +3,8 @@
  * 가입 필요 탭(AuthGate). 채팅은 별도 풀스크린 라우트 /recall-chat.
  */
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/domain/app-header';
 import { AuthGate } from '@/components/domain/auth-gate';
@@ -27,19 +27,89 @@ import {
 import { recallConsent } from '@/services/recall-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStore } from '@/store/journal-store';
-import { useTheme } from '@/theme';
+import { motion, useTheme } from '@/theme';
 
 const UNLOCK_WORDS = 20;
 
 export default function PastScreen() {
+  // 가입만으로 열리는 게 아니다 — 진짜 조건(단어 20개)과 지금 위치를 먼저 말한다. 로컬 기록이라 오프라인에서도 센다.
+  const { uniqueWords } = useJournalStats();
   return (
     <AuthGate
       icon="past"
       title="회상"
-      description={'그때의 나와 이야기해요.\n가입하면 만날 수 있어요.'}
+      description={`단어 ${UNLOCK_WORDS}개를 모으면\n그때의 나와 이야기할 수 있어요.\n지금 ${Math.min(uniqueWords, UNLOCK_WORDS)}/${UNLOCK_WORDS}`}
     >
       <RecallHome />
     </AuthGate>
+  );
+}
+
+/**
+ * 잠금 화면 — 관문은 포인트 색(다른 게이트와 같은 말). 숫자만 있으면 "얼마나 남았나"가 안 읽혀
+ * 진행 막대로 보여주고, 할 일(단어 정의)로 바로 가는 버튼을 둔다(막다른 길 금지).
+ */
+function RecallLocked({ count }: { count: number }) {
+  const theme = useTheme();
+  const router = useRouter();
+  const ratio = Math.min(count, UNLOCK_WORDS) / UNLOCK_WORDS;
+  // 막대는 0에서 지금 위치까지 스르륵 차오른다 — 너비는 네이티브 드라이버 불가라 JS 구동.
+  const fill = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fill, {
+      toValue: ratio,
+      duration: motion.duration.slow * 2,
+      easing: motion.easing.standard,
+      useNativeDriver: false,
+    }).start();
+  }, [fill, ratio]);
+
+  return (
+    <ThemedView bg="paper" style={{ flex: 1 }}>
+      <View style={styles.headerWrap}>
+        <AppHeader />
+      </View>
+      <View style={styles.center}>
+        <Icon name="lock" size={48} color={theme.colors.point.p600} />
+        <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
+          회상을 시작하려면
+        </ThemedText>
+        {/* 한 줄로 두면 좁은 폭에서 낱말 중간이 끊긴다 → 뜻 단위로 직접 줄을 나눈다. */}
+        <ThemedText
+          variant="body"
+          tone="secondary"
+          style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
+        >
+          {`서로 다른 단어 ${UNLOCK_WORDS}개를 모으면\n그 시절의 나와 대화할 수 있어요.`}
+        </ThemedText>
+        <ThemedText
+          variant="h2"
+          style={{ marginTop: theme.spacing.s5, color: theme.colors.point.p600 }}
+        >
+          {count} / {UNLOCK_WORDS}
+        </ThemedText>
+        <View
+          style={[styles.track, { backgroundColor: theme.colors.point.p100, marginTop: theme.spacing.s3 }]}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: UNLOCK_WORDS, now: count }}
+        >
+          <Animated.View
+            style={[
+              styles.trackFill,
+              {
+                backgroundColor: theme.colors.point.p600,
+                width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+              },
+            ]}
+          />
+        </View>
+        <Button
+          label="단어 정의하러 가기"
+          onPress={() => router.push('/')}
+          style={{ marginTop: theme.spacing.s6 }}
+        />
+      </View>
+    </ThemedView>
   );
 }
 
@@ -78,32 +148,7 @@ function RecallHome() {
 
   // ── 잠금: 서로 다른 단어 20개 미만 ──
   if (uniqueWords < UNLOCK_WORDS) {
-    return (
-      <ThemedView bg="paper" style={{ flex: 1 }}>
-        <View style={styles.headerWrap}>
-          <AppHeader />
-        </View>
-        <View style={styles.center}>
-          <Icon name="lock" size={48} color={theme.colors.ink.placeholder} />
-          <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
-            회상을 시작하려면
-          </ThemedText>
-          <ThemedText
-            variant="body"
-            tone="secondary"
-            style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
-          >
-            서로 다른 단어 {UNLOCK_WORDS}개를 모으면 그 시절의 나와 대화할 수 있어요.
-          </ThemedText>
-          <ThemedText
-            variant="h2"
-            style={{ marginTop: theme.spacing.s5, color: theme.colors.point.p600 }}
-          >
-            {uniqueWords} / {UNLOCK_WORDS}
-          </ThemedText>
-        </View>
-      </ThemedView>
-    );
+    return <RecallLocked count={uniqueWords} />;
   }
 
   const handleConsent = async () => {
@@ -272,7 +317,7 @@ function RecallHome() {
           </View>
           <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
             그 시절에 남긴 단어와 정의로 그때의 나를 되살려요. 시절을 고르고 말을
-            걸어보세요. 대화 한 번에 {RECALL_COST}잉크가 쓰여요.
+            걸어보세요. 대화 한 번에 잉크 {RECALL_COST}개가 쓰여요.
           </ThemedText>
         </Card>
       </ScrollView>
@@ -292,10 +337,10 @@ function RecallHome() {
         <Button
           label={
             inkShort
-              ? `잉크가 부족해요 · ${RECALL_COST}잉크 필요`
+              ? `잉크가 부족해요 · 잉크 ${RECALL_COST}개 필요`
               : convoMode === 'question'
-                ? `질문 받기 · ${RECALL_COST}잉크`
-                : `회상 시작하기 · ${RECALL_COST}잉크`
+                ? `질문 받기 · 잉크 ${RECALL_COST}개`
+                : `회상 시작하기 · 잉크 ${RECALL_COST}개`
           }
           // 잉크 부족은 안내만 하고 막지 않는다 — 기기의 잔액은 늦게 반영될 수 있어서(광고 보상 지연·다른 기기)
           // 실제로는 충분한데 버튼이 잠길 수 있다. 진짜 판정은 서버가 한다(부족하면 402 → 대화 화면이 안내).
@@ -351,6 +396,8 @@ function SectionLabel({ text }: { text: string }) {
 const styles = StyleSheet.create({
   headerWrap: { paddingHorizontal: 24, paddingTop: 24 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  track: { width: '100%', maxWidth: 240, height: 6, borderRadius: 3, overflow: 'hidden' },
+  trackFill: { height: '100%', borderRadius: 3 },
   scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   infoHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },

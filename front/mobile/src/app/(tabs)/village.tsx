@@ -57,12 +57,19 @@ const VILLAGE_OPEN = false;
 
 export default function VillageScreen() {
   if (!VILLAGE_OPEN) {
+    // 다른 탭처럼 헤더를 두고 "준비 중" 배지를 단다 — 헤더 없이 문구만 있으면 고장 난 화면으로 읽혔다.
     return (
-      <ScreenPlaceholder
-        iconName="village"
-        title="마을"
-        subtitle={'이웃의 집을 거니는 곳이에요.\n조금 더 다듬어서 찾아올게요.'}
-      />
+      <ThemedView bg="paper" style={{ flex: 1 }}>
+        <View style={styles.headerWrap}>
+          <AppHeader />
+        </View>
+        <ScreenPlaceholder
+          iconName="village"
+          badge="준비 중"
+          title="마을"
+          subtitle={'이웃의 집을 거니는 곳이에요.\n곧 문을 열게요.'}
+        />
+      </ThemedView>
     );
   }
   return (

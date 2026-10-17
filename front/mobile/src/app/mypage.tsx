@@ -20,8 +20,8 @@
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import * as Device from 'expo-device';
-import { useRouter } from 'expo-router';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { BugReportSheet } from '@/components/domain/bug-report-sheet';
@@ -103,6 +103,9 @@ const SHOW_PREMIUM_THEME = false;
 export default function MyPageScreen() {
   const theme = useTheme();
   const router = useRouter();
+  // 헤더 잉크 칩에서 오면 section='ink' — 잉크 섹션까지 스르륵 내려가 "그게 뭔지"에 바로 답한다.
+  const { section } = useLocalSearchParams<{ section?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
 
   const nickname = useAuthStore((s) => s.user?.nickname ?? '');
   const updateNickname = useAuthStore((s) => s.updateNickname);
@@ -297,6 +300,7 @@ export default function MyPageScreen() {
     <ThemedView bg="paper" style={styles.root}>
       <ScreenHeader title="마이페이지" />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
@@ -331,9 +335,10 @@ export default function MyPageScreen() {
                   ? nickname
                   : token
                     ? '닉네임을 정해보세요'
-                    : '로그인하고 닉네임을 정해보세요'}
+                    : '로그인이 필요해요'}
               </ThemedText>
-              <Icon name="edit" size={15} color={theme.colors.ink.placeholder} />
+              {/* 연필은 "고칠 수 있다"는 약속 — 로그인 전엔 고칠 게 없으니 숨긴다. */}
+              {token ? <Icon name="edit" size={15} color={theme.colors.ink.placeholder} /> : null}
             </View>
             <ThemedText
               variant="caption"
@@ -434,10 +439,29 @@ export default function MyPageScreen() {
         {/* ─── 잉크(재화) — 로그인 사용자만 ─── */}
         {token && (
           <>
-            <SectionLabel theme={theme} text="잉크" />
+            {/* onLayout 좌표로 스크롤 — 칩에서 왔을 때만. 섹션 제목이 화면 위에 살짝 걸리게 여백을 둔다. */}
+            <View
+              onLayout={(e) => {
+                if (section === 'ink') {
+                  scrollRef.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 16), animated: true });
+                }
+              }}
+            >
+              <SectionLabel theme={theme} text="잉크" />
+            </View>
             <Group theme={theme}>
+              {/* 단위는 앱 전체에서 "잉크 N개" 하나로 — 헤더 칩·회상 버튼·토스트와 같은 말. */}
               <Row theme={theme} icon="ink" label="내 잉크" value={`${balance}개`} />
             </Group>
+            {/* 잉크가 무엇에 쓰이고 어떻게 모이는지 — 앱 어디에도 설명이 없었다. */}
+            <ThemedText
+              variant="caption"
+              tone="placeholder"
+              style={{ marginTop: theme.spacing.s2, paddingHorizontal: theme.spacing.s1 }}
+            >
+              {/* 두 문장을 한 줄에 이으면 좁은 폭에서 낱말 중간이 끊긴다 → 문장 단위로 줄을 나눈다. */}
+              {'회상에서 그때의 나와 대화할 때 써요\n매일 들르거나 연속으로 기록하면 쌓여요'}
+            </ThemedText>
             {/* 평소에 잉크를 모으는 자리 — 잔액 바로 아래가 가장 자연스럽다.
                 서버가 쿼터를 못 주면 이 버튼은 스스로 사라진다(watch-ad-button.tsx 참고). */}
             <WatchAdButton style={{ marginTop: theme.spacing.s3 }} />
@@ -755,7 +779,9 @@ function Row({
       <ThemedText
         variant={sansLabel ? 'label' : 'body'}
         tone="strong"
-        style={[{ flex: 1, marginLeft: 12 }, sansLabel && { fontWeight: '500' }, labelColor && { color: labelColor }]}
+        // 라벨은 줄지 않는다(flexShrink 0) — 긴 값(닉네임 등)에 밀려 "닉네…"로 잘리던 문제. 줄어드는 쪽은 값.
+        // 단, 식별자 라벨(이메일)은 그 자체가 길 수 있어 예외로 줄어들게 둔다.
+        style={[styles.rowLabel, sansLabel && { fontWeight: '500', flexShrink: 1 }, labelColor && { color: labelColor }]}
         numberOfLines={1}
       >
         {label}
@@ -780,8 +806,9 @@ function Row({
             <ThemedText
               variant="sm"
               tone="placeholder"
+              numberOfLines={1}
               style={[
-                { marginRight: 6 },
+                styles.rowValue,
                 valueColor ? { color: valueColor, fontWeight: '700' } : null,
               ]}
             >
@@ -798,6 +825,8 @@ function Row({
 }
 
 const styles = StyleSheet.create({
+  rowLabel: { flexGrow: 1, flexShrink: 0, marginLeft: 12, marginRight: 8 },
+  rowValue: { flexShrink: 1, maxWidth: '55%', marginRight: 6, textAlign: 'right' },
   root: { flex: 1 },
   syncNote: { paddingHorizontal: 16, paddingBottom: 12, marginTop: -4 },
   scroll: {

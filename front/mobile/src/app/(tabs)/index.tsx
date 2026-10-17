@@ -10,6 +10,7 @@
  *
  * 저장하면 journal-store에 쌓이고 SaveConfirmation이 완료를 연출한다.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -22,6 +23,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
@@ -35,7 +37,7 @@ import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
 import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
-import { formatKoreanDate } from '@/lib/format-date';
+import { formatKoreanDate, formatYmd } from '@/lib/format-date';
 import { hapticSuccess, hapticTap } from '@/lib/haptics';
 import { topicSuffix } from '@/lib/korean';
 import { getRecommendedWords } from '@/services/word-api';
@@ -47,6 +49,36 @@ import { controlPresets, fontFamily, useTheme } from '@/theme';
 // 화면이 출렁이지 않는다. 내용이 넘치면 입력창 내부에서 스크롤(캐럿=마지막 줄 따라감).
 // 이 값이 탭바 위에 머물러 "기록 완료" 버튼이 밀려나지 않는 상한이기도 하다(뷰포트 664 기준).
 const INPUT_HEIGHT = 200;
+/**
+ * 작은 폰(창 높이 < SMALL_WINDOW_H)의 평소 입력란 높이. 200이면 360×640에서
+ * "기록 완료"가 탭바 아래로 밀려 포커스해야만 보였다(120으로도 반쯤 가려짐 — 실측).
+ * 쓰기 모드 높이는 따로 역산하므로 평소 높이와 위 여백만 줄이면 된다. 84 ≈ 세 줄.
+ */
+const INPUT_HEIGHT_SMALL = 84;
+const SMALL_WINDOW_H = 700;
+/** 서버 단어 풀을 기다리는 최대 시간 — 넘으면 폴백 풀의 단어로 띄운다. */
+const HERO_HOLD_MS = 800;
+
+/**
+ * "오늘의 단어"는 하루 동안 고정 — 열 때마다 바뀌면 '오늘의'가 거짓말이 된다(2026-10-17 결정).
+ * 날짜 해시로 풀에서 고르는 건 안 된다: 서버 풀이 **요청마다 다른 무작위 30개**라 같은
+ * 해시도 다른 단어를 가리킨다(실측). 그래서 그날 처음 보여 준 단어를 폰에 적어 두고
+ * 자정 전까지 그 단어로 연다. "새로운 단어 뽑기"는 사용자의 선택이라 적지 않는다.
+ */
+const TODAY_WORD_KEY = 'define-today-word-v1';
+function todayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+/** 오늘 이미 보여 준 단어. 없거나(다른 날) 못 읽으면 null. */
+async function readTodayWord(): Promise<string | null> {
+  try {
+    const v = JSON.parse((await AsyncStorage.getItem(TODAY_WORD_KEY)) ?? 'null');
+    return v?.day === todayKey() && typeof v.word === 'string' ? v.word : null;
+  } catch {
+    return null;
+  }
+}
 
 /** 쓰기 모드 상단 바(단어 + 글자 수)의 높이. 접힐 때 0까지 줄어든다. */
 const WRITE_BAR_HEIGHT = 46;
@@ -81,7 +113,7 @@ export default function RecordScreen() {
   const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
 
-  // 단어 풀과 현재 인덱스. 진입 시 랜덤 1개 선택.
+  // 단어 풀과 현재 인덱스. 진입 시 값은 임시 — 오늘의 단어는 아래 settleHero가 정해 띄운다.
   // 사용자가 커스텀 단어를 추가할 수 있으므로 mutable.
   // 초기값은 **폴백 풀**이다 — 서버에서 받아오는 동안에도 홈이 비면 안 되기 때문(아래 effect).
   const [pool, setPool] = useState<string[]>(() => RECOMMENDED_WORDS.map((w) => w.word));
@@ -104,7 +136,8 @@ export default function RecordScreen() {
   const [confirmedCount, setConfirmedCount] = useState(1);
 
   // ─── Hero 단어 swap 트랜지션 — "차분히 떠오름": 이전 단어는 가라앉고, 새 단어가 아래에서 무게감 있게 안착 ───
-  const heroOpacity = useRef(new Animated.Value(1)).current;
+  // 처음엔 0 — 서버 풀이 오거나 HERO_HOLD_MS가 지나야 떠오른다(아래 "단어 풀" effect).
+  const heroOpacity = useRef(new Animated.Value(0)).current;
   const heroTranslateY = useRef(new Animated.Value(0)).current;
   const heroScale = useRef(new Animated.Value(1)).current;
   const reduceMotion = useReducedMotion();
@@ -216,14 +249,17 @@ export default function RecordScreen() {
    * 그게 글에 줄 수 있는 전부다. 키보드가 올라오면 KeyboardAvoidingView가 스크롤 영역을
    * 줄여 주므로, 이 값이 키보드 유무에 저절로 맞는다.
    */
+  const { height: windowHeight } = useWindowDimensions();
+  const small = windowHeight < SMALL_WINDOW_H;
+  const restInputHeight = small ? INPUT_HEIGHT_SMALL : INPUT_HEIGHT;
   const writingInputHeight = Math.max(
-    INPUT_HEIGHT,
+    restInputHeight,
     viewportHeight - headerHeight - WRITE_BAR_HEIGHT - actionsHeight - WRITE_RESERVED,
   );
   const inputHeightStyle = {
     height: write.interpolate({
       inputRange: [0, 1],
-      outputRange: [INPUT_HEIGHT, writingInputHeight],
+      outputRange: [restInputHeight, writingInputHeight],
     }),
   };
 
@@ -252,6 +288,77 @@ export default function RecordScreen() {
     definitionRef.current = definition;
   }, [definition]);
 
+  const writingRef = useRef(false);
+  useEffect(() => {
+    writingRef.current = writing;
+  }, [writing]);
+
+  // ─── 첫 단어는 한 번만 보인다 ───
+  // 왜: 진입 때 폴백 풀에서 하나 뽑아 보여 주고, ~1.5초 뒤 서버 풀이 오면 **또** 뽑아
+  // 매번 눈앞에서 단어가 바뀌었다(쓰려고 입력란을 누른 뒤에도). 그래서 단어는 숨겨 두고
+  // 서버 풀이 오거나 HERO_HOLD_MS가 지나면 그때 오늘의 단어를 정해 떠오른다(settleHero).
+  // 한 번 보인 뒤 늦게 온 풀은 눈앞 단어를 건드리지 않고 **다음 뽑기**에 쓴다(latePool).
+  const [heroShown, setHeroShown] = useState(false);
+  const [storedToday] = useState(readTodayWord);
+  const heroShownRef = useRef(false);
+  const latePool = useRef<string[] | null>(null);
+  const showHero = useCallback(() => {
+    if (heroShownRef.current) return;
+    heroShownRef.current = true;
+    setHeroShown(true);
+    Animated.timing(heroOpacity, {
+      toValue: 1,
+      duration: reduceMotion ? 0 : theme.motion.duration.base,
+      easing: theme.motion.easing.standard,
+      useNativeDriver: true,
+    }).start();
+  }, [heroOpacity, reduceMotion, theme.motion]);
+
+  /** 오늘의 단어를 정해 띄운다. words=null이면 폴백 풀(서버가 늦거나 실패). */
+  const settleHero = useCallback(
+    (words: string[] | null) => {
+      storedToday.then((stored) => {
+        // 이미 보였거나 쓰기 시작했으면(포커스만 해도) 눈앞 단어를 바꾸지 않는다 —
+        // 바뀌면 쓰려던 단어가 사라진다. 서버 풀은 다음 뽑기에 쓴다.
+        if (heroShownRef.current || writingRef.current || definitionRef.current.trim()) {
+          if (words) latePool.current = words;
+          showHero();
+          return;
+        }
+        // 아직 숨어 있다 — 애니메이션 없이 정하고 바로 띄운다(바뀌는 장면이 없다).
+        let list = words ?? RECOMMENDED_WORDS.map((w) => w.word);
+        let idx: number;
+        // 오늘의 단어를 이미 오늘 썼다면 다시 내밀지 않는다 — 열 때마다 "방금 쓴 단어"가 또 나오면
+        // 할 일이 끝난 화면처럼 보인다. 새 단어를 골라 오늘의 단어로 다시 적는다.
+        // (블라인드 쓰기와 무관: 고르는 단어가 바뀔 뿐, 새 단어의 이력은 아무것도 드러내지 않는다.)
+        const today = formatYmd(new Date());
+        const writtenToday =
+          !!stored && useJournalStore.getState().entries.some((e) => e.word === stored && formatYmd(new Date(e.savedAt)) === today);
+        if (stored && !writtenToday) {
+          idx = list.indexOf(stored);
+          if (idx < 0) {
+            list = [stored, ...list];
+            idx = 0;
+          }
+        } else {
+          if (writtenToday) list = list.filter((w) => w !== stored);
+          idx = Math.floor(Math.random() * list.length);
+          // 실패해도 그만 — 다음에 열 때 새로 뽑힐 뿐이다.
+          AsyncStorage.setItem(TODAY_WORD_KEY, JSON.stringify({ day: todayKey(), word: list[idx] })).catch(() => {});
+        }
+        setPool(list);
+        setWordIdx(idx);
+        showHero();
+      });
+    },
+    [storedToday, showHero],
+  );
+
+  useEffect(() => {
+    const t = setTimeout(() => settleHero(null), HERO_HOLD_MS);
+    return () => clearTimeout(t);
+  }, [settleHero]);
+
   useEffect(() => {
     // 토큰을 다 읽기 전에 물으면 로그인 사용자에게도 비로그인 풀이 와서 관심사가 날아간다.
     if (!hydrated) return;
@@ -259,18 +366,16 @@ export default function RecordScreen() {
     getRecommendedWords(token)
       .then((words) => {
         if (!alive || words.length === 0) return;
-        // 쓰는 중이면 교체하지 않는다 — 풀이 바뀌면 같은 인덱스가 다른 단어를 가리켜
-        // 눈앞의 단어가 쓰던 글과 어긋난다. 이 경우는 다음 진입에 반영된다.
-        if (definitionRef.current.trim()) return;
-        swapTo(Math.floor(Math.random() * words.length), () => words);
+        settleHero(words);
       })
       .catch(() => {
-        // 서버가 안 되면 폴백 풀(data/recommended-words.ts)이 그대로 남는다. 홈은 비지 않는다.
+        // 서버가 안 되면 폴백 풀(data/recommended-words.ts)에서 정한다. 홈은 비지 않는다.
+        settleHero(null);
       });
     return () => {
       alive = false;
     };
-  }, [hydrated, token, swapTo]);
+  }, [hydrated, token, settleHero]);
 
   const word = pool[wordIdx];
   // 이 단어의 기존 기록 수. 쓰는 동안엔 어떤 힌트도 노출하지 않는다(블라인드 쓰기 —
@@ -322,6 +427,17 @@ export default function RecordScreen() {
   // 현재 단어와 다른 인덱스를 랜덤 선택 (풀에 단어 1개뿐일 경우 무동작).
   // swapTo로 부드러운 트랜지션과 함께 전환.
   function drawNewWord() {
+    showHero(); // 떠오르기 전에 눌렀어도 이후 늦은 풀이 단어를 바꾸지 않게
+    // 늦게 온 서버 풀이 있으면 이번 뽑기부터 그 풀에서 — 지금 단어와 다른 것으로.
+    const late = latePool.current;
+    if (late) {
+      latePool.current = null;
+      const candidates = late.map((_, i) => i).filter((i) => late[i] !== word);
+      if (candidates.length > 0) {
+        swapTo(candidates[Math.floor(Math.random() * candidates.length)], () => late);
+        return;
+      }
+    }
     if (pool.length < 2) return;
     let next = wordIdx;
     while (next === wordIdx) {
@@ -338,6 +454,7 @@ export default function RecordScreen() {
 
   // 사용자 커스텀 단어 추가 — 이미 풀에 있으면 그 단어로 옮기고(중복 방지), 없으면 맨 앞에 넣고 swap.
   function addCustomWord(newWord: string) {
+    showHero(); // 직접 고른 단어를 늦은 서버 풀이 덮지 않게
     // 이미 눈앞의 단어면 바뀌는 게 없으니 묻지 않는다 — 캡션만 "내가 고른 단어"로.
     if (newWord === word) {
       setPickedWord(newWord);
@@ -470,7 +587,7 @@ export default function RecordScreen() {
               size="sm"
               leftIcon={<Icon name="shuffle" size={15} color={theme.colors.point.p600} />}
               onPress={() => guardSwap(drawNewWord)}
-              style={{ marginTop: theme.spacing.s5 }}
+              style={{ marginTop: small ? theme.spacing.s3 : theme.spacing.s5 }}
             />
           </View>
 
@@ -499,7 +616,7 @@ export default function RecordScreen() {
           {/* ─── 3. 입력 스테이지 ─── */}
           {/* Card 보더가 이미 있으므로 안쪽 TextInput은 borderless로. */}
           <Card
-            style={{ marginTop: theme.spacing.s8 }}
+            style={{ marginTop: small ? theme.spacing.s5 : theme.spacing.s8 }}
             radius="lg"
             elevation="sm"
             padded={false}
@@ -522,7 +639,8 @@ export default function RecordScreen() {
                   onBlur={() => {
                     blurTimer.current = setTimeout(() => setWriting(false), BLUR_SETTLE_MS);
                   }}
-                  placeholder={`나에게 ${word}${topicSuffix(word)}…`}
+                  // 단어가 떠오르기 전엔 비워 둔다 — 여기서 먼저 단어가 바뀌는 게 보인다.
+                  placeholder={heroShown ? `나에게 ${word}${topicSuffix(word)}…` : ''}
                   placeholderTextColor={theme.colors.ink.placeholder}
                   style={[
                     styles.definitionInput,
@@ -602,7 +720,8 @@ export default function RecordScreen() {
         onViewTimeline={() => {
           setConfirmVisible(false);
           drawNewWord();
-          router.push({ pathname: '/journal/[word]', params: { word: confirmedWord } });
+          // from=reveal — 타임라인이 "방금 쓴 것 vs 지난 것" 비교 모드로 열린다.
+          router.push({ pathname: '/journal/[word]', params: { word: confirmedWord, from: 'reveal' } });
         }}
       />
 

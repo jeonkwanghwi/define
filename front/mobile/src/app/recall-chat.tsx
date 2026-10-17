@@ -24,6 +24,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
 import { Icon } from '@/icons';
+import { hapticSuccess } from '@/lib/haptics';
 import { recallChat, type RecallFilter, type RecallMessage } from '@/services/recall-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStore } from '@/store/journal-store';
@@ -63,6 +64,8 @@ export default function RecallChatScreen() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [redefineOpen, setRedefineOpen] = useState(false);
+  // 이번 대화에서 이미 다시 정의했는가 — 막대를 완료 상태로 바꿔 같은 정의가 두 번 저장되지 않게.
+  const [redefined, setRedefined] = useState(false);
   // 잉크가 모자라 막혔는가(402). 에러 문구만으로는 "광고로 채울 수 있다"를 보여줄 수 없어
   // 별 상태로 둔다 — 이 자리에 광고 버튼을 더하려면 이유를 알아야 한다.
   const [needInk, setNeedInk] = useState(false);
@@ -169,8 +172,16 @@ export default function RecallChatScreen() {
     }
   };
 
+  /**
+   * 저장은 로컬 즉시 기록이라 실패 경로가 없다 → 성공을 분명히 말한다.
+   * 전엔 시트만 내려가고 막대가 그대로라, 저장됐는지 몰라 한 번 더 눌러 중복 저장이 생겼다.
+   */
   const handleRedefine = (text: string) => {
-    if (focusWord) addEntry(focusWord, text);
+    if (!focusWord || redefined) return;
+    addEntry(focusWord, text);
+    setRedefined(true);
+    hapticSuccess();
+    show(`'${focusWord}' 새 정의를 단어장에 담았어요`);
   };
 
   // 과거의 나 말풍선 = 빛바랜 종이(sepia) 톤.
@@ -247,8 +258,19 @@ export default function RecallChatScreen() {
             위 문구("잉크 30개가 필요해요 · 출석으로 모아보세요")를 대체하지 않고 더한다. */}
         {needInk && <WatchAdButton style={styles.watchAd} />}
 
-        {/* 질문모드: 그 단어 다시 정의 */}
-        {focusWord && (
+        {/* 질문모드: 그 단어 다시 정의. 저장 뒤엔 누를 수 없는 완료 표시로 바뀐다
+            (기록 화면 글자 수 체크 뱃지와 같은 p100 바탕·p700 글자 — "됐다"의 같은 말). */}
+        {focusWord && redefined && (
+          <FadeIn key="redefined" offset={4} style={[styles.redefineBar, styles.redefineDone, { borderTopColor: theme.colors.line.base }]}>
+            <View style={[styles.doneBadge, { backgroundColor: theme.colors.point.p100 }]}>
+              <Icon name="check" size={14} color={theme.colors.point.p700} strokeWidth={2.4} />
+              <ThemedText variant="bodyMd" style={{ color: theme.colors.point.p700, fontWeight: '700' }}>
+                다시 정의했어요
+              </ThemedText>
+            </View>
+          </FadeIn>
+        )}
+        {focusWord && !redefined && (
           <PressableScale
             onPress={() => setRedefineOpen(true)}
             style={[styles.redefineBar, { borderTopColor: theme.colors.line.base }]}
@@ -312,6 +334,9 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '82%', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18 },
   watchAd: { paddingHorizontal: 16, paddingBottom: 10 },
   sendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingBottom: 8 },
+  // 뱃지 높이만큼 위아래 여백을 줄여 막대 전체 높이를 유지(완료로 바뀔 때 입력창이 밀리지 않게).
+  redefineDone: { paddingVertical: 6 },
+  doneBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 12, borderRadius: 999 },
   redefineBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderTopWidth: 1 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 12, borderTopWidth: 1 },
   input: { flex: 1, minHeight: 44, maxHeight: 120, borderRadius: 22, borderWidth: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12 },

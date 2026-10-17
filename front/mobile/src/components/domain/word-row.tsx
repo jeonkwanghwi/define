@@ -51,7 +51,7 @@ export function WordRow({ item, onPress }: WordRowProps) {
           >
             {item.entries[0]?.text}
           </ThemedText>
-          {/* 변화 노트 미리보기 — 노트가 있는 가장 최근 정의의 것. point 톤 한 줄. */}
+          {/* 변화 노트 미리보기 — 최신 정의에 노트가 있을 때만(위 줄의 정의와 짝). point 톤 한 줄. */}
           {item.changeNote ? (
             <View style={styles.notePreview}>
               <Icon name="arrowUp" size={12} color={theme.colors.point.p600} />

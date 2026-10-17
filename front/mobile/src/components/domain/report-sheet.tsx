@@ -28,13 +28,15 @@ export type ReportSheetProps = {
   /** 사유를 고른 순간 호출된다 — 확인 단계를 또 두지 않는다(신고는 되돌릴 게 없다). */
   onSelect: (reason: ReportReason) => void;
   onClose: () => void;
+  /** 누구의 글을 신고하는지 — 제목에 박아 "어느 카드였지?"를 없앤다. */
+  nickname?: string;
 };
 
-export function ReportSheet({ visible, onSelect, onClose }: ReportSheetProps) {
+export function ReportSheet({ visible, onSelect, onClose, nickname }: ReportSheetProps) {
   return (
     <ActionSheet
       visible={visible}
-      title="신고 사유를 골라주세요"
+      title={nickname ? `${nickname}님의 정의 · 신고 사유를 골라주세요` : '신고 사유를 골라주세요'}
       items={REASONS.map((r) => ({
         label: r.label,
         onPress: () => onSelect(r.reason),
