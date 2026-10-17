@@ -340,7 +340,7 @@ export default function PlazaWordDetailScreen() {
         visible={blockTarget !== null}
         title="이 사용자를 차단할까요?"
         message={
-          '차단하면 이 사람이 쓴 정의가 광장에서 보이지 않습니다.\n상대는 알 수 없습니다.'
+          '이 사람의 정의가 안 보여요.\n상대는 알 수 없어요.'
         }
         confirmLabel="차단"
         destructive

@@ -279,7 +279,7 @@ export default function RecallChatScreen() {
       <ConfirmDialog
         visible={exitConfirmOpen}
         title="회상을 끝낼까요?"
-        message={`나가면 이 대화는 사라져요.\n다시 시작하려면 잉크 ${RECALL_COST}이 필요해요.`}
+        message={`이 대화는 사라져요.\n다시 하려면 잉크 ${RECALL_COST}개가 필요해요.`}
         confirmLabel="나가기"
         cancelLabel="계속 대화"
         onConfirm={confirmExit}

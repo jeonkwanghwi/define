@@ -380,12 +380,13 @@ export default function MyPageScreen() {
             disabled={!token}
           />
           <Divider theme={theme} />
-          {/* 차단한 사용자 — 광장에서 차단한 사람을 여기서 풀 수 있어야 한다(Apple 심사 가이드 1.2).
+          {/* 차단 유저 — 광장에서 차단한 사람을 여기서 풀 수 있어야 한다(Apple 심사 가이드 1.2).
+              라벨을 네 글자로 맞춘 이유: 버그 제보·고객 지원과 나란히 떨어지게.
               차단한 사람이 없으면 '없음'으로 비활성 — 빈 시트를 열어 보게 만들 이유가 없다. */}
           <Row
             theme={theme}
             icon="lock"
-            label="차단한 사용자"
+            label="차단 유저"
             value={
               !token
                 ? '로그인 필요'
@@ -541,18 +542,21 @@ export default function MyPageScreen() {
         visible={deleteOpen}
         title="정말 탈퇴할까요?"
         message={
-          '기록한 단어와 정의가 모두 삭제돼요.\n' +
-          '이 기기에 저장된 것도 함께 지워지고, 되돌릴 수 없어요.'
+          '기록한 정의가 모두 사라져요.\n' +
+          '이 폰에 저장된 것까지요.\n' +
+          '되돌릴 수 없어요.'
         }
-        confirmLabel={deleting ? '탈퇴하는 중…' : '탈퇴하기'}
+        // 버튼 폭이 좁아 '탈퇴하기'는 '탈퇴…'로 잘렸다. '취소'와 같은 두 글자로 맞춘다.
+        confirmLabel={deleting ? '탈퇴 중…' : '탈퇴'}
         onConfirm={handleDeleteAccount}
         onClose={() => setDeleteOpen(false)}
       />
 
+      {/* 앱 안에서는 '기기'가 아니라 '폰'으로 쓴다 — 한 화면에서 둘이 섞여 있었다. */}
       <ConfirmDialog
         visible={logoutOpen}
         title="로그아웃할까요?"
-        message="기록한 단어는 이 기기에 그대로 남아요."
+        message="기록한 단어는 이 폰에 그대로 남아요."
         confirmLabel="로그아웃"
         onConfirm={logout}
         onClose={() => setLogoutOpen(false)}

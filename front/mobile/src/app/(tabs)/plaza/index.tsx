@@ -31,7 +31,7 @@ export default function PlazaScreen() {
     <AuthGate
       icon="plaza"
       title="광장"
-      description="다른 사람들은 이 단어를 어떻게 정의했을까요? 가입하고 내 정의를 나누면 광장이 열려요."
+      description={'남들은 어떻게 정의했을까요?\n가입하면 광장이 열려요.'}
     >
       <PlazaWordList />
     </AuthGate>

@@ -41,7 +41,7 @@ export default function PastScreen() {
     <AuthGate
       icon="past"
       title="회상"
-      description="과거의 정의로 '그때의 나'와 대화해요. 가입하면 만날 수 있어요."
+      description={'그때의 나와 이야기해요.\n가입하면 만날 수 있어요.'}
     >
       <RecallHome />
     </AuthGate>

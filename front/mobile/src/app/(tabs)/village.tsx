@@ -61,7 +61,7 @@ export default function VillageScreen() {
       <ScreenPlaceholder
         iconName="village"
         title="마을"
-        subtitle={'이웃의 집을 거닐며 그 사람의 정의를 만나는 공간이에요.\n조금 더 다듬어서 찾아올게요.'}
+        subtitle={'이웃의 집을 거니는 곳이에요.\n조금 더 다듬어서 찾아올게요.'}
       />
     );
   }
@@ -69,7 +69,7 @@ export default function VillageScreen() {
     <AuthGate
       icon="village"
       title="마을"
-      description="이웃들의 마을을 거닐며 다른 사람의 정의를 만나는 공간이에요. 가입해두면 가장 먼저 만나요."
+      description={'이웃의 집을 거니는 곳이에요.\n가입하면 가장 먼저 만나요.'}
     >
       <VillageMap />
     </AuthGate>
