@@ -22,7 +22,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Device from 'expo-device';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { BugReportSheet } from '@/components/domain/bug-report-sheet';
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
@@ -541,38 +541,6 @@ export default function MyPageScreen() {
           />
         </Group>
 
-        {/* ─── 기타 — 회원 탈퇴 ───
-            계정 섹션 맨 위에 두면 실수로 누를 자리에 "되돌릴 수 없는 삭제"가 놓인다.
-            그렇다고 숨기면 안 된다 — 심사 가이드 5.1.1(v)는 **쉽게 찾을 수 있을 것**을 요구한다.
-            그래서 없애지 않고 맨 아래 제 이름을 단 섹션으로 내렸다(대부분의 앱이 쓰는 자리). */}
-        {token && (
-          <>
-            <SectionLabel theme={theme} text="기타" />
-            <Group theme={theme}>
-              <Row
-                theme={theme}
-                icon="trash"
-                label="회원 탈퇴"
-                // 되돌릴 수 없는 유일한 행동 — 라벨·아이콘을 루비로. 값(valueColor)은 평소 비어 있어 안 보였다.
-                danger
-                value={deleting ? '탈퇴하는 중…' : undefined}
-                valueColor={theme.colors.ruby.base}
-                // 되돌릴 수 없는 행동 직전 — 확인 다이얼로그를 띄우는 순간에 한 번 경고한다.
-                onPress={() => {
-                  hapticWarning();
-                  setDeleteStep(1);
-                }}
-                disabled={deleting}
-              />
-              {deleteError ? (
-                <ThemedText variant="caption" style={[styles.syncNote, { color: theme.colors.ruby.base }]}>
-                  {deleteError}
-                </ThemedText>
-              ) : null}
-            </Group>
-          </>
-        )}
-
         {/* ─── 곧 만나요 (BM 로드맵) — 기능이 준비될 때까지 가린다 ─── */}
         {SHOW_PREMIUM_THEME && (
           <>
@@ -592,8 +560,8 @@ export default function MyPageScreen() {
         {/* ─── 로그아웃 ───
             행 목록이 아니라 버튼으로, 맨 아래에 홀로 둔다.
             계정 섹션 안에 끼워 두면 설정 항목들 사이에서 실수로 눌린다.
-            ghost인 이유: 되돌릴 수 있는 일이다. 분홍(danger)으로 칠하면 정작 되돌릴 수 없는
-            탈퇴(회색 행)보다 더 위험해 보였다 — 위험의 크기와 색의 세기를 맞춘다. */}
+            ghost인 이유: 되돌릴 수 있는 일이다. 분홍(danger)으로 칠하면 위험해 보이기만
+            한다 — 위험의 크기와 색의 세기를 맞춘다. */}
         {token && (
           <Button
             label="로그아웃"
@@ -602,6 +570,34 @@ export default function MyPageScreen() {
             onPress={() => setLogoutOpen(true)}
             style={styles.logoutButton}
           />
+        )}
+
+        {/* ─── 회원 탈퇴 ───
+            자주 쓸 일이 없고 되돌릴 수 없는 기능이라 눈에 띄지 않게, 로그아웃 아래 작은 회색 글자로 둔다.
+            숨기지는 않는다 — 심사 가이드 5.1.1(v)는 앱 안에서 찾을 수 있을 것을 요구한다.
+            누르면 2단계 확인(무엇을 잃는지 → 되돌릴 수 없음)이 그대로 지킨다. */}
+        {token && (
+          <View style={styles.deleteWrap}>
+            <Pressable
+              onPress={() => {
+                hapticWarning(); // 되돌릴 수 없는 행동 직전 — 확인창을 띄우는 순간 한 번 경고
+                setDeleteStep(1);
+              }}
+              disabled={deleting}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="회원 탈퇴"
+            >
+              <ThemedText variant="caption" tone="placeholder" style={styles.deleteLink}>
+                {deleting ? '탈퇴하는 중…' : '회원 탈퇴'}
+              </ThemedText>
+            </Pressable>
+            {deleteError ? (
+              <ThemedText variant="caption" style={{ color: theme.colors.ruby.base, marginTop: 6 }}>
+                {deleteError}
+              </ThemedText>
+            ) : null}
+          </View>
         )}
 
         {/* ─── 버전 ─── */}
@@ -742,7 +738,6 @@ function Row({
   showChevron = true,
   disabled,
   toggle,
-  danger,
   sansLabel,
 }: {
   theme: Theme;
@@ -763,12 +758,9 @@ function Row({
    * 가르쳐 놓은 모양이라 설명이 필요 없다.
    */
   toggle?: boolean;
-  /** 되돌릴 수 없는 행동(탈퇴) — 라벨과 아이콘을 루비로. */
-  danger?: boolean;
   /** 라벨을 산세리프로(이메일처럼 식별자를 보여줄 때). */
   sansLabel?: boolean;
 }) {
-  const labelColor = danger ? theme.colors.ruby.base : undefined;
   return (
     <PressableScale
       onPress={onPress}
@@ -778,13 +770,13 @@ function Row({
       accessibilityState={toggle !== undefined ? { checked: toggle } : undefined}
       style={[styles.row, { backgroundColor: 'transparent' }, disabled && { opacity: 0.5 }]}
     >
-      <Icon name={icon} size={19} color={labelColor ?? theme.colors.ink.secondary} />
+      <Icon name={icon} size={19} color={theme.colors.ink.secondary} />
       <ThemedText
         variant={sansLabel ? 'label' : 'body'}
         tone="strong"
         // 라벨은 줄지 않는다(flexShrink 0) — 긴 값(닉네임 등)에 밀려 "닉네…"로 잘리던 문제. 줄어드는 쪽은 값.
         // 단, 식별자 라벨(이메일)은 그 자체가 길 수 있어 예외로 줄어들게 둔다.
-        style={[styles.rowLabel, sansLabel && { fontWeight: '500', flexShrink: 1 }, labelColor && { color: labelColor }]}
+        style={[styles.rowLabel, sansLabel && { fontWeight: '500', flexShrink: 1 }]}
         numberOfLines={1}
       >
         {label}
@@ -828,6 +820,9 @@ function Row({
 }
 
 const styles = StyleSheet.create({
+  deleteWrap: { alignItems: 'center', marginTop: 16 },
+  // 밑줄 — 회색 글자만으론 누를 수 있는지 모른다. 링크라는 최소한의 단서.
+  deleteLink: { textDecorationLine: 'underline' },
   rowLabel: { flexGrow: 1, flexShrink: 0, marginLeft: 12, marginRight: 8 },
   rowValue: { flexShrink: 1, maxWidth: '55%', marginRight: 6, textAlign: 'right' },
   root: { flex: 1 },
