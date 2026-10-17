@@ -25,3 +25,8 @@ for f in glob.glob('front/design-source/village-art/bg-*.png'):
     out = 'front/mobile/assets/village/' + os.path.basename(f)[:-4] + '.webp'
     Image.open(f).convert('RGB').save(out, 'WEBP', quality=90, method=6)
 ```
+
+## avatar/
+
+나그네 아바타 원본(1024², 마젠타 배경 — 키잉 전). 앱은 `front/mobile/assets/village/avatar.png`(base를 키잉한 것) 하나만 쓴다.
+`spring`·`summer`·`autumn`·`winter`는 계절 의상 시안으로 **아직 앱에 안 쓴다** — 맵별 의상을 넣게 되면 여기서 키잉해 쓴다.
