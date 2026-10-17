@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -50,6 +51,21 @@ import { controlPresets, fontFamily, useTheme } from '@/theme';
 // 화면이 출렁이지 않는다. 내용이 넘치면 입력창 내부에서 스크롤(캐럿=마지막 줄 따라감).
 // 이 값이 탭바 위에 머물러 "기록 완료" 버튼이 밀려나지 않는 상한이기도 하다(뷰포트 664 기준).
 const INPUT_HEIGHT = 200;
+
+/** 쓰기 모드 상단 바(단어 + 글자 수)의 높이. 접힐 때 0까지 줄어든다. */
+const WRITE_BAR_HEIGHT = 46;
+/** 평소 ↔ 쓰기 모드 전환 시간. 길면 굼뜨고 짧으면 뚝 끊긴다. */
+const WRITE_DURATION = 220;
+/**
+ * 쓰기 모드에서 입력란 말고 남겨야 하는 **여백들**의 합.
+ * 카드 위 여백(32) + 카드 안쪽 패딩 위아래(20+20) + 액션 위 여백(16)
+ * + 스크롤 위아래 패딩(24+32) = 144. 전부 이 파일이 정하는 값이라 여기 둔다.
+ *
+ * 높이가 있는 것(헤더·상단 바·액션)은 **상수로 박지 않고 잰다.** 처음엔 액션을 50으로
+ * 추정하고 헤더를 아예 빼먹어 **버튼이 화면 밖으로 94px 밀렸다** — 글꼴·기기마다
+ * 달라지는 값을 눈대중하면 이렇게 된다.
+ */
+const WRITE_RESERVED = 144;
 
 export default function RecordScreen() {
   const theme = useTheme();
@@ -124,6 +140,97 @@ export default function RecordScreen() {
     },
     [heroOpacity, heroTranslateY, heroScale, reduceMotion],
   );
+
+  // ─── 쓰기 모드 — 키보드가 올라오면 위를 접고 글에 공간을 준다 ───
+  //
+  // 왜: 키보드가 올라와도 헤더·날짜·큰 단어가 자리를 그대로 지켜서, 입력란이 키보드 위
+  // 좁은 틈에 끼였다. 길게 쓸수록 **쓰고 있는 줄이 가려졌다.**
+  //
+  // 전환의 방아쇠는 **키보드가 아니라 입력란의 포커스**다. 키보드 이벤트는 웹에서 아예
+  // 오지 않아(RN Web이 발생시키지 않는다) 웹에서 확인할 길이 없어지고, 애초에 "쓰기
+  // 시작"의 진짜 신호는 포커스다. 다만 iOS에서 키보드를 쓸어내리면 포커스가 남은 채로
+  // 키보드만 사라지므로, hide 이벤트를 안전망으로 같이 듣는다.
+  const [writing, setWriting] = useState(false);
+  /** 0 = 평소 · 1 = 쓰기 모드. 높이를 같이 움직여야 해서 네이티브 드라이버를 쓸 수 없다. */
+  const write = useRef(new Animated.Value(0)).current;
+  /** 접었다 펼 높이는 재서 안다 — 글꼴·기기마다 다르므로 숫자로 박으면 어긋난다. */
+  const [topHeight, setTopHeight] = useState(0);
+  const [footHeight, setFootHeight] = useState(0);
+  /** 스크롤 영역의 현재 높이. 키보드가 오르내리면 이 값이 바뀐다 — 한 번만 재면 안 된다. */
+  const [viewportHeight, setViewportHeight] = useState(0);
+  /** 액션 버튼 행의 실제 높이. 글꼴에 따라 달라져 상수로 박으면 어긋난다. */
+  const [actionsHeight, setActionsHeight] = useState(0);
+  /** 앱 헤더(워드마크·잉크·아바타) 높이. 공용 컴포넌트라 안을 모르므로 감싸서 잰다. */
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  useEffect(() => {
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const sub = Keyboard.addListener(hideEvent, () => setWriting(false));
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    const to = writing ? 1 : 0;
+    if (reduceMotion) {
+      write.setValue(to);
+      return;
+    }
+    Animated.timing(write, {
+      toValue: to,
+      duration: WRITE_DURATION,
+      // 빠르게 출발해 부드럽게 멈춘다 — 손가락을 뗀 뒤 따라오는 느낌.
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [writing, reduceMotion, write]);
+
+  /** 접히는 윗부분 — 높이·투명도·살짝 위로. 다 재고 나서야 높이를 묶는다. */
+  const collapseStyle = {
+    height: topHeight ? write.interpolate({ inputRange: [0, 1], outputRange: [topHeight, 0] }) : undefined,
+    // 자리보다 **먼저** 사라진다 — 반쯤 접힌 글자가 보이면 지저분하다.
+    opacity: write.interpolate({ inputRange: [0, 0.55], outputRange: [1, 0], extrapolate: 'clamp' }),
+    transform: [{ translateY: write.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }],
+  };
+
+  /** 쓰기 모드 상단 바 — 윗부분이 거의 접힌 뒤에 떠오른다(스치듯 겹치게). */
+  const writeBarStyle = {
+    height: write.interpolate({ inputRange: [0, 1], outputRange: [0, WRITE_BAR_HEIGHT] }),
+    opacity: write.interpolate({ inputRange: [0.45, 1], outputRange: [0, 1], extrapolate: 'clamp' }),
+    transform: [{ translateY: write.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+  };
+
+  /**
+   * 입력란 높이.
+   *
+   * 처음엔 "접힌 높이만큼 키운다"로 짰는데 **버튼이 화면 밖으로 밀렸다**(웹에서 발견).
+   * 접힌 양과 실제로 남는 공간은 다르다 — 키보드가 얼마를 먹는지는 접힌 양과 무관하다.
+   * 그래서 **남는 공간에서 역산한다**: 스크롤 영역 높이에서 상단 바·액션·여백을 빼면
+   * 그게 글에 줄 수 있는 전부다. 키보드가 올라오면 KeyboardAvoidingView가 스크롤 영역을
+   * 줄여 주므로, 이 값이 키보드 유무에 저절로 맞는다.
+   */
+  const writingInputHeight = Math.max(
+    INPUT_HEIGHT,
+    viewportHeight - headerHeight - WRITE_BAR_HEIGHT - actionsHeight - WRITE_RESERVED,
+  );
+  const inputHeightStyle = {
+    height: write.interpolate({
+      inputRange: [0, 1],
+      outputRange: [INPUT_HEIGHT, writingInputHeight],
+    }),
+  };
+
+  /**
+   * 카드 아래 안내·글자 수 — 글자 수가 위로 옮겨 가므로 같이 접는다.
+   * **여백도 함께 접어야 한다.** height만 0으로 줄이면 marginTop·paddingTop(12+12)이
+   * 그대로 남아 빈 자리가 공간을 먹고, 그만큼 액션 버튼이 화면 밖으로 밀린다(실제로 밀렸다).
+   */
+  const footStyle = {
+    height: footHeight ? write.interpolate({ inputRange: [0, 1], outputRange: [footHeight, 0] }) : undefined,
+    marginTop: write.interpolate({ inputRange: [0, 1], outputRange: [theme.spacing.s3, 0] }),
+    paddingTop: write.interpolate({ inputRange: [0, 1], outputRange: [theme.spacing.s3, 0] }),
+    borderTopWidth: write.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+    opacity: write.interpolate({ inputRange: [0, 0.55], outputRange: [1, 0], extrapolate: 'clamp' }),
+  };
 
   // ─── 단어 풀을 서버에서 받아 교체 ───
   // 출처만 바뀐다 — 받아온 풀 안에서 "다시 뽑기"를 돌리는 구조는 그대로다.
@@ -217,11 +324,31 @@ export default function RecordScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          // 키보드가 오르내리면 이 높이가 바뀐다 — 입력란 높이를 여기서 역산한다.
+          onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
         >
           {/* ─── 0. 앱 헤더 (탭 공통) ─── */}
-          <AppHeader />
+          {/* 감싸서 재는 이유: 공용 컴포넌트라 제 높이와 아래 여백을 이 화면이 알 길이 없다. */}
+          <View
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0 && h !== headerHeight) setHeaderHeight(h);
+            }}
+          >
+            <AppHeader />
+          </View>
 
-          {/* ─── 1. 날짜 표시 (항상 오늘 — 선택 불가) ─── */}
+          {/* ─── 1~2. 평소에만 보이는 윗부분 (날짜 + Hero 단어) ───
+              쓰기 모드에서 통째로 접힌다. 높이는 onLayout으로 한 번 재서 쓴다 —
+              글꼴·기기마다 달라서 숫자로 박으면 어긋난다. */}
+          <Animated.View
+            style={[collapseStyle, styles.collapsible]}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              // 접히는 중의 높이를 다시 물면 0에 갇힌다 — 처음 한 번만 받는다.
+              if (!topHeight && h > 0) setTopHeight(h);
+            }}
+          >
           <View style={styles.dateChipWrap}>
             <View
               style={[
@@ -295,6 +422,32 @@ export default function RecordScreen() {
             />
           </View>
 
+          </Animated.View>
+
+          {/* ─── 2'. 쓰기 모드 상단 바 ───
+              단어는 작아져 왼쪽, 글자 수는 오른쪽. 윗부분이 접히는 동안 여기가 떠올라
+              "줄어들며 올라간 것"처럼 읽힌다(iOS의 큰 제목이 접힐 때와 같은 수법). */}
+          <Animated.View style={[writeBarStyle, styles.writeBar, { borderBottomColor: theme.colors.line.base }]}>
+            <View style={styles.writeBarWord}>
+              <ThemedText style={[theme.typography.display, styles.writeBarWordText]}>{word}</ThemedText>
+              <ThemedText
+                style={[
+                  theme.typography.displaySub,
+                  styles.writeBarWordText,
+                  { color: theme.colors.ink.placeholder },
+                ]}
+              >
+                {topicSuffix(word)}
+              </ThemedText>
+            </View>
+            <ThemedText variant="caption" style={{ color: theme.colors.point.p600 }}>
+              {/* 10자를 넘기면 분모가 의미를 잃는다 — 그때는 쓴 글자 수만 보여준다. */}
+              {canSubmit
+                ? `${definition.length}자`
+                : `${definition.trim().length}/${MIN_DEFINITION_LENGTH}자`}
+            </ThemedText>
+          </Animated.View>
+
           {/* ─── 3. 입력 스테이지 ─── */}
           {/* Card 보더가 이미 있으므로 안쪽 TextInput은 borderless로. */}
           <Card
@@ -304,29 +457,34 @@ export default function RecordScreen() {
             padded={false}
           >
             <View style={{ padding: theme.spacing.s5 }}>
-              <TextInput
-                multiline
-                value={definition}
-                onChangeText={setDefinition}
-                placeholder={`나에게 ${word}${topicSuffix(word)}…`}
-                placeholderTextColor={theme.colors.ink.placeholder}
-                style={[
-                  styles.definitionInput,
-                  {
-                    color: theme.colors.ink.primary,
-                    fontFamily: fontFamily.sans,
-                  },
-                ]}
-              />
-              <View
-                style={[
-                  styles.inputFoot,
-                  {
-                    borderTopColor: theme.colors.line.base,
-                    marginTop: theme.spacing.s3,
-                    paddingTop: theme.spacing.s3,
-                  },
-                ]}
+              {/* 높이는 래퍼가 들고 TextInput은 flex로 채운다 —
+                  TextInput 자체에 Animated 높이를 물릴 수 없다. */}
+              <Animated.View style={inputHeightStyle}>
+                <TextInput
+                  multiline
+                  value={definition}
+                  onChangeText={setDefinition}
+                  // 쓰기 모드의 방아쇠. 키보드 이벤트가 아니라 포커스인 이유는 위 주석에.
+                  onFocus={() => setWriting(true)}
+                  onBlur={() => setWriting(false)}
+                  placeholder={`나에게 ${word}${topicSuffix(word)}…`}
+                  placeholderTextColor={theme.colors.ink.placeholder}
+                  style={[
+                    styles.definitionInput,
+                    {
+                      color: theme.colors.ink.primary,
+                      fontFamily: fontFamily.sans,
+                    },
+                  ]}
+                />
+              </Animated.View>
+              <Animated.View
+                style={[styles.inputFoot, { borderTopColor: theme.colors.line.base }, footStyle]}
+                onLayout={(e) => {
+                  const h = e.nativeEvent.layout.height;
+                  // 여백은 footStyle이 따로 접는다 — 여기서는 내용 높이만 잰다.
+                  if (!footHeight && h > 0) setFootHeight(h);
+                }}
               >
                 <ThemedText variant="caption" tone="placeholder">
                   나만의 정의를 적어보세요 · {MIN_DEFINITION_LENGTH}자 이상
@@ -336,7 +494,7 @@ export default function RecordScreen() {
                     ? `${definition.length}자`
                     : `${definition.trim().length}/${MIN_DEFINITION_LENGTH}자`}
                 </ThemedText>
-              </View>
+              </Animated.View>
             </View>
           </Card>
 
@@ -345,13 +503,29 @@ export default function RecordScreen() {
               단어 상세 타임라인의 "변화 노트 추가"로. */}
 
           {/* ─── 4. 액션 ─── */}
-          <View style={[styles.actions, { marginTop: theme.spacing.s4 }]}>
-            <Button
-              label="단어 추가"
-              variant="soft"
-              leftIcon={<Icon name="plus" size={16} color={theme.colors.point.p700} />}
-              onPress={openCustomWord}
-            />
+          <View
+            style={[styles.actions, { marginTop: theme.spacing.s4 }]}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0 && h !== actionsHeight) setActionsHeight(h);
+            }}
+          >
+            {/* 쓰는 중에 다른 단어로 넘어갈 일은 없다. 대신 키보드를 내릴 길을 준다 —
+                빈 곳을 탭해 내리는 건 폰에서 찾기 어렵다. */}
+            {writing ? (
+              <Button
+                label="접기"
+                variant="ghost"
+                onPress={() => Keyboard.dismiss()}
+              />
+            ) : (
+              <Button
+                label="단어 추가"
+                variant="soft"
+                leftIcon={<Icon name="plus" size={16} color={theme.colors.point.p700} />}
+                onPress={openCustomWord}
+              />
+            )}
             {/* 기록 완료 — 가용 너비를 채우는 강조 액션. 입력 비면 disabled */}
             <View style={styles.fillerButton}>
               <Button
@@ -410,6 +584,23 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
 
+  // 접히는 동안 넘치는 내용이 삐져나오면 안 된다.
+  collapsible: { overflow: 'hidden' },
+
+  writeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    overflow: 'hidden',
+  },
+  writeBarWord: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  // 평소 52px인 단어가 여기서는 24px로 — 같은 글꼴 토큰에 크기만 덮어쓴다.
+  writeBarWordText: { fontSize: 24, lineHeight: 32, letterSpacing: -0.5 },
+
   hero: { alignItems: 'center' },
   heroWordRow: {
     flexDirection: 'row',
@@ -417,7 +608,7 @@ const styles = StyleSheet.create({
   },
 
   definitionInput: {
-    height: INPUT_HEIGHT, // 고정 — 넘치면 내부 스크롤(auto-grow 안 함)
+    flex: 1, // 높이는 바깥 Animated.View가 들고 있다(쓰기 모드에서 커진다)
     fontSize: 18,
     lineHeight: 30,
     textAlignVertical: 'top', // Android 상단 정렬
@@ -426,7 +617,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
+    overflow: 'hidden',
+    // borderTopWidth·marginTop·paddingTop은 footStyle이 애니메이션으로 들고 있다.
   },
 
   actions: {
