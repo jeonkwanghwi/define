@@ -5,6 +5,9 @@
  *   - primary: 포인트 색 배경 + 흰 텍스트 + point 글로우 (강조 액션)
  *   - soft:    옅은 포인트 배경 + 진한 포인트 텍스트 (부드러운 액션)
  *   - ghost:   투명 배경 + 포인트 텍스트 + 라인 보더 (보조 액션)
+ *   - danger:  옅은 루비 배경 + 진한 루비 텍스트 (되돌리기 어려운 액션)
+ *              꽉 찬 빨강이 아닌 이유: 로그아웃처럼 **되돌릴 수 있는** 일까지
+ *              비명을 지르면, 정작 탈퇴 같은 진짜 경고가 묻힌다.
  *
  * size:        md(기본) | sm
  * fullWidth:   가로 100% (행 끝까지 채울 때)
@@ -30,7 +33,7 @@ import { useTheme } from '@/theme';
 
 import { PressableScale } from './pressable-scale';
 
-type Variant = 'primary' | 'soft' | 'ghost';
+type Variant = 'primary' | 'soft' | 'ghost' | 'danger';
 type Size = 'md' | 'sm';
 
 export type ButtonProps = Omit<PressableProps, 'children' | 'style'> & {
@@ -86,6 +89,12 @@ export function Button({
       backgroundColor: 'transparent',
       borderColor: theme.colors.line.strong,
       textColor: theme.colors.point.p600,
+      shadow: undefined,
+    },
+    danger: {
+      backgroundColor: theme.colors.ruby.soft,
+      borderColor: 'transparent',
+      textColor: theme.colors.ruby.base,
       shadow: undefined,
     },
   }[variant];

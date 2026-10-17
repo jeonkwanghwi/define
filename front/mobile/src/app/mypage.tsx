@@ -28,7 +28,7 @@ import { NicknameSheet } from '@/components/domain/nickname-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
 import { WatchAdButton } from '@/components/domain/watch-ad-button';
-import { ActionSheet, ConfirmDialog, PressableScale, useToast } from '@/components/primitives';
+import { ActionSheet, Button, ConfirmDialog, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
@@ -300,32 +300,6 @@ export default function MyPageScreen() {
                   기록은 이 폰에 안전하게 있어요. 서버 반영만 실패했어요.
                 </ThemedText>
               ) : null}
-              <Divider theme={theme} />
-              <Row
-                theme={theme}
-                icon="close"
-                label="로그아웃"
-                onPress={() => setLogoutOpen(true)}
-              />
-              <Divider theme={theme} />
-              <Row
-                theme={theme}
-                icon="trash"
-                label="회원 탈퇴"
-                value={deleting ? '탈퇴하는 중…' : undefined}
-                valueColor={theme.colors.ruby.base}
-                // 되돌릴 수 없는 행동 직전 — 확인 다이얼로그를 띄우는 순간에 한 번 경고한다.
-                onPress={() => {
-                  hapticWarning();
-                  setDeleteOpen(true);
-                }}
-                disabled={deleting}
-              />
-              {deleteError ? (
-                <ThemedText variant="caption" style={[styles.syncNote, { color: theme.colors.ruby.base }]}>
-                  {deleteError}
-                </ThemedText>
-              ) : null}
             </>
           ) : (
             <Row
@@ -460,6 +434,36 @@ export default function MyPageScreen() {
           />
         </Group>
 
+        {/* ─── 기타 — 회원 탈퇴 ───
+            계정 섹션 맨 위에 두면 실수로 누를 자리에 "되돌릴 수 없는 삭제"가 놓인다.
+            그렇다고 숨기면 안 된다 — 심사 가이드 5.1.1(v)는 **쉽게 찾을 수 있을 것**을 요구한다.
+            그래서 없애지 않고 맨 아래 제 이름을 단 섹션으로 내렸다(대부분의 앱이 쓰는 자리). */}
+        {token && (
+          <>
+            <SectionLabel theme={theme} text="기타" />
+            <Group theme={theme}>
+              <Row
+                theme={theme}
+                icon="trash"
+                label="회원 탈퇴"
+                value={deleting ? '탈퇴하는 중…' : undefined}
+                valueColor={theme.colors.ruby.base}
+                // 되돌릴 수 없는 행동 직전 — 확인 다이얼로그를 띄우는 순간에 한 번 경고한다.
+                onPress={() => {
+                  hapticWarning();
+                  setDeleteOpen(true);
+                }}
+                disabled={deleting}
+              />
+              {deleteError ? (
+                <ThemedText variant="caption" style={[styles.syncNote, { color: theme.colors.ruby.base }]}>
+                  {deleteError}
+                </ThemedText>
+              ) : null}
+            </Group>
+          </>
+        )}
+
         {/* ─── 곧 만나요 (BM 로드맵) — 기능이 준비될 때까지 가린다 ─── */}
         {SHOW_PREMIUM_THEME && (
           <>
@@ -474,6 +478,20 @@ export default function MyPageScreen() {
               />
             </Group>
           </>
+        )}
+
+        {/* ─── 로그아웃 ───
+            행 목록이 아니라 버튼으로, 맨 아래에 홀로 둔다.
+            계정 섹션 안에 끼워 두면 설정 항목들 사이에서 실수로 눌린다.
+            danger variant(옅은 루비)인 이유: 되돌릴 수 있는 일이라 경고는 하되 비명은 지르지 않는다. */}
+        {token && (
+          <Button
+            label="로그아웃"
+            variant="danger"
+            fullWidth
+            onPress={() => setLogoutOpen(true)}
+            style={styles.logoutButton}
+          />
         )}
 
         {/* ─── 버전 ─── */}
@@ -672,6 +690,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
+  logoutButton: {
+    marginTop: 32,
+  },
   footer: {
     alignItems: 'center',
     marginTop: 36,
