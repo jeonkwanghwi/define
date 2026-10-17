@@ -343,12 +343,14 @@ export default function RecordScreen() {
       setPickedWord(newWord);
       return;
     }
-    guardSwap(() => {
+    // 시트(Modal)가 닫히는 중에 확인창(또 다른 Modal)을 띄우면 iOS가 무시한다 → 확인창이 안 뜨고
+    // 단어도 안 바뀐다. 닫힘 애니메이션 뒤로 미룬다(ActionSheet와 같은 200ms 규칙).
+    setTimeout(() => guardSwap(() => {
       setPickedWord(newWord);
       const existing = pool.indexOf(newWord);
       if (existing >= 0) swapTo(existing);
       else swapTo(0, (prev) => [newWord, ...prev]);
-    });
+    }), 200);
   }
 
   function confirmSwap() {

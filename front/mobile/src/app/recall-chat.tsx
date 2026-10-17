@@ -105,8 +105,7 @@ export default function RecallChatScreen() {
     setError(null);
     recallChat(token, { filter, messages: [], conversationToken: conversationTokenRef.current, mode: 'question', focusWord })
       .then((res) => {
-        conversationTokenRef.current = res.conversationToken;
-        applyBalance(res.balance);
+        applyBalance(res.balance, res.conversationToken);
         setMessages([{ role: 'assistant', content: res.message }]);
       })
       .catch((e) => {
@@ -126,10 +125,13 @@ export default function RecallChatScreen() {
    * 헤더 숫자만 조용히 바뀌면 30잉크가 어디로 갔는지 모른다.
    * "첫 응답"을 따로 세지 않고 실제 차감을 기준으로 삼는다: 서버가 안 뺐는데 뺐다고 말하지 않게.
    */
-  function applyBalance(next: number) {
-    const before = useAuthStore.getState().user?.balance ?? next;
+  function applyBalance(next: number, newToken: string) {
+    // 서버는 새 대화(= 새 토큰 발급)일 때만 잉크를 뺀다. 기기 잔액끼리 비교하면 다른 기기에서 쓴 만큼
+    // 줄어든 것도 "썼어요"로 오해한다 → 토큰이 바뀌었는지로 판정한다.
+    const charged = newToken !== conversationTokenRef.current;
+    conversationTokenRef.current = newToken;
     setBalance(next);
-    if (next < before) show(`잉크 ${RECALL_COST}개를 썼어요`);
+    if (charged) show(`잉크 ${RECALL_COST}개를 썼어요`);
   }
 
   const send = async () => {
@@ -152,8 +154,7 @@ export default function RecallChatScreen() {
         focusWord,
       });
       startedRef.current = true;
-      conversationTokenRef.current = res.conversationToken;
-      applyBalance(res.balance);
+      applyBalance(res.balance, res.conversationToken);
       setMessages((m) => [...m, { role: 'assistant', content: res.message }]);
     } catch (e) {
       setMessages((m) => m.slice(0, -1));

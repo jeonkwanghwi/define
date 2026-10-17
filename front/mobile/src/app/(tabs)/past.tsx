@@ -297,7 +297,9 @@ function RecallHome() {
                 ? `질문 받기 · ${RECALL_COST}잉크`
                 : `회상 시작하기 · ${RECALL_COST}잉크`
           }
-          disabled={inkShort || (convoMode === 'free' && !canStart)}
+          // 잉크 부족은 안내만 하고 막지 않는다 — 기기의 잔액은 늦게 반영될 수 있어서(광고 보상 지연·다른 기기)
+          // 실제로는 충분한데 버튼이 잠길 수 있다. 진짜 판정은 서버가 한다(부족하면 402 → 대화 화면이 안내).
+          disabled={convoMode === 'free' && !canStart}
           onPress={() => {
             if (!recallConsented) {
               setConsentOpen(true);
