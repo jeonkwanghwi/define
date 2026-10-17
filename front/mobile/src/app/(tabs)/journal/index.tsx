@@ -115,7 +115,12 @@ export default function JournalListScreen() {
         {/* ─── 2. 통계 ─── */}
         <View style={[styles.statStrip, { marginTop: theme.spacing.s4 }]}>
           <StatCard label="총 기록" value={`${stats.totalEntries}`} />
-          <StatCard label="연속 기록" value={`${streak.currentStreak}일`} />
+          {/* 0일을 큰 포인트 숫자로 쓰면 경고처럼 읽힌다 — 비었으면 흐린 대시로. */}
+          <StatCard
+            label="연속 기록"
+            value={streak.currentStreak > 0 ? `${streak.currentStreak}일` : '—'}
+            empty={streak.currentStreak === 0}
+          />
           {/* 변화 노트를 남긴 횟수 — 사용자가 선언한 변화만 센다(재정의 횟수 아님). */}
           <StatCard label="생각 변화" value={`${stats.changeNotes}`} />
         </View>
@@ -171,7 +176,8 @@ export default function JournalListScreen() {
 }
 
 // 통계 한 칸 — 이 화면에서만 쓰는 작은 헬퍼라 인라인.
-function StatCard({ label, value }: { label: string; value: string }) {
+// empty: 아직 값이 없음 — 숫자 대신 흐린 색으로 그린다.
+function StatCard({ label, value, empty }: { label: string; value: string; empty?: boolean }) {
   const theme = useTheme();
   return (
     <View
@@ -189,7 +195,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
           fontFamily: fontFamily.sans,
           fontWeight: '800',
           fontSize: 22,
-          color: theme.colors.point.p600,
+          color: empty ? theme.colors.ink.placeholder : theme.colors.point.p600,
           letterSpacing: -0.5,
         }}
       >

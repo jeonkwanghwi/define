@@ -58,6 +58,14 @@ export function BugReportSheet({ visible, onSubmit, onClose }: BugReportSheetPro
   }, [visible]);
 
   const canSend = title.trim().length > 0 && body.trim().length > 0;
+  // 버튼이 왜 잠겼는지 한 줄로 — 회색 버튼만 있으면 무엇을 더 해야 하는지 모른다.
+  const missing = !title.trim()
+    ? body.trim()
+      ? '제목을 적으면 보낼 수 있어요'
+      : '제목과 내용을 적으면 보낼 수 있어요'
+    : !body.trim()
+      ? '내용을 적으면 보낼 수 있어요'
+      : null;
 
   async function handleSubmit() {
     if (sending || !canSend) return;
@@ -142,6 +150,9 @@ export function BugReportSheet({ visible, onSubmit, onClose }: BugReportSheetPro
             />
 
             <View style={[styles.counterRow, { marginTop: theme.spacing.s2 }]}>
+              <ThemedText variant="caption" tone="secondary">
+                {missing}
+              </ThemedText>
               <ThemedText variant="caption" tone="placeholder">
                 {body.length}/{BODY_MAX}자
               </ThemedText>
@@ -186,5 +197,5 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 18,
   },
-  counterRow: { alignItems: 'flex-end' },
+  counterRow: { flexDirection: 'row', justifyContent: 'space-between' },
 });

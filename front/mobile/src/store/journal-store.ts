@@ -167,8 +167,9 @@ function groupByWord(saved: SavedEntry[]): JournalWord[] {
       word,
       entries: wordEntries,
       changed: wordEntries.length >= 2,
-      // 단어 단위 요약 = 가장 최근(entries[0]) 변화 노트. 리스트/배너 미리보기용.
-      changeNote: wordEntries[0]?.changeNote,
+      // 단어 단위 요약 = 노트가 **있는** 가장 최근 정의의 변화 노트. 리스트/배너 미리보기용.
+      // entries[0]만 보면 노트 없이 새로 정의하는 순간 기존 노트가 사라져 보였다.
+      changeNote: wordEntries.find((e) => e.changeNote)?.changeNote,
     });
   }
   return result;

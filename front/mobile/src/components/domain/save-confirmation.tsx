@@ -108,7 +108,8 @@ export function SaveConfirmation({
     >
       {/* 스크림 탭 → 닫기. 리빌일 땐 이게 유일한 닫힘 경로(자동 닫힘 없음). */}
       <Pressable
-        style={[styles.scrim, { backgroundColor: theme.colors.paper.base + 'F2' }]}
+        // 불투명 종이 — 반투명이면 뒤 화면 글자가 비쳐 이 순간이 흐려진다.
+        style={[styles.scrim, { backgroundColor: theme.colors.paper.base }]}
         onPress={onDismiss}
       >
         <View style={styles.card}>
@@ -137,18 +138,26 @@ export function SaveConfirmation({
             ]}
           />
 
-          {/* 문구 */}
+          {/* 문구 — 리빌이 있으면 주인공은 아래 "N번째 정의"라 여기는 한 단계 낮춘다. */}
           <Animated.View style={{ opacity: caption, alignItems: 'center' }}>
-            <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
-              마음에 새겼어요
-            </ThemedText>
-            <ThemedText
-              variant="sm"
-              tone="secondary"
-              style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
-            >
-              오늘의 나를 한 조각 남겼어요
-            </ThemedText>
+            {isReveal ? (
+              <ThemedText variant="sm" tone="secondary" style={{ marginTop: theme.spacing.s4 }}>
+                마음에 새겼어요
+              </ThemedText>
+            ) : (
+              <>
+                <ThemedText variant="h3" style={{ marginTop: theme.spacing.s4 }}>
+                  마음에 새겼어요
+                </ThemedText>
+                {/* 어디로 갔는지까지 말한다 — 저절로 닫히는 화면이라 이게 유일한 단서다. */}
+                <View style={[styles.whereRow, { marginTop: theme.spacing.s2 }]}>
+                  <Icon name="book" size={14} color={theme.colors.point.p600} />
+                  <ThemedText variant="sm" style={{ color: theme.colors.point.p600 }}>
+                    단어장에 담았어요
+                  </ThemedText>
+                </View>
+              </>
+            )}
           </Animated.View>
 
           {/* 재정의 리빌 — 여기서 처음 공개. 좌: 닫기(보조) / 우: 비교하러 가기(주 액션). */}
@@ -156,8 +165,13 @@ export function SaveConfirmation({
             <Animated.View
               style={[styles.reveal, { opacity: reveal, marginTop: theme.spacing.s5 }]}
             >
-              <ThemedText variant="sm" style={{ color: theme.colors.point.p600, fontWeight: '700' }}>
-                이 단어, {count}번째 정의예요
+              {/* 이 화면의 핵심 한 줄 — 숫자만 포인트 색으로 눈에 걸리게. */}
+              <ThemedText variant="h3" style={{ textAlign: 'center' }}>
+                이 단어,{' '}
+                <ThemedText variant="h3" style={{ color: theme.colors.point.p600 }}>
+                  {count}번째
+                </ThemedText>{' '}
+                정의예요
               </ThemedText>
               <View style={styles.revealActions}>
                 <View style={styles.revealBtn}>
@@ -210,6 +224,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     transformOrigin: 'left',
   },
+  whereRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   reveal: { alignSelf: 'stretch', alignItems: 'center' },
   revealActions: {
     flexDirection: 'row',

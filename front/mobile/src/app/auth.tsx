@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { Button, FadeIn, PressableScale, TextField } from '@/components/primitives';
+import { Button, FadeIn, PressableScale, TextField, useToast } from '@/components/primitives';
 import { EmailDomainDropdown } from '@/components/domain/email-domain-dropdown';
 import { EmailCodeForm } from '@/components/domain/email-code-form';
 import { ScreenHeader } from '@/components/domain/screen-header';
@@ -21,7 +21,7 @@ import { Icon } from '@/icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { AppleCanceled, getAppleCredential, isAppleAuthAvailable } from '@/lib/apple-auth';
-import { hapticError } from '@/lib/haptics';
+import { hapticError, hapticSuccess } from '@/lib/haptics';
 import { KakaoCanceled, useKakaoAuth } from '@/lib/kakao-auth';
 import { type ApiError, userFacingMessage } from '@/services/api-client';
 import { requestEmailCode } from '@/services/auth-api';
@@ -39,6 +39,16 @@ export default function AuthScreen() {
   const loginWithKakao = useAuthStore((s) => s.loginWithKakao);
   const loginWithApple = useAuthStore((s) => s.loginWithApple);
   const kakao = useKakaoAuth();
+  const { show } = useToast();
+
+  /**
+   * 들어왔다/보냈다를 알린다 — 로그아웃은 토스트를 띄우는데 로그인·가입이 조용하면
+   * 화면만 바뀌고 "됐다"는 말이 없다. 진동 + 토스트 한 줄로 같은 언어를 쓴다.
+   */
+  function notifySuccess(message: string) {
+    hapticSuccess();
+    show(message);
+  }
   // Apple 로그인은 iOS 13+ 에서만 존재한다. 없는 기기에서 버튼이 살아 있으면
   // 눌러도 아무 일이 안 일어나 고장으로 보인다 → 가용 여부를 물어 잠근다.
   const [appleAvailable, setAppleAvailable] = useState(false);
@@ -120,6 +130,7 @@ export default function AuthScreen() {
     setSubmitting(true);
     try {
       await login(effectiveEmail, password);
+      notifySuccess('로그인했어요');
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
       // 로그인 성공 후에는 어디서 들어왔든(마이페이지 등) 기록 탭(홈)으로 —
       // back()으로 이전 화면 복귀시키면 진입점마다 도착지가 달라져 혼란.
@@ -150,6 +161,7 @@ export default function AuthScreen() {
     try {
       const result = await kakao.getAuthCode();
       await loginWithKakao(result);
+      notifySuccess('로그인했어요');
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
@@ -173,6 +185,7 @@ export default function AuthScreen() {
     try {
       const { identityToken, authorizationCode } = await getAppleCredential();
       await loginWithApple(identityToken, authorizationCode);
+      notifySuccess('로그인했어요');
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
@@ -191,6 +204,7 @@ export default function AuthScreen() {
     setSubmitting(true);
     try {
       await signup(effectiveEmail, password, code);
+      notifySuccess('가입을 마쳤어요');
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
@@ -210,6 +224,8 @@ export default function AuthScreen() {
     try {
       await requestEmailCode(effectiveEmail, 'signup');
       setCooldownFrom(Date.now());
+      // 카운트다운이 다시 도는 것만으론 "갔다"가 안 읽힌다.
+      notifySuccess('인증번호를 다시 보냈어요');
     } catch (e) {
       setError(mapAuthError(e)); // 429 '잠시 후에 다시 시도해 주세요.'도 그대로 보여준다
     } finally {
@@ -249,8 +265,10 @@ export default function AuthScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
+        {/* 제목은 지금 하는 일(로그인/회원가입)을 단계와 무관하게 늘 말한다 —
+            인증번호 단계에서만 제목이 생기면 헤더가 튀어 보였다. */}
         <ScreenHeader
-          title={step === 'verify' ? '회원가입' : ''}
+          title={isSignup && step !== 'chooser' ? '회원가입' : '로그인'}
           onBack={handleBack}
         />
 
@@ -301,7 +319,7 @@ export default function AuthScreen() {
               >
                 <View style={styles.socialRow}>
                   <KakaoBubble />
-                  <ThemedText variant="bodyMd" style={{ color: KAKAO_INK, fontWeight: '700' }}>
+                  <ThemedText variant="label" style={{ color: KAKAO_INK, fontWeight: '700' }}>
                     카카오 로그인
                   </ThemedText>
                 </View>
@@ -344,7 +362,7 @@ export default function AuthScreen() {
                   ]}
                 >
                   <ThemedText
-                    variant="bodyMd"
+                    variant="label"
                     style={{
                       color: theme.mode === 'dark' ? '#000000' : '#FFFFFF',
                       fontWeight: '700',

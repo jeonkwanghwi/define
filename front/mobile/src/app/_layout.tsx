@@ -94,6 +94,7 @@ export default function RootLayout() {
         {/* 출석 적립은 Provider 안쪽에서 — 이 컴포넌트가 ToastProvider를 렌더하므로
             여기서는 자기 Context를 읽을 수 없다(useToast가 터진다). 자식으로 내린다. */}
         <AttendanceClaim />
+        <RecordBonusToast />
         {/* 네비게이터가 화면 뒤에 칠하는 바탕색을 우리 종이색으로 바꾼다.
             기본값은 React Navigation의 중립 회색(rgb(242,242,242))이라, 화면이 아직
             안 그려졌거나 틈이 생기는 순간 **따뜻한 종이 톤이 아닌 회색**이 드러난다
@@ -138,6 +139,22 @@ function AttendanceClaim() {
       if (res?.claimed) show(`잉크 ${res.amount}개가 쌓였어요`);
     });
   }, [token, show]);
+
+  return null;
+}
+
+/**
+ * 연속 기록 보상 알림 — 출석과 같은 말투의 토스트. 보상은 기록 동기화 응답에 실려 와서
+ * auth-store.applyRecordBonus가 recordBonus에 남긴다. 새 객체가 올 때마다 한 번 띄운다.
+ * (AttendanceClaim과 같은 이유로 ToastProvider 안쪽의 별도 컴포넌트.)
+ */
+function RecordBonusToast() {
+  const bonus = useAuthStore((s) => s.recordBonus);
+  const { show } = useToast();
+
+  useEffect(() => {
+    if (bonus) show(`${bonus.milestone}일 연속 기록 · 잉크 ${bonus.amount}개가 쌓였어요`);
+  }, [bonus, show]);
 
   return null;
 }

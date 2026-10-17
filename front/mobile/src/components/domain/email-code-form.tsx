@@ -6,14 +6,14 @@
  * 발송·확인은 전부 부모의 몫이고, 여기는 입력·카운트다운·에러 표시만 한다.
  *
  * 비동기 3종은 부모가 넘기는 props로 전부 화면에 나온다:
- *   진행 중 → submitting(확인 버튼 스피너) · resending("보내는 중…")
+ *   진행 중 → submitting(확인 버튼 스피너) · resending(다시 받기 버튼 스피너)
  *   실패    → error (입력칸 아래 인라인 문구 — TextField의 error가 그린다)
  *   성공    → 부모가 화면을 넘기거나(확인) cooldownFrom을 갱신한다(재전송 = 카운트다운 재시작)
  */
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Button, FadeIn, PressableScale, TextField } from '@/components/primitives';
+import { Button, FadeIn, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/theme';
 
@@ -29,7 +29,7 @@ export type EmailCodeFormProps = {
   onResend: () => void;
   /** 코드 확인 진행 중 — 확인 버튼이 스피너가 되고 자동 제출이 막힌다. */
   submitting?: boolean;
-  /** 재전송 발송 진행 중 — 중복 발송을 막고 "보내는 중…"을 보여준다. */
+  /** 재전송 발송 진행 중 — 중복 발송을 막고 버튼을 스피너로 바꾼다. */
   resending?: boolean;
   /** 화면에 그릴 실패 사유. null이면 안 그린다. */
   error?: string | null;
@@ -116,14 +116,14 @@ export function EmailCodeForm({
             </FadeIn>
           ) : (
             <FadeIn key="open">
-              <PressableScale onPress={onResend} disabled={resending} hitSlop={8}>
-                <ThemedText
-                  variant="sm"
-                  style={{ color: theme.colors.point.p600, fontWeight: '700' }}
-                >
-                  {resending ? '보내는 중…' : '인증번호 다시 받기'}
-                </ThemedText>
-              </PressableScale>
+              {/* 글자 링크 대신 버튼 — 누를 수 있다는 게 모양으로 보이고, 진행 중엔 스피너가 된다. */}
+              <Button
+                label="인증번호 다시 받기"
+                variant="ghost"
+                size="sm"
+                loading={resending}
+                onPress={onResend}
+              />
             </FadeIn>
           )}
         </View>
@@ -133,7 +133,8 @@ export function EmailCodeForm({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  // paddingTop은 auth·재설정 화면 본문(body)과 같은 24 — 단계가 바뀔 때 제목이 위아래로 튀지 않게.
+  container: { flex: 1, paddingTop: 24 },
   // 6자리 숫자는 가운데 정렬이 읽기 쉽다(치수·색은 TextField 토큰 그대로).
   codeInput: { textAlign: 'center' },
   resend: { alignItems: 'center' },

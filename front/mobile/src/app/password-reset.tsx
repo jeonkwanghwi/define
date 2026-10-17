@@ -16,9 +16,10 @@ import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
 import { EmailCodeForm } from '@/components/domain/email-code-form';
 import { ScreenHeader } from '@/components/domain/screen-header';
-import { Button, FadeIn, TextField } from '@/components/primitives';
+import { Button, FadeIn, TextField, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { hapticSuccess } from '@/lib/haptics';
 import { type ApiError, userFacingMessage } from '@/services/api-client';
 import { requestEmailCode } from '@/services/auth-api';
 import { useAuthStore } from '@/store/auth-store';
@@ -30,6 +31,7 @@ export default function PasswordResetScreen() {
   const theme = useTheme();
   const router = useRouter();
   const resetPassword = useAuthStore((s) => s.resetPassword);
+  const { show } = useToast();
 
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
@@ -73,6 +75,9 @@ export default function PasswordResetScreen() {
     try {
       await requestEmailCode(email.trim(), 'reset');
       setCooldownFrom(Date.now());
+      // 카운트다운이 다시 도는 것만으론 "갔다"가 안 읽힌다.
+      hapticSuccess();
+      show('인증번호를 다시 보냈어요');
     } catch (e) {
       setError(mapResetError(e)); // 429 '잠시 후에 다시 시도해 주세요.'도 그대로 보여준다
     } finally {
@@ -104,6 +109,8 @@ export default function PasswordResetScreen() {
     setSubmitting(true);
     try {
       await resetPassword(email.trim(), code, password);
+      hapticSuccess();
+      show('비밀번호를 바꿨어요');
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {

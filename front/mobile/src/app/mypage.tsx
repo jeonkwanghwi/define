@@ -29,7 +29,7 @@ import { NicknameSheet } from '@/components/domain/nickname-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
 import { WatchAdButton } from '@/components/domain/watch-ad-button';
-import { ActionSheet, Button, ConfirmDialog, PressableScale, useToast } from '@/components/primitives';
+import { ActionSheet, Button, ConfirmDialog, FadeIn, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
@@ -112,6 +112,19 @@ export default function MyPageScreen() {
 
   const haptics = useSettingsStore((s) => s.haptics);
   const setHaptics = useSettingsStore((s) => s.setHaptics);
+  const themeMode = useSettingsStore((s) => s.themeMode);
+
+  /**
+   * 진동 켜기/끄기 — 스위치 하나만 바뀌면 눈치채기 어렵다. 켜면 **실제로 한 번 울려**
+   * 무엇이 켜졌는지 몸으로 알게 하고, 어느 쪽이든 토스트로 말한다.
+   * setHaptics가 먼저여야 hapticSuccess가 새 설정(켬)을 읽는다.
+   */
+  function toggleHaptics() {
+    const next = !haptics;
+    setHaptics(next);
+    if (next) hapticSuccess();
+    show(next ? '진동을 켰어요' : '진동을 껐어요');
+  }
 
   const [nicknameSheetOpen, setNicknameSheetOpen] = useState(false);
   const [bugSheetOpen, setBugSheetOpen] = useState(false);
@@ -341,6 +354,8 @@ export default function MyPageScreen() {
                 theme={theme}
                 icon="user"
                 label={accountEmail ?? '로그인됨'}
+                // 이메일은 읽는 글이 아니라 식별자 — 명조로 쓰면 영문·@가 들쭉날쭉해진다.
+                sansLabel
                 value={
                   retrying
                     ? '동기화 중…'
@@ -372,22 +387,29 @@ export default function MyPageScreen() {
         {/* ─── 화면 (테마) ─── */}
         <SectionLabel theme={theme} text="화면" />
         <ThemeModeToggle />
-        <ThemedText
-          variant="caption"
-          tone="placeholder"
-          style={{ marginTop: theme.spacing.s2 }}
-        >
-          {theme.mode === 'dark'
-            ? '밤에도 눈이 편한 다크 톤이에요'
-            : '따뜻한 페이퍼 톤. 시스템을 고르면 기기 설정을 따라요'}
-        </ThemedText>
+        {/* 설명은 **고른 모드**를 따른다. 실제 테마(theme.mode)를 따르면 라이트 기기에서
+            라이트→시스템을 골라도 아무 글자도 안 바뀌어 눌린 줄 모른다.
+            key로 문구가 바뀔 때마다 새로 마운트 → 스르륵 다시 나타난다. */}
+        <FadeIn key={themeMode} offset={0}>
+          <ThemedText
+            variant="caption"
+            tone="placeholder"
+            style={{ marginTop: theme.spacing.s2 }}
+          >
+            {themeMode === 'system'
+              ? `기기 설정을 따라요 · 지금은 ${theme.mode === 'dark' ? '다크' : '라이트'}`
+              : themeMode === 'dark'
+                ? '밤에도 눈이 편한 다크 톤이에요'
+                : '따뜻한 페이퍼 톤이에요'}
+          </ThemedText>
+        </FadeIn>
 
         {/* ─── 설정 ─── */}
         <SectionLabel theme={theme} text="설정" />
         <Group theme={theme}>
           <Row
             theme={theme}
-            icon="user"
+            icon="edit"
             label="닉네임 변경"
             value={token ? (hasNickname ? nickname : '미설정') : '로그인 필요'}
             onPress={openNicknameEditor}
@@ -396,10 +418,10 @@ export default function MyPageScreen() {
           {/* 진동 피드백 on/off — 진동에 민감한 사람이 끌 수 있어야 한다(접근성). */}
           <Row
             theme={theme}
-            icon="settings"
+            icon="vibrate"
             label="진동 피드백"
             toggle={haptics}
-            onPress={() => setHaptics(!haptics)}
+            onPress={toggleHaptics}
           />
           {SHOW_NOTIFICATION_SETTING && (
             <>
@@ -441,7 +463,8 @@ export default function MyPageScreen() {
               차단한 사람이 없으면 '없음'으로 비활성 — 빈 시트를 열어 보게 만들 이유가 없다. */}
           <Row
             theme={theme}
-            icon="lock"
+            // 자물쇠는 개인정보처리방침이 쓴다 — 차단은 "광장의 사람들"에 관한 일이라 광장 아이콘.
+            icon="plaza"
             label="차단 유저"
             value={
               !token
@@ -503,6 +526,8 @@ export default function MyPageScreen() {
                 theme={theme}
                 icon="trash"
                 label="회원 탈퇴"
+                // 되돌릴 수 없는 유일한 행동 — 라벨·아이콘을 루비로. 값(valueColor)은 평소 비어 있어 안 보였다.
+                danger
                 value={deleting ? '탈퇴하는 중…' : undefined}
                 valueColor={theme.colors.ruby.base}
                 // 되돌릴 수 없는 행동 직전 — 확인 다이얼로그를 띄우는 순간에 한 번 경고한다.
@@ -540,11 +565,12 @@ export default function MyPageScreen() {
         {/* ─── 로그아웃 ───
             행 목록이 아니라 버튼으로, 맨 아래에 홀로 둔다.
             계정 섹션 안에 끼워 두면 설정 항목들 사이에서 실수로 눌린다.
-            danger variant(옅은 루비)인 이유: 되돌릴 수 있는 일이라 경고는 하되 비명은 지르지 않는다. */}
+            ghost인 이유: 되돌릴 수 있는 일이다. 분홍(danger)으로 칠하면 정작 되돌릴 수 없는
+            탈퇴(회색 행)보다 더 위험해 보였다 — 위험의 크기와 색의 세기를 맞춘다. */}
         {token && (
           <Button
             label="로그아웃"
-            variant="danger"
+            variant="ghost"
             fullWidth
             onPress={() => setLogoutOpen(true)}
             style={styles.logoutButton}
@@ -689,6 +715,8 @@ function Row({
   showChevron = true,
   disabled,
   toggle,
+  danger,
+  sansLabel,
 }: {
   theme: Theme;
   icon: IconName;
@@ -708,7 +736,12 @@ function Row({
    * 가르쳐 놓은 모양이라 설명이 필요 없다.
    */
   toggle?: boolean;
+  /** 되돌릴 수 없는 행동(탈퇴) — 라벨과 아이콘을 루비로. */
+  danger?: boolean;
+  /** 라벨을 산세리프로(이메일처럼 식별자를 보여줄 때). */
+  sansLabel?: boolean;
 }) {
+  const labelColor = danger ? theme.colors.ruby.base : undefined;
   return (
     <PressableScale
       onPress={onPress}
@@ -718,18 +751,26 @@ function Row({
       accessibilityState={toggle !== undefined ? { checked: toggle } : undefined}
       style={[styles.row, { backgroundColor: 'transparent' }, disabled && { opacity: 0.5 }]}
     >
-      <Icon name={icon} size={19} color={theme.colors.ink.secondary} />
-      <ThemedText variant="body" tone="strong" style={{ flex: 1, marginLeft: 12 }} numberOfLines={1}>
+      <Icon name={icon} size={19} color={labelColor ?? theme.colors.ink.secondary} />
+      <ThemedText
+        variant={sansLabel ? 'label' : 'body'}
+        tone="strong"
+        style={[{ flex: 1, marginLeft: 12 }, sansLabel && { fontWeight: '500' }, labelColor && { color: labelColor }]}
+        numberOfLines={1}
+      >
         {label}
       </ThemedText>
       {toggle !== undefined ? (
         <Switch
           value={toggle}
           pointerEvents="none"
-          trackColor={{ false: theme.colors.line.strong, true: theme.colors.point.p500 }}
-          // 엄지는 흰색으로 고정 — 안 주면 플랫폼마다 제 색(RN Web은 초록)을 써서 톤이 깨진다.
+          // 꺼진 트랙은 placeholder 톤 — line.strong은 바탕과 너무 비슷해 '꺼짐'이 안 읽혔다.
+          trackColor={{ false: theme.colors.ink.placeholder, true: theme.colors.point.p500 }}
+          // 엄지는 흰색으로 고정 — 안 주면 플랫폼마다 제 색을 써서 톤이 깨진다.
           thumbColor="#FFFFFF"
-          ios_backgroundColor={theme.colors.line.strong}
+          // RN Web은 켜짐 상태에서 thumbColor 대신 이 값(기본 청록)을 쓴다. RN 타입엔 없는 웹 전용 prop.
+          {...({ activeThumbColor: '#FFFFFF' } as object)}
+          ios_backgroundColor={theme.colors.ink.placeholder}
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         />

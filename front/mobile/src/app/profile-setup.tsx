@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChoiceChip } from '@/components/domain/choice-chip';
 import { YearPickerSheet } from '@/components/domain/year-picker-sheet';
 import { Button, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -106,30 +107,16 @@ export default function ProfileSetupScreen() {
           성별
         </ThemedText>
         <View style={styles.genderRow}>
-          {(['male', 'female'] as const).map((g) => {
-            const on = gender === g;
-            return (
-              <PressableScale
-                key={g}
-                onPress={() => setGender(g)}
-                style={[
-                  styles.genderBtn,
-                  {
-                    borderColor: on ? theme.colors.point.p600 : theme.colors.line.base,
-                    backgroundColor: on ? theme.colors.point.p050 : theme.colors.surface.base,
-                    borderRadius: theme.radii.md,
-                  },
-                ]}
-              >
-                <ThemedText
-                  variant="bodyMd"
-                  style={{ color: on ? theme.colors.point.p600 : theme.colors.ink.primary }}
-                >
-                  {g === 'male' ? '남성' : '여성'}
-                </ThemedText>
-              </PressableScale>
-            );
-          })}
+          {/* 관심사·회상 시절 칩과 같은 모양 — 같은 "고르기"는 같은 생김새로. */}
+          {(['male', 'female'] as const).map((g) => (
+            <ChoiceChip
+              key={g}
+              grow
+              label={g === 'male' ? '남성' : '여성'}
+              selected={gender === g}
+              onPress={() => setGender(g)}
+            />
+          ))}
         </View>
 
         {/* 관심사 */}
@@ -137,30 +124,14 @@ export default function ProfileSetupScreen() {
           관심사 <ThemedText variant="sm" tone="placeholder">· 1개 이상</ThemedText>
         </ThemedText>
         <View style={styles.chips}>
-          {INTERESTS.map((item) => {
-            const on = selected.includes(item);
-            return (
-              <PressableScale
-                key={item}
-                onPress={() => toggleInterest(item)}
-                style={[
-                  styles.chip,
-                  {
-                    borderColor: on ? theme.colors.point.p600 : theme.colors.line.base,
-                    backgroundColor: on ? theme.colors.point.p050 : theme.colors.surface.base,
-                    borderRadius: theme.radii.pill,
-                  },
-                ]}
-              >
-                <ThemedText
-                  variant="sm"
-                  style={{ color: on ? theme.colors.point.p600 : theme.colors.ink.primary }}
-                >
-                  {item}
-                </ThemedText>
-              </PressableScale>
-            );
-          })}
+          {INTERESTS.map((item) => (
+            <ChoiceChip
+              key={item}
+              label={item}
+              selected={selected.includes(item)}
+              onPress={() => toggleInterest(item)}
+            />
+          ))}
         </View>
 
         {error ? (
@@ -203,16 +174,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   genderRow: { flexDirection: 'row', gap: 12 },
-  genderBtn: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-  },
 });

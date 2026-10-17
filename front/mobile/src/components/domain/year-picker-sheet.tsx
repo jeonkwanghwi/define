@@ -98,10 +98,11 @@ export function YearPickerSheet({ visible, current, onSelect, onClose }: YearPic
                   ]}
                 >
                   <ThemedText
-                    variant="bodyMd"
+                    variant="label"
                     style={{
                       color: on ? theme.colors.point.p600 : theme.colors.ink.primary,
-                      fontWeight: on ? '700' : '400',
+                      // 고르는 글이라 산세리프 — 명조 Bold(bodyMd)엔 굵기 차이가 먹지 않았다.
+                      fontWeight: on ? '700' : '500',
                     }}
                   >
                     {y}

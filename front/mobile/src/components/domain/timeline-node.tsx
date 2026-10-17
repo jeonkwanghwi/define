@@ -6,14 +6,16 @@
  *   오른쪽 ─ 상대 라벨(point 색) + 절대 날짜 + 정의 본문 카드
  *
  * 모드:
- *   - 일반     — 카드에 정의 텍스트. 길게 누르면 onLongPress 트리거.
+ *   - 일반     — 카드에 정의 텍스트. 길게 누르면 onLongPress 트리거(눌리는 동안 살짝 줄어든다).
+ *                첫 정의가 아니고 노트가 없으면 카드 아래 "+ 변화 노트" 버튼(onAddNote).
  *   - editing  — 카드가 TextField로 바뀌고 저장/취소 버튼 등장. autoFocus.
+ *   - justSaved — 방금 고친 카드 테두리가 잠깐 포인트 색으로 물들었다 돌아온다.
  *
  * isNow=true(최신) → 노드 강조 + 카드 섀도우.
  * isLast=true     → 세로선 미표시.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, type TextInput, View } from 'react-native';
+import { Keyboard, StyleSheet, type TextInput, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -24,11 +26,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Button, Card, TextField } from '@/components/primitives';
+import { Button, Card, PressableScale, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
-import { useTheme } from '@/theme';
+import { spacing, useTheme } from '@/theme';
 import type { WordEntry } from '@/types/word';
 
 export type TimelineNodeProps = {
@@ -51,6 +53,10 @@ export type TimelineNodeProps = {
   onSaveNote?: (note: string) => void;
   /** 변화 노트 편집 취소 */
   onCancelNote?: () => void;
+  /** "+ 변화 노트" 버튼 — 길게 누르기를 몰라도 노트를 남길 수 있게 바로 편집기로. */
+  onAddNote?: () => void;
+  /** 방금 수정 저장됨 — 테두리를 잠깐 물들여 "바뀐 곳"을 짚어 준다. 부모가 잠시 뒤 끈다. */
+  justSaved?: boolean;
 };
 
 export function TimelineNode({
@@ -65,6 +71,8 @@ export function TimelineNode({
   onCancelEdit,
   onSaveNote,
   onCancelNote,
+  onAddNote,
+  justSaved,
 }: TimelineNodeProps) {
   const theme = useTheme();
   const dotBorderColor = isNow ? theme.colors.point.p600 : theme.colors.point.p300;
@@ -97,6 +105,20 @@ export function TimelineNode({
 
   const lineAnimStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: lineGrow.value }] }));
   const dotAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: dotScale.value }] }));
+
+  // ─── 수정 직후 테두리 물들임 — 글자만 바뀌면 어디가 바뀌었는지 놓친다 ───
+  // 카드 위에 포인트 테두리 한 겹을 얹고 투명도만 움직인다(네이티브 드라이버로 부드럽게).
+  const flash = useSharedValue(0);
+  useEffect(() => {
+    if (!justSaved) return;
+    flash.value = reduceMotion
+      ? withSequence(withTiming(1, { duration: 0 }), withDelay(900, withTiming(0, { duration: 0 })))
+      : withSequence(
+          withTiming(1, { duration: theme.motion.duration.fast, easing: Easing.out(Easing.cubic) }),
+          withDelay(700, withTiming(0, { duration: theme.motion.duration.slow, easing: Easing.out(Easing.cubic) })),
+        );
+  }, [justSaved, reduceMotion, flash, theme.motion]);
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
 
   // ─── 텍스트 편집 상태 ───
   const [draft, setDraft] = useState(entry.text);
@@ -158,6 +180,14 @@ export function TimelineNode({
       <ThemedText variant="body" tone="strong" style={{ lineHeight: 26 }}>
         {entry.text}
       </ThemedText>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.flash,
+          { borderColor: theme.colors.point.p300, borderRadius: theme.radii.md },
+          flashStyle,
+        ]}
+      />
     </Card>
   );
 
@@ -205,26 +235,19 @@ export function TimelineNode({
 
         {editing ? (
           <View style={{ marginTop: theme.spacing.s2 }}>
-            <Card padded={false} radius="md" elevation="sm">
+            {/* 기록 화면 입력 카드와 같은 모서리(lg) — 글자 크기·줄높이는 TextField의 body 토큰 그대로. */}
+            <Card padded={false} radius="lg" elevation="sm">
               <TextField
                 ref={inputRef}
                 multiline
                 value={draft}
                 onChangeText={setDraft}
                 placeholder="정의를 수정해보세요"
-                style={{
-                  borderWidth: 0,
-                  backgroundColor: 'transparent',
-                  minHeight: 120,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  fontSize: 16,
-                  lineHeight: 26,
-                }}
+                style={[styles.bareField, { minHeight: 120 }]}
               />
             </Card>
             <View style={[styles.editActions, { marginTop: theme.spacing.s3 }]}>
-              {/* 20자 미만이면 저장이 왜 안 되는지 카운터로 목표를 보여줌 (marginRight:auto = 왼쪽 정렬) */}
+              {/* 최소 글자 수 미만이면 저장이 왜 안 되는지 카운터로 목표를 보여줌 (marginRight:auto = 왼쪽 정렬) */}
               <ThemedText
                 variant="caption"
                 tone="placeholder"
@@ -259,24 +282,20 @@ export function TimelineNode({
               >
                 생각의 변화 · 선택
               </ThemedText>
+              {/* 규칙을 미리 말해 둔다 — 비우고 저장했는데 노트가 사라지면 놀란다. */}
+              <ThemedText variant="caption" tone="placeholder">
+                · 비우고 저장하면 지워져요
+              </ThemedText>
             </View>
-            <Card padded={false} radius="md" elevation="sm">
+            <Card padded={false} radius="lg" elevation="sm">
               <TextField
                 ref={noteInputRef}
                 multiline
                 value={noteDraft}
                 onChangeText={setNoteDraft}
-                placeholder="예전과 무엇이 달라졌나요? (비우면 삭제)"
+                placeholder="예전과 무엇이 달라졌나요?"
                 maxLength={80}
-                style={{
-                  borderWidth: 0,
-                  backgroundColor: 'transparent',
-                  minHeight: 64,
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                  fontSize: 15,
-                  lineHeight: 24,
-                }}
+                style={[styles.bareField, { minHeight: 64 }]}
               />
             </Card>
             <View style={[styles.editActions, { marginTop: theme.spacing.s3 }]}>
@@ -287,25 +306,36 @@ export function TimelineNode({
           </View>
         ) : (
           // 길게 눌러서 액션 시트 띄움. 일반 탭은 동작 없음(읽기 모드).
-          <Pressable
-            onLongPress={onLongPress}
-            delayLongPress={350}
-            style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
-          >
-            {/* 변화 노트 — 이 정의를 적을 때 "이전과 달라진 점". 정의 카드 위에 point 톤 주석으로. */}
-            {entry.changeNote ? (
-              <View style={[styles.changeNote, { marginTop: theme.spacing.s2 }]}>
-                <Icon name="arrowUp" size={14} color={theme.colors.point.p600} />
-                <ThemedText
-                  variant="sm"
-                  style={{ flex: 1, color: theme.colors.point.p600 }}
-                >
-                  {entry.changeNote}
-                </ThemedText>
-              </View>
+          // 눌리는 동안 살짝 줄어들어 "이 카드가 잡혔다"를 손끝 전에 눈으로 알린다.
+          <View>
+            <PressableScale onLongPress={onLongPress} delayLongPress={350}>
+              {/* 변화 노트 — 이 정의를 적을 때 "이전과 달라진 점". 정의 카드 위에 point 톤 주석으로. */}
+              {entry.changeNote ? (
+                <View style={[styles.changeNote, { marginTop: theme.spacing.s2 }]}>
+                  <Icon name="arrowUp" size={14} color={theme.colors.point.p600} />
+                  <ThemedText
+                    variant="sm"
+                    style={{ flex: 1, color: theme.colors.point.p600 }}
+                  >
+                    {entry.changeNote}
+                  </ThemedText>
+                </View>
+              ) : null}
+              {definitionCard}
+            </PressableScale>
+            {/* 노트는 숨은 제스처로만 열면 아무도 모른다 — 남길 수 있는 자리엔 버튼을 보인다.
+                첫 정의(isLast)는 비교 대상이 없어 노트가 없다. */}
+            {!isLast && !entry.changeNote && onAddNote ? (
+              <Button
+                label="변화 노트"
+                variant="ghost"
+                size="sm"
+                leftIcon={<Icon name="plus" size={13} color={theme.colors.point.p600} />}
+                onPress={onAddNote}
+                style={[styles.addNote, { marginTop: theme.spacing.s2 }]}
+              />
             ) : null}
-            {definitionCard}
-          </Pressable>
+          </View>
         )}
       </View>
     </View>
@@ -330,6 +360,16 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 8,
   },
+  // 카드가 테두리·바탕을 맡으므로 입력란은 맨몸. 여백은 spacing 토큰(s4/s3).
+  bareField: {
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    paddingHorizontal: spacing.s4,
+    paddingVertical: spacing.s3,
+  },
+  // Card의 1px 테두리 위에 정확히 겹친다.
+  flash: { position: 'absolute', top: -1, left: -1, right: -1, bottom: -1, borderWidth: 1.5 },
+  addNote: { alignSelf: 'flex-start' },
   editActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

@@ -5,10 +5,12 @@
  * 데이터는 store(useJournalWord)에서. 못 찾으면 폴백 안내.
  *
  * entry 관리 (Task #14):
- *   - 카드 길게 누름 → ActionSheet (수정 / 삭제)
+ *   - 카드 길게 누름 → ActionSheet (수정 / 삭제) — 눌림 축소 + 가벼운 진동
+ *   - 노트 없는 최신 재정의 카드 아래 "+ 변화 노트" → 노트 편집기 바로 열기
  *   - 수정 → 인라인 편집 (TimelineNode가 TextField로 전환)
  *   - 삭제 → ConfirmDialog → store.removeEntry
  *   - 모든 entries가 사라지면 자동 router.back() (단어장 리스트로 복귀)
+ *   - 수정·노트·삭제 결과는 토스트로 말한다(루트 Provider라 뒤로 가도 남는다).
  */
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -24,9 +26,11 @@ import Animated, {
 import { ChangeBanner } from '@/components/domain/change-banner';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { TimelineNode } from '@/components/domain/timeline-node';
-import { ActionSheet, ConfirmDialog } from '@/components/primitives';
+import { ActionSheet, ConfirmDialog, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Icon } from '@/icons';
+import { hapticSuccess, hapticTap, hapticWarning } from '@/lib/haptics';
 import { useJournalStore, useJournalWord } from '@/store/journal-store';
 import { motion, useTheme } from '@/theme';
 
@@ -41,12 +45,22 @@ export default function WordDetailScreen() {
   const updateChangeNote = useJournalStore((s) => s.updateChangeNote);
   const removeEntry = useJournalStore((s) => s.removeEntry);
   const reduceMotion = useReducedMotion();
+  const toast = useToast();
 
   // 진행 중인 액션 — 한 entry에만 동시에 가능
   const [actionEntryId, setActionEntryId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  /** 방금 수정한 카드 — 테두리를 잠깐 물들인다(TimelineNode justSaved). */
+  const [justSavedId, setJustSavedId] = useState<string | null>(null);
+
+  // 물들임은 잠깐 — 다음 수정 때 다시 켜지도록 꺼 둔다.
+  useEffect(() => {
+    if (!justSavedId) return;
+    const t = setTimeout(() => setJustSavedId(null), 1200);
+    return () => clearTimeout(t);
+  }, [justSavedId]);
 
   // 액션시트가 가리키는 entry — 변화 노트 항목 라벨/노출 판정용.
   // entries는 시간 역순(0=최신)이라 마지막 인덱스가 첫 정의(=비교 대상 없음).
@@ -77,6 +91,10 @@ export default function WordDetailScreen() {
   function saveEdit(id: string, newText: string) {
     updateEntry(id, newText);
     setEditingId(null);
+    // 글자만 바뀌면 저장됐는지 모른다 — 진동 + 토스트 + 카드 테두리로 세 번 짚는다.
+    hapticSuccess();
+    toast.show('정의를 고쳤어요');
+    setJustSavedId(id);
   }
 
   function cancelEdit() {
@@ -89,8 +107,12 @@ export default function WordDetailScreen() {
   }
 
   function saveNote(id: string, note: string) {
+    const had = !!item?.entries.find((e) => e.id === id)?.changeNote;
     updateChangeNote(id, note); // 빈 값이면 store가 노트 제거. savedAt 불변 → 정렬 영향 없음
     setEditingNoteId(null);
+    // 비우고 저장 = 삭제. 조용히 사라지면 실수인지 모르므로 결과를 말한다.
+    if (note) toast.show('변화 노트를 남겼어요');
+    else if (had) toast.show('노트를 지웠어요');
   }
 
   function cancelEditNote() {
@@ -98,6 +120,7 @@ export default function WordDetailScreen() {
   }
 
   function requestDelete(id: string) {
+    hapticWarning(); // 되돌릴 수 없는 행동 직전
     setConfirmDeleteId(id);
   }
 
@@ -105,6 +128,8 @@ export default function WordDetailScreen() {
     if (!confirmDeleteId) return;
     removeEntry(confirmDeleteId);
     setConfirmDeleteId(null);
+    // 마지막 기록이면 화면이 곧 뒤로 가지만, 토스트는 루트에 있어 단어장 위에서 보인다.
+    toast.show('기록을 지웠어요');
   }
 
   return (
@@ -131,13 +156,16 @@ export default function WordDetailScreen() {
         ) : null}
 
         {/* ─── 카운트 ─── */}
-        <ThemedText
-          variant="caption"
-          tone="placeholder"
-          style={{ marginBottom: theme.spacing.s4 }}
-        >
-          {item.entries.length}번의 정의 · 시간순 · 길게 눌러 수정/삭제
+        <ThemedText variant="caption" tone="placeholder">
+          {item.entries.length}번의 정의 · 최신순
         </ThemedText>
+        {/* 길게 누르기는 보이지 않는 제스처라 따로 한 줄을 준다. */}
+        <View style={[styles.hint, { marginTop: theme.spacing.s1, marginBottom: theme.spacing.s4 }]}>
+          <Icon name="edit" size={12} color={theme.colors.ink.placeholder} />
+          <ThemedText variant="caption" tone="placeholder">
+            카드를 길게 누르면 고치거나 지울 수 있어요
+          </ThemedText>
+        </View>
 
         {/* ─── 타임라인 — 과거→현재(아래→위)로 차오르며 등장. 최신(맨 위)이 마지막에 안착 ─── */}
         <View>
@@ -161,7 +189,14 @@ export default function WordDetailScreen() {
                   revealDelay={revealDelay}
                   editing={editingId === entry.id}
                   editingNote={editingNoteId === entry.id}
-                  onLongPress={() => setActionEntryId(entry.id)}
+                  onLongPress={() => {
+                    hapticTap(); // 시트가 뜨기 전에 "잡혔다"를 손끝으로
+                    setActionEntryId(entry.id);
+                  }}
+                  // 최신 카드에만 — 모든 카드에 붙이면 같은 버튼이 줄줄이 반복돼 시끄럽다.
+                  // 옛 카드의 노트는 길게 눌러 액션시트에서 남긴다.
+                  onAddNote={i === 0 ? () => startEditNote(entry.id) : undefined}
+                  justSaved={justSavedId === entry.id}
                   onSaveEdit={(t) => saveEdit(entry.id, t)}
                   onCancelEdit={cancelEdit}
                   onSaveNote={(n) => saveNote(entry.id, n)}
@@ -216,6 +251,7 @@ export default function WordDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  hint: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   scroll: {
     paddingHorizontal: 24,
     paddingTop: 12,

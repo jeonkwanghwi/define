@@ -20,7 +20,7 @@
  * ("광고 보면 잉크 줄게")을 버튼으로 내걸지 않는다.
  */
 import { useEffect, useState } from 'react';
-import { type StyleProp, View, type ViewStyle } from 'react-native';
+import { Platform, type StyleProp, View, type ViewStyle } from 'react-native';
 
 import { Button, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -94,15 +94,27 @@ export function WatchAdButton({ style }: WatchAdButtonProps) {
   const ad = useRewardedAd({ userId, onClosed: handleClosed });
 
   // 쿼터를 못 읽었으면(= 비로그인이거나 조회 실패) 이 기능은 없는 것처럼 둔다.
-  if (!token || !quota) return null;
+  // 웹엔 광고 SDK가 없다 — 영영 누를 수 없는 버튼을 걸어 두지 않는다.
+  if (!token || !quota || Platform.OS === 'web') return null;
 
   const soldOut = quota.remaining === 0;
-  const busy = ad.loading || checking;
+  // 광고가 아직 손에 없지만 실패도 아니다 = 받아오는 중. 회색 비활성이 아니라 스피너로 말한다
+  // (회색 버튼 밑에 "N번 더 받을 수 있어요"가 붙어 있으면 앞뒤가 안 맞는다).
+  const preparing = !soldOut && !ad.ready && !ad.error;
+  const busy = ad.loading || checking || preparing;
   const adMessage =
     ad.error === 'no-fill'
       ? '지금은 광고가 없어요. 잠시 후 다시 시도해 주세요'
       : ad.error === 'failed'
         ? '광고를 불러오지 못했어요. 잠시 후 다시 시도해 주세요'
+        : null;
+  // "N번 더"는 지금 누를 수 있을 때만 — 못 누르는데 횟수를 말하면 약속처럼 읽힌다.
+  const caption = soldOut
+    ? '오늘은 다 받았어요 · 내일 다시 받을 수 있어요'
+    : preparing && !checking
+      ? '광고를 준비하고 있어요…'
+      : ad.ready && !busy
+        ? `오늘 ${quota.remaining}번 더 받을 수 있어요`
         : null;
 
   return (
@@ -112,22 +124,22 @@ export function WatchAdButton({ style }: WatchAdButtonProps) {
         variant="soft"
         fullWidth
         loading={busy}
-        // 다 받았거나, 광고가 손에 없고 받아오는 중도 아니면(no-fill·실패·웹) 누를 수 없다.
+        // 다 받았거나, 광고를 못 받았으면(no-fill·실패) 누를 수 없다.
         disabled={soldOut || (!ad.ready && !busy)}
         onPress={() => {
           setPending(null);
           ad.show();
         }}
       />
-      <ThemedText
-        variant="caption"
-        tone="placeholder"
-        style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
-      >
-        {soldOut
-          ? '오늘은 다 받았어요 · 내일 다시 받을 수 있어요'
-          : `오늘 ${quota.remaining}번 더 받을 수 있어요`}
-      </ThemedText>
+      {caption ? (
+        <ThemedText
+          variant="caption"
+          tone="placeholder"
+          style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
+        >
+          {caption}
+        </ThemedText>
+      ) : null}
       {adMessage ? (
         <ThemedText
           variant="caption"

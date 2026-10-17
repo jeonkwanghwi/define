@@ -2,18 +2,13 @@
  * 메인 — 오늘의 단어 기록하기 (서비스의 핵심 화면).
  *
  * 화면 구성 (PLANNING.md 5-1 / design-source/app/screens-main.jsx 참조):
- *   1. 날짜 표시    — calendar 아이콘 + 오늘 날짜 + '오늘' 뱃지 (항상 오늘 고정 —
+ *   1. 날짜 줄      — 오늘 날짜 + '오늘' 뱃지. 누르는 곳이 아니라 라벨이다 (항상 오늘 고정 —
  *                     과거 날짜 기록은 "현재를 기록한다" 의미가 퇴색되어 제거, 2026-07-09 팀 결정)
- *   2. Hero 단어    — "오늘의 단어" 캡션 + 큰 디스플레이 단어 + "이란" suffix + 다시 뽑기 버튼
+ *   2. Hero 단어    — "오늘의 단어"(직접 고른 단어면 "내가 고른 단어") 캡션 + 큰 단어 + "이란" + 다시 뽑기
  *   3. 입력 스테이지 — 카드 안의 multiline 입력창 + 안내 문구 + 글자 수
- *   4. 액션         — "단어 추가" (soft) + "기록 완료" (primary, 입력 비면 disabled)
+ *   4. 액션         — "단어 추가"(soft, 쓰는 중엔 "접기") + "기록 완료"(primary, MIN_DEFINITION_LENGTH자 미만이면 disabled)
  *
- * Task #7 범위에서는 핵심 루프(단어→입력→저장)만 작동.
- * 다음 단계로 별도 진행 예정:
- *   - 날짜 선택 캘린더 바텀시트 (현재는 안내 alert)
- *   - 커스텀 단어 입력 바텀시트 (현재는 안내 alert)
- *   - 저장 완료 마이크로 인터랙션 + 루비 적립 (현재는 단순 alert)
- *   - 실제 단어장 저장 (현재는 mock — 상태 초기화만)
+ * 저장하면 journal-store에 쌓이고 SaveConfirmation이 완료를 연출한다.
  */
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -23,6 +18,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -33,14 +29,14 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { AppHeader } from '@/components/domain/app-header';
 import { CustomWordSheet } from '@/components/domain/custom-word-sheet';
 import { SaveConfirmation } from '@/components/domain/save-confirmation';
-import { Button, Card } from '@/components/primitives';
+import { Button, Card, ConfirmDialog, FadeIn } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
 import { Icon } from '@/icons';
 import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { formatKoreanDate } from '@/lib/format-date';
-import { hapticSuccess } from '@/lib/haptics';
+import { hapticSuccess, hapticTap } from '@/lib/haptics';
 import { topicSuffix } from '@/lib/korean';
 import { getRecommendedWords } from '@/services/word-api';
 import { useAuthHydrated, useAuthStore } from '@/store/auth-store';
@@ -56,6 +52,11 @@ const INPUT_HEIGHT = 200;
 const WRITE_BAR_HEIGHT = 46;
 /** 평소 ↔ 쓰기 모드 전환 시간. 길면 굼뜨고 짧으면 뚝 끊긴다. */
 const WRITE_DURATION = 220;
+/**
+ * 입력란 포커스가 풀린 뒤 쓰기 모드를 끄기까지 기다리는 시간(ms).
+ * RN Web의 Pressable은 누른 뒤 약 50ms 늦게 onPressIn을 부른다 — 그보다 넉넉하면 된다.
+ */
+const BLUR_SETTLE_MS = 150;
 /**
  * 쓰기 모드에서 입력란 말고 남겨야 하는 **여백들**의 합.
  * 카드 위 여백(32) + 카드 안쪽 패딩 위아래(20+20) + 액션 위 여백(16)
@@ -88,6 +89,13 @@ export default function RecordScreen() {
 
   const [definition, setDefinition] = useState('');
   const [customSheetVisible, setCustomSheetVisible] = useState(false);
+  /** 시트에서 직접 고른 단어 — 지금 단어가 이것이면 캡션이 "내가 고른 단어"가 된다. */
+  const [pickedWord, setPickedWord] = useState<string | null>(null);
+  /**
+   * 쓰던 글이 있는데 단어를 바꾸려 할 때, 확인을 받은 뒤 실행할 전환.
+   * 묻지 않고 바꾸면 글은 그대로 남은 채 단어만 바뀌어 **엉뚱한 단어로 저장된다.**
+   */
+  const [pendingSwap, setPendingSwap] = useState<(() => void) | null>(null);
 
   // 저장 완료 마이크로 인터랙션 상태
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -269,8 +277,47 @@ export default function RecordScreen() {
   // 재정의임을 알면 일부러 다르게/같게 쓰게 되므로). 저장 후 리빌에만 사용.
   const entryCount = useEntryCountForWord(word);
   const today = useMemo(() => new Date(), []);
-  // 최소 20자 — 미달 시 "기록 완료" disabled + 카운터가 n/20자로 목표를 보여줌.
-  const canSubmit = definition.trim().length >= MIN_DEFINITION_LENGTH;
+  // 최소 글자 수 미달이면 "기록 완료" disabled — 카운터·안내 문구가 이유와 남은 양을 말해 준다.
+  const typedLength = definition.trim().length;
+  const canSubmit = typedLength >= MIN_DEFINITION_LENGTH;
+  const remaining = MIN_DEFINITION_LENGTH - typedLength;
+
+  /** 글자 수 표시 — 미달이면 "n/10자"(포인트 색), 채우면 체크 뱃지로 **모양과 색이 함께** 바뀐다. */
+  const counter = canSubmit ? (
+    // key가 바뀌면 FadeIn이 다시 마운트돼 뱃지가 스르륵 나타난다.
+    <FadeIn key="ok" offset={4} style={[styles.counterOk, { backgroundColor: theme.colors.point.p100 }]}>
+      <Icon name="check" size={12} color={theme.colors.point.p700} strokeWidth={2.4} />
+      <ThemedText variant="caption" style={{ color: theme.colors.point.p700, fontWeight: '600' }}>
+        {definition.length}자
+      </ThemedText>
+    </FadeIn>
+  ) : (
+    <ThemedText key="short" variant="caption" style={{ color: theme.colors.point.p600 }}>
+      {typedLength}/{MIN_DEFINITION_LENGTH}자
+    </ThemedText>
+  );
+
+  // "N자 더 쓰면…" 안내 — 쓰기 시작했는데 아직 모자랄 때만. 자리는 늘 잡아 두고 투명도만 바꾼다
+  // (나타날 때마다 높이가 바뀌면 쓰기 모드의 입력란 높이 계산이 출렁인다).
+  const showNeedMore = typedLength > 0 && !canSubmit;
+  const needMoreOpacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(needMoreOpacity, {
+      toValue: showNeedMore ? 1 : 0,
+      duration: reduceMotion ? 0 : theme.motion.duration.base,
+      easing: theme.motion.easing.standard,
+      useNativeDriver: true,
+    }).start();
+  }, [showNeedMore, reduceMotion, needMoreOpacity, theme.motion]);
+
+  /**
+   * "접기"/"단어 추가" 자리의 버튼이 **누르기 시작한 순간** 무엇이었는지.
+   * 접기를 누르면 그 순간 입력란 포커스가 풀려(웹은 mousedown에서) writing=false가 되고,
+   * 손을 떼기 전에 같은 자리 버튼이 "단어 추가"로 바뀌어 시트가 열렸다. 눌린 순간의 뜻을 붙잡아 둔다.
+   */
+  const sideActionRef = useRef<'fold' | 'add'>('add');
+  /** 포커스가 풀린 뒤 쓰기 모드를 끄기까지의 대기(아래 onBlur 주석). */
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 현재 단어와 다른 인덱스를 랜덤 선택 (풀에 단어 1개뿐일 경우 무동작).
   // swapTo로 부드러운 트랜지션과 함께 전환.
@@ -283,9 +330,31 @@ export default function RecordScreen() {
     swapTo(next);
   }
 
-  // 사용자 커스텀 단어 추가 — 풀 맨 앞에 넣고 그 단어로 즉시 swap.
+  /** 단어를 바꾸기 전 관문 — 쓰던 글이 있으면 먼저 묻는다(pendingSwap). */
+  function guardSwap(swap: () => void) {
+    if (definition.trim()) setPendingSwap(() => swap);
+    else swap();
+  }
+
+  // 사용자 커스텀 단어 추가 — 이미 풀에 있으면 그 단어로 옮기고(중복 방지), 없으면 맨 앞에 넣고 swap.
   function addCustomWord(newWord: string) {
-    swapTo(0, (prev) => [newWord, ...prev]);
+    // 이미 눈앞의 단어면 바뀌는 게 없으니 묻지 않는다 — 캡션만 "내가 고른 단어"로.
+    if (newWord === word) {
+      setPickedWord(newWord);
+      return;
+    }
+    guardSwap(() => {
+      setPickedWord(newWord);
+      const existing = pool.indexOf(newWord);
+      if (existing >= 0) swapTo(existing);
+      else swapTo(0, (prev) => [newWord, ...prev]);
+    });
+  }
+
+  function confirmSwap() {
+    setDefinition('');
+    pendingSwap?.();
+    setPendingSwap(null);
   }
 
   function handleSave() {
@@ -349,34 +418,15 @@ export default function RecordScreen() {
               if (!topHeight && h > 0) setTopHeight(h);
             }}
           >
-          <View style={styles.dateChipWrap}>
-            <View
-              style={[
-                styles.dateChip,
-                {
-                  backgroundColor: theme.colors.surface.base,
-                  borderColor: theme.colors.line.base,
-                },
-                theme.shadows.sm,
-              ]}
-            >
-              <Icon name="calendar" size={16} color={theme.colors.ink.secondary} />
-              <ThemedText variant="sm" tone="strong">
-                {formatKoreanDate(today)}
+          {/* 날짜는 라벨이다 — 테두리·그림자·달력 아이콘을 빼서 누를 것처럼 보이지 않게(날짜 선택은 없다). */}
+          <View style={styles.dateRow}>
+            <ThemedText variant="caption" tone="secondary">
+              {formatKoreanDate(today)}
+            </ThemedText>
+            <View style={[styles.todayBadge, { backgroundColor: theme.colors.point.p050 }]}>
+              <ThemedText variant="caption" style={{ color: theme.colors.point.p600 }}>
+                오늘
               </ThemedText>
-              <View
-                style={[
-                  styles.todayBadge,
-                  { backgroundColor: theme.colors.point.p050 },
-                ]}
-              >
-                <ThemedText
-                  variant="caption"
-                  style={{ color: theme.colors.point.p600 }}
-                >
-                  오늘
-                </ThemedText>
-              </View>
             </View>
           </View>
 
@@ -390,7 +440,7 @@ export default function RecordScreen() {
                 textTransform: 'uppercase',
               }}
             >
-              오늘의 단어
+              {word === pickedWord ? '내가 고른 단어' : '오늘의 단어'}
             </ThemedText>
             {/* 단어 자체만 swap 애니메이션 적용. 캡션과 버튼은 고정 위치 유지. */}
             <Animated.View
@@ -417,7 +467,7 @@ export default function RecordScreen() {
               variant="ghost"
               size="sm"
               leftIcon={<Icon name="shuffle" size={15} color={theme.colors.point.p600} />}
-              onPress={drawNewWord}
+              onPress={() => guardSwap(drawNewWord)}
               style={{ marginTop: theme.spacing.s5 }}
             />
           </View>
@@ -440,12 +490,8 @@ export default function RecordScreen() {
                 {topicSuffix(word)}
               </ThemedText>
             </View>
-            <ThemedText variant="caption" style={{ color: theme.colors.point.p600 }}>
-              {/* 10자를 넘기면 분모가 의미를 잃는다 — 그때는 쓴 글자 수만 보여준다. */}
-              {canSubmit
-                ? `${definition.length}자`
-                : `${definition.trim().length}/${MIN_DEFINITION_LENGTH}자`}
-            </ThemedText>
+            {/* 최소 글자 수를 넘기면 분모가 의미를 잃는다 — 그때는 체크 + 쓴 글자 수만. */}
+            {counter}
           </Animated.View>
 
           {/* ─── 3. 입력 스테이지 ─── */}
@@ -465,8 +511,15 @@ export default function RecordScreen() {
                   value={definition}
                   onChangeText={setDefinition}
                   // 쓰기 모드의 방아쇠. 키보드 이벤트가 아니라 포커스인 이유는 위 주석에.
-                  onFocus={() => setWriting(true)}
-                  onBlur={() => setWriting(false)}
+                  onFocus={() => {
+                    if (blurTimer.current) clearTimeout(blurTimer.current);
+                    setWriting(true);
+                  }}
+                  // 한 박자 늦게 접는다 — 웹은 "접기"를 누르는 순간(mousedown) 포커스가 먼저 풀리고,
+                  // Pressable의 onPressIn은 그보다 늦게 온다. 바로 접으면 그 사이에 버튼이 "단어 추가"로 바뀐다.
+                  onBlur={() => {
+                    blurTimer.current = setTimeout(() => setWriting(false), BLUR_SETTLE_MS);
+                  }}
                   placeholder={`나에게 ${word}${topicSuffix(word)}…`}
                   placeholderTextColor={theme.colors.ink.placeholder}
                   style={[
@@ -489,11 +542,7 @@ export default function RecordScreen() {
                 <ThemedText variant="caption" tone="placeholder">
                   나만의 정의를 적어보세요 · {MIN_DEFINITION_LENGTH}자 이상
                 </ThemedText>
-                <ThemedText variant="caption" tone="placeholder">
-                  {canSubmit
-                    ? `${definition.length}자`
-                    : `${definition.trim().length}/${MIN_DEFINITION_LENGTH}자`}
-                </ThemedText>
+                {counter}
               </Animated.View>
             </View>
           </Card>
@@ -504,37 +553,40 @@ export default function RecordScreen() {
 
           {/* ─── 4. 액션 ─── */}
           <View
-            style={[styles.actions, { marginTop: theme.spacing.s4 }]}
+            style={{ marginTop: theme.spacing.s4 }}
             onLayout={(e) => {
               const h = e.nativeEvent.layout.height;
               if (h > 0 && h !== actionsHeight) setActionsHeight(h);
             }}
           >
-            {/* 쓰는 중에 다른 단어로 넘어갈 일은 없다. 대신 키보드를 내릴 길을 준다 —
-                빈 곳을 탭해 내리는 건 폰에서 찾기 어렵다. */}
-            {writing ? (
+            <View style={styles.actions}>
+              {/* 쓰는 중에 다른 단어로 넘어갈 일은 없다. 대신 키보드를 내릴 길을 준다 —
+                  빈 곳을 탭해 내리는 건 폰에서 찾기 어렵다. 한 버튼이 라벨만 바꾸고,
+                  할 일은 누르기 시작한 순간 정한다(sideActionRef 주석 참조). */}
               <Button
-                label="접기"
-                variant="ghost"
-                onPress={() => Keyboard.dismiss()}
+                label={writing ? '접기' : '단어 추가'}
+                variant={writing ? 'ghost' : 'soft'}
+                leftIcon={
+                  writing ? undefined : <Icon name="plus" size={16} color={theme.colors.point.p700} />
+                }
+                onPressIn={() => {
+                  sideActionRef.current = writing ? 'fold' : 'add';
+                }}
+                onPress={() => (sideActionRef.current === 'fold' ? Keyboard.dismiss() : openCustomWord())}
               />
-            ) : (
-              <Button
-                label="단어 추가"
-                variant="soft"
-                leftIcon={<Icon name="plus" size={16} color={theme.colors.point.p700} />}
-                onPress={openCustomWord}
-              />
-            )}
-            {/* 기록 완료 — 가용 너비를 채우는 강조 액션. 입력 비면 disabled */}
-            <View style={styles.fillerButton}>
-              <Button
-                label="기록 완료"
-                onPress={handleSave}
-                disabled={!canSubmit}
-                fullWidth
-              />
+              {/* 기록 완료 — 가용 너비를 채우는 강조 액션.
+                  disabled 버튼은 눌림 이벤트가 없어 겉을 Pressable로 감싼다 — 모자랄 때 눌러도
+                  아무 반응이 없으면 고장처럼 느껴지므로 가볍게 진동으로 "아직"이라고 답한다. */}
+              <Pressable style={styles.fillerButton} disabled={canSubmit} onPress={hapticTap}>
+                <Button label="기록 완료" onPress={handleSave} disabled={!canSubmit} fullWidth />
+              </Pressable>
             </View>
+            {/* 왜 못 누르는지 버튼 바로 아래에서 말한다. */}
+            <Animated.View style={[styles.needMore, { opacity: needMoreOpacity }]}>
+              <ThemedText variant="caption" style={{ color: theme.colors.point.p600 }}>
+                {Math.max(remaining, 1)}자 더 쓰면 기록할 수 있어요
+              </ThemedText>
+            </Animated.View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -558,6 +610,17 @@ export default function RecordScreen() {
         onAdd={addCustomWord}
         onClose={() => setCustomSheetVisible(false)}
       />
+
+      {/* 쓰던 글이 있을 때 단어 전환 확인 — 글을 다른 단어로 데려가지 않는다. */}
+      <ConfirmDialog
+        visible={!!pendingSwap}
+        title="쓰던 글을 지우고 새 단어로 갈까요?"
+        message="지금 쓴 글은 이 단어와 함께 사라져요."
+        confirmLabel="새 단어로"
+        cancelLabel="계속 쓰기"
+        onConfirm={confirmSwap}
+        onClose={() => setPendingSwap(null)}
+      />
     </ThemedView>
   );
 }
@@ -570,14 +633,11 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
 
-  dateChipWrap: { alignItems: 'center' },
-  dateChip: {
+  dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    borderWidth: 1,
-    borderRadius: 999,
-    ...controlPresets.chip,
   },
   todayBadge: {
     ...controlPresets.badge,
@@ -627,4 +687,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   fillerButton: { flex: 1 }, // 기록 완료 버튼이 행의 남은 공간을 채우게
+  // 안내 한 줄의 자리 — 보이지 않을 때도 높이를 유지한다(위 needMoreOpacity 주석).
+  needMore: { alignItems: 'flex-end', marginTop: 6, height: 17 },
+  counterOk: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 999,
+    ...controlPresets.badge,
+  },
 });

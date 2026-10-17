@@ -19,7 +19,7 @@ import { ConfirmDialog } from '@/components/primitives/confirm-dialog';
 import { RedefineSheet } from '@/components/domain/redefine-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { WatchAdButton } from '@/components/domain/watch-ad-button';
-import { FadeIn, Loading, PressableScale } from '@/components/primitives';
+import { FadeIn, Loading, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
@@ -52,6 +52,7 @@ export default function RecallChatScreen() {
   const token = useAuthStore((s) => s.token);
   const balance = useAuthStore((s) => s.user?.balance ?? 0);
   const setBalance = useAuthStore((s) => s.setBalance);
+  const { show } = useToast();
   const addEntry = useJournalStore((s) => s.addEntry);
 
   const mode: 'free' | 'question' = params.mode === 'question' ? 'question' : 'free';
@@ -105,7 +106,7 @@ export default function RecallChatScreen() {
     recallChat(token, { filter, messages: [], conversationToken: conversationTokenRef.current, mode: 'question', focusWord })
       .then((res) => {
         conversationTokenRef.current = res.conversationToken;
-        setBalance(res.balance);
+        applyBalance(res.balance);
         setMessages([{ role: 'assistant', content: res.message }]);
       })
       .catch((e) => {
@@ -119,6 +120,17 @@ export default function RecallChatScreen() {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * 서버가 준 잔액으로 갈아 끼운다. 잔액이 줄었으면(= 이번 응답에서 대화 값이 빠졌다) 말해 준다 —
+   * 헤더 숫자만 조용히 바뀌면 30잉크가 어디로 갔는지 모른다.
+   * "첫 응답"을 따로 세지 않고 실제 차감을 기준으로 삼는다: 서버가 안 뺐는데 뺐다고 말하지 않게.
+   */
+  function applyBalance(next: number) {
+    const before = useAuthStore.getState().user?.balance ?? next;
+    setBalance(next);
+    if (next < before) show(`잉크 ${RECALL_COST}개를 썼어요`);
+  }
 
   const send = async () => {
     const text = input.trim();
@@ -141,7 +153,7 @@ export default function RecallChatScreen() {
       });
       startedRef.current = true;
       conversationTokenRef.current = res.conversationToken;
-      setBalance(res.balance);
+      applyBalance(res.balance);
       setMessages((m) => [...m, { role: 'assistant', content: res.message }]);
     } catch (e) {
       setMessages((m) => m.slice(0, -1));

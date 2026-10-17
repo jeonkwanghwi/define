@@ -195,7 +195,7 @@ export default function PlazaWordDetailScreen() {
             : prev,
         );
         hapticError();
-        show('좋아요를 저장하지 못했어요');
+        show('공감을 저장하지 못했어요', { tone: 'error' });
       });
   }
 
@@ -220,7 +220,7 @@ export default function PlazaWordDetailScreen() {
       dropDefinitions((d) => d.id !== target.id);
     } catch {
       hapticError();
-      show('신고하지 못했어요. 잠시 후 다시 시도해 주세요');
+      show('신고하지 못했어요. 잠시 후 다시 시도해 주세요', { tone: 'error' });
     } finally {
       setBusyId(null);
     }
@@ -237,7 +237,7 @@ export default function PlazaWordDetailScreen() {
       dropDefinitions((d) => d.authorId !== target.authorId);
     } catch {
       hapticError();
-      show('차단하지 못했어요. 잠시 후 다시 시도해 주세요');
+      show('차단하지 못했어요. 잠시 후 다시 시도해 주세요', { tone: 'error' });
     } finally {
       setBusyId(null);
     }
