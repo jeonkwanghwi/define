@@ -30,7 +30,7 @@ RUN npm run build
 # 단어 시드도 미리 컴파일해 둔다.
 # ts-node는 devDependency라 최종 이미지에 없다 — 여기서 JS로 만들어 두면
 # 운영 컨테이너가 node만으로 시드를 돌릴 수 있다(이미지도 안 커진다).
-RUN npx tsc prisma/seed-words-sync.ts prisma/seed-words.ts \
+RUN npx tsc prisma/seed-words-sync.ts prisma/seed-words.ts prisma/seed-showcase.ts \
       --outDir dist-seed --module commonjs --target es2022 \
       --esModuleInterop --skipLibCheck
 
