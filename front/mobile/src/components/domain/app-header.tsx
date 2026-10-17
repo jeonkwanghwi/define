@@ -1,5 +1,5 @@
 /**
- * AppHeader — 탭 공통 상단 헤더(워드마크 + 예외 상태 칩 + 잉크칩 + 마이페이지 아바타).
+ * AppHeader — 탭 공통 상단 헤더(워드마크 + 예외 상태 칩 + 잉크칩 + "마이페이지" 버튼).
  *
  * 어느 탭에서든 잉크 잔액·마이페이지에 접근할 수 있게 각 탭 루트 화면 최상단에 렌더한다.
  * (단어 상세 등 push된 깊은 화면엔 넣지 않음 — 그쪽은 자체 뒤로가기 헤더만.)
@@ -91,24 +91,40 @@ export function AppHeader() {
 
         <View style={styles.headerRight}>
           {inkBalance != null && <InkBalanceChip balance={inkBalance} />}
+          {/* 마이페이지 버튼 — 전엔 이니셜만 든 동그라미라 "눌리는 건지, 뭐로 가는지" 몰랐다.
+              이니셜(또는 사람 아이콘)은 썸네일로 남기고 "마이페이지"를 글로 박는다.
+              높이·배경은 옆 잉크칩과 같은 pill 프리셋 — 둘이 한 줄의 같은 종류 버튼으로 읽히게. */}
           <PressableScale
             onPress={() => router.push('/mypage')}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="마이페이지"
             style={[
-              styles.avatarBtn,
-              { backgroundColor: theme.colors.surface.base, borderColor: theme.colors.line.base },
+              styles.mypageBtn,
+              // 잉크 칩과 같은 테두리 — 라이트에서 바탕만으론 버튼으로 안 읽힌다.
+              { backgroundColor: theme.colors.surface.nested, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: theme.colors.line.base },
             ]}
           >
-            {nickname.length > 0 ? (
-              <ThemedText
-                variant="bodyMd"
-                style={{ color: theme.colors.point.p600, fontWeight: '700' }}
-              >
-                {nickname[0]}
-              </ThemedText>
-            ) : (
-              <Icon name="user" size={19} color={theme.colors.ink.secondary} />
-            )}
+            <View style={[styles.avatar, { backgroundColor: theme.colors.point.p050 }]}>
+              {nickname.length > 0 ? (
+                <ThemedText
+                  variant="caption"
+                  style={{ color: theme.colors.point.p600, fontWeight: '700' }}
+                >
+                  {nickname[0]}
+                </ThemedText>
+              ) : (
+                <Icon name="user" size={13} color={theme.colors.point.p600} />
+              )}
+            </View>
+            {/* 줄바꿈·말줄임 금지 — 좁은 폭에선 간격을 먼저 줄인다(글자는 안 줄임). */}
+            <ThemedText
+              variant="sm"
+              numberOfLines={1}
+              style={{ color: theme.colors.ink.secondary, fontWeight: '700' }}
+            >
+              마이페이지
+            </ThemedText>
           </PressableScale>
         </View>
       </View>
@@ -190,11 +206,20 @@ const styles = StyleSheet.create({
   },
   bubbleBody: { flex: 1 },
   bubbleClose: { padding: 2, marginLeft: 8 },
-  avatarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
+  mypageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    ...controlPresets.pill,
+    // 왼쪽은 동그라미가 pill 곡선에 붙도록 좁게 — 오른쪽만 프리셋 여백.
+    paddingLeft: 6,
+    borderRadius: radii.pill,
+  },
+  // 22 = sm lineHeight — 글줄과 같은 높이라 pill 높이가 잉크칩과 똑같이 맞는다.
+  avatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },

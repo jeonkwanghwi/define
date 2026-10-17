@@ -9,11 +9,13 @@ export type PlazaPreview = {
   nickname: string; // 없으면 '익명'
   text: string;
   likeCount: number;
+  isMine?: boolean; // 구버전 서버는 안 내려준다 → undefined = 내 글 아님
 };
 
 export type PlazaWord = {
   word: string;
   count: number;
+  myCount?: number; // 이 단어에 남긴 내 정의 수(구버전 서버면 undefined = 0)
   previews: PlazaPreview[]; // 추천순(동률 최신순) 상위 2개
 };
 

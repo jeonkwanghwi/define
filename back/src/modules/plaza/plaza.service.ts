@@ -45,11 +45,13 @@ export class PlazaService {
     return rows.map((r) => ({
       word: r.word,
       count: r.count,
+      myCount: r.myCount,
       previews: r.previews.map((p) => ({
         id: p.id,
         nickname: p.nickname ?? '익명',
         text: p.text,
         likeCount: p.likeCount,
+        isMine: p.isMine,
       })),
     }));
   }

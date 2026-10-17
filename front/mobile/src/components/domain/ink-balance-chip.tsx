@@ -77,7 +77,8 @@ export function InkBalanceChip({ balance }: { balance: number }) {
       <Animated.View
         style={[
           styles.chip,
-          { backgroundColor: theme.colors.surface.nested, transform: [{ scale }] },
+          // 라이트에선 nested 바탕이 종이색과 거의 같아 칩이 안 보인다 → 옆 칩들처럼 얇은 테두리로 '누르는 것'임을 보인다.
+          { backgroundColor: theme.colors.surface.nested, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: theme.colors.line.base, transform: [{ scale }] },
         ]}
       >
         <Icon name="ink" size={14} color={theme.colors.ruby.base} />

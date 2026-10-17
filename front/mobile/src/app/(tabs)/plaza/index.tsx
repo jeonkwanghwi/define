@@ -25,7 +25,7 @@ import {
   type PlazaWord,
 } from '@/services/plaza-api';
 import { useAuthStore } from '@/store/auth-store';
-import { useTheme } from '@/theme';
+import { controlPresets, useTheme } from '@/theme';
 
 export default function PlazaScreen() {
   return (
@@ -258,6 +258,9 @@ function StatTile({
 /** 단어 카드 — 단어 + 정의 수 + 대표 정의 미리보기(최대 2). */
 function WordCard({ word, onPress }: { word: PlazaWord; onPress: () => void }) {
   const theme = useTheme();
+  // 내가 정의한 단어는 상세의 내 카드와 같은 말투(포인트 테두리 + "내 정의" 배지)로 표시한다.
+  // 내 글이 미리보기 2개 밖에 있어도 알아보도록 개수는 서버 집계(myCount)를 따른다.
+  const myCount = word.myCount ?? 0;
   return (
     <PressableScale
       onPress={onPress}
@@ -265,16 +268,24 @@ function WordCard({ word, onPress }: { word: PlazaWord; onPress: () => void }) {
         styles.card,
         {
           backgroundColor: theme.colors.surface.base,
-          borderColor: theme.colors.line.base,
+          borderColor: myCount > 0 ? theme.colors.point.p500 : theme.colors.line.base,
           borderRadius: theme.radii.lg,
         },
         theme.shadows.sm,
       ]}
     >
       <View style={styles.cardHead}>
-        <ThemedText variant="h3" numberOfLines={1} style={{ flex: 1 }}>
+        <ThemedText variant="h3" numberOfLines={1} style={{ flexShrink: 1 }}>
           {word.word}
         </ThemedText>
+        {myCount > 0 ? (
+          <View style={[styles.badge, { backgroundColor: theme.colors.point.p100 }]}>
+            <ThemedText variant="caption" style={{ color: theme.colors.point.p700 }}>
+              {myCount > 1 ? `내 정의 ${myCount}개` : '내 정의'}
+            </ThemedText>
+          </View>
+        ) : null}
+        <View style={{ flex: 1 }} />
         <ThemedText variant="caption" tone="placeholder">
           {word.count}개의 정의
         </ThemedText>
@@ -286,8 +297,13 @@ function WordCard({ word, onPress }: { word: PlazaWord; onPress: () => void }) {
             “{p.text}”
           </ThemedText>
           <View style={styles.previewMeta}>
-            <ThemedText variant="caption" tone="secondary">
-              {p.nickname}
+            {/* 배지는 카드 머리에 한 번만 — 줄마다 또 달면 신호가 겹친다. 여기선 이름 색만 포인트로. */}
+            <ThemedText
+              variant="caption"
+              tone="secondary"
+              style={p.isMine ? { color: theme.colors.point.p700, fontWeight: '700' } : undefined}
+            >
+              {p.isMine ? `${p.nickname} · 나` : p.nickname}
             </ThemedText>
             <Icon name="heart" size={11} color={theme.colors.ink.placeholder} />
             <ThemedText variant="caption" tone="placeholder">
@@ -346,5 +362,6 @@ const styles = StyleSheet.create({
 
   card: { borderWidth: 1, padding: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  badge: { ...controlPresets.badge, borderRadius: 999 },
   previewMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
 });

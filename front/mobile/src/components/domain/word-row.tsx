@@ -14,15 +14,18 @@ import { Card, PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { formatYmd } from '@/lib/format-date';
+import type { MatchRange } from '@/lib/korean';
 import { controlPresets, useTheme } from '@/theme';
 import type { JournalWord } from '@/types/word';
 
 export type WordRowProps = {
   item: JournalWord;
   onPress: () => void;
+  /** 검색 중일 때 단어에서 맞은 구간 — 포인트 색으로 칠해 "왜 나왔는지" 보이게. */
+  highlight?: MatchRange;
 };
 
-export function WordRow({ item, onPress }: WordRowProps) {
+export function WordRow({ item, onPress, highlight }: WordRowProps) {
   const theme = useTheme();
   // 방금 쓴 단어 표시 — 기록 화면의 '오늘' 뱃지와 같은 모양. date는 'YYYY.MM.DD'.
   const isToday = item.entries[0]?.date === formatYmd(new Date());
@@ -34,7 +37,20 @@ export function WordRow({ item, onPress }: WordRowProps) {
         {/* 좌측 메인 정보 */}
         <View style={styles.main}>
           <View style={styles.titleRow}>
-            <ThemedText variant="h3">{item.word}</ThemedText>
+            <ThemedText variant="h3">
+              {highlight && highlight.end > highlight.start ? (
+                // 중첩 Text는 한 줄 안에서 색만 바꾼다(레이아웃 그대로).
+                <>
+                  {item.word.slice(0, highlight.start)}
+                  <ThemedText variant="h3" style={{ color: theme.colors.point.p600 }}>
+                    {item.word.slice(highlight.start, highlight.end)}
+                  </ThemedText>
+                  {item.word.slice(highlight.end)}
+                </>
+              ) : (
+                item.word
+              )}
+            </ThemedText>
             {isToday ? (
               <View style={[styles.badge, { backgroundColor: theme.colors.point.p050 }]}>
                 <ThemedText variant="caption" style={{ color: theme.colors.point.p600 }}>
