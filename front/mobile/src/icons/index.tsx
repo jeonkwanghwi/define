@@ -41,6 +41,7 @@ export type IconName =
   // 상태/액션
   | 'lock' // 광장 비공개
   | 'send'
+  | 'mail' // 이메일 로그인
   | 'help' // 고객 지원(물음표)
   | 'settings'
   | 'bell'
@@ -209,6 +210,13 @@ function renderIcon(name: IconName, p: StrokeProps) {
         <>
           <Path d="M6.5 10a5.5 5.5 0 0111 0c0 4 1.5 5.5 1.5 5.5H5s1.5-1.5 1.5-5.5z" {...p} />
           <Path d="M10 18.5a2 2 0 004 0" {...p} />
+        </>
+      );
+    case 'mail':
+      return (
+        <>
+          <Rect x={3} y={5.5} width={18} height={13} rx={2.5} {...p} />
+          <Path d="M3.8 7l7.3 5.2a1.5 1.5 0 001.8 0L20.2 7" {...p} />
         </>
       );
     case 'help':

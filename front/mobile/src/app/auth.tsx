@@ -9,6 +9,7 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { Button, FadeIn, PressableScale, TextField } from '@/components/primitives';
 import { EmailDomainDropdown } from '@/components/domain/email-domain-dropdown';
@@ -17,6 +18,8 @@ import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
+
 import { AppleCanceled, getAppleCredential, isAppleAuthAvailable } from '@/lib/apple-auth';
 import { hapticError } from '@/lib/haptics';
 import { KakaoCanceled, useKakaoAuth } from '@/lib/kakao-auth';
@@ -271,7 +274,12 @@ export default function AuthScreen() {
             </FadeIn>
 
             <View style={styles.chooserButtons}>
-              <Button label="이메일로 로그인" fullWidth onPress={() => goEmail('login')} />
+              <Button
+                label="이메일로 로그인"
+                fullWidth
+                leftIcon={<Icon name="mail" size={18} color="#FFFFFF" />}
+                onPress={() => goEmail('login')}
+              />
 
               <PressableScale
                 onPress={
@@ -290,33 +298,49 @@ export default function AuthScreen() {
                   submitting && { opacity: 0.6 },
                 ]}
               >
-                <ThemedText variant="bodyMd" style={{ color: '#191600', fontWeight: '700' }}>
-                  카카오 로그인
-                </ThemedText>
+                <View style={styles.socialRow}>
+                  <KakaoBubble />
+                  <ThemedText variant="bodyMd" style={{ color: KAKAO_INK, fontWeight: '700' }}>
+                    카카오 로그인
+                  </ThemedText>
+                </View>
               </PressableScale>
 
-              <PressableScale
-                onPress={
-                  appleAvailable
-                    ? handleApple
-                    : () => setSocialNotice('Apple 로그인은 아이폰에서만 돼요')
-                }
-                disabled={submitting}
-                style={[
-                  styles.socialBtn,
-                  {
-                    backgroundColor: '#000000',
-                    borderRadius: theme.radii.pill,
-                    borderWidth: 1,
-                    borderColor: theme.colors.line.base,
-                    marginTop: theme.spacing.s4,
-                  },
-                ]}
-              >
-                <ThemedText variant="bodyMd" style={{ color: '#FFFFFF', fontWeight: '700' }}>
-                  Apple로 로그인
-                </ThemedText>
-              </PressableScale>
+              {/* Apple 버튼은 **직접 그리지 않는다.**
+                  Apple HIG는 로고 모양·여백·문구·높이를 규격으로 못박아 두었고, 어기면
+                  심사에서 걸린다. expo-apple-authentication이 주는 네이티브 버튼이
+                  로고·문구(지역화)·접근성을 전부 규격대로 들고 온다 — 우리가 정하는 건
+                  모서리 둥글기와 높이뿐이다.
+                  쓸 수 없는 기기(Android·웹)에서는 아예 렌더되지 않으므로, 그때만
+                  안내용 버튼을 대신 보여준다. */}
+              {appleAvailable ? (
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={theme.radii.pill}
+                  style={[styles.appleBtn, { marginTop: theme.spacing.s4 }]}
+                  onPress={submitting ? () => {} : handleApple}
+                />
+              ) : (
+                <PressableScale
+                  onPress={() => setSocialNotice('Apple 로그인은 아이폰에서만 돼요')}
+                  disabled={submitting}
+                  style={[
+                    styles.socialBtn,
+                    {
+                      backgroundColor: '#000000',
+                      borderRadius: theme.radii.pill,
+                      borderWidth: 1,
+                      borderColor: theme.colors.line.base,
+                      marginTop: theme.spacing.s4,
+                    },
+                  ]}
+                >
+                  <ThemedText variant="bodyMd" style={{ color: '#FFFFFF', fontWeight: '700' }}>
+                    Apple로 로그인
+                  </ThemedText>
+                </PressableScale>
+              )}
 
               {error ? (
                 <FadeIn>
@@ -563,6 +587,24 @@ function mapAuthError(e: unknown): string {
   return userFacingMessage(e) ?? '연결이 불안정해요. 잠시 후 다시 시도해 주세요.';
 }
 
+/** 카카오 브랜드 가이드가 정한 노란 배경 위 글자·로고 색. 배경은 #FEE500. */
+const KAKAO_INK = '#191600';
+
+/**
+ * 카카오 말풍선. 카카오 브랜드 가이드의 글자색(#191600)에 맞춘 채움 도형이라
+ * 선 기반인 우리 아이콘 셋에 넣지 않고 여기 둔다 — 섞으면 아이콘 셋의 결이 깨진다.
+ */
+function KakaoBubble() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
+      <Path
+        d="M12 3C6.9 3 2.8 6.3 2.8 10.3c0 2.6 1.7 4.8 4.3 6.1l-1.1 4c-.1.3.3.6.6.4l4.7-3.1c.2 0 .5 0 .7 0 5.1 0 9.2-3.3 9.2-7.4S17.1 3 12 3z"
+        fill={KAKAO_INK}
+      />
+    </Svg>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
@@ -589,6 +631,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // 로고와 글자를 한 줄로. gap은 아이콘이 글자에 붙지 않을 만큼만.
+  socialRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // 네이티브 Apple 버튼은 높이를 직접 줘야 한다(내용에 맞춰 늘어나지 않는다).
+  // 카카오 버튼(패딩 16 + 본문 24)과 같은 56으로 맞춘다.
+  appleBtn: { width: '100%', height: 56 },
   emailRow: { flexDirection: 'row', alignItems: 'center' },
   // minWidth:0 — 웹 <input>이 min-content 밑으로 안 줄어들어 행이 오버플로우하는 것 방지(네이티브 무해).
   emailLocal: { flex: 1, minWidth: 0 },
