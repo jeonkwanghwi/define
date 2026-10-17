@@ -172,6 +172,56 @@
 > aws cloudfront create-invalidation --distribution-id E2CH8Q63FJ0LS0 --paths "/*"
 > ```
 
+### 🔴 백엔드 재배포 — 다이제스트를 고정해 뒀다 (2026-10-17)
+
+태스크 정의가 `:latest`를 가리키던 동안엔 **푸시만 해도 다음 재시작 때 배포됐다.**
+Fargate 유지보수나 태스크 교체가 일어나면 *마지막으로 푸시한 것*이 우리도 모르게
+떠 버린다 — 실제로 ECR의 `:latest`와 도는 이미지가 달라진 상태를 발견했다.
+
+이제 `define-api@sha256:…` 로 **다이제스트가 박혀 있다.** 의도하지 않은 배포는
+원천 차단되지만, **푸시만으로는 아무 일도 일어나지 않는다.** 배포는 네 단계다:
+
+```bash
+# 1) 빌드·푸시 (--platform linux/amd64 필수 — 맥에서 그냥 빌드하면 arm64가 나온다)
+cd back
+REPO=993232132996.dkr.ecr.ap-northeast-2.amazonaws.com/define-api
+aws ecr get-login-password --region ap-northeast-2 \
+  | docker login --username AWS --password-stdin 993232132996.dkr.ecr.ap-northeast-2.amazonaws.com
+docker build --platform linux/amd64 -t "${REPO}:latest" .
+docker push "${REPO}:latest"
+
+# 2) 방금 올린 다이제스트를 받아온다
+DIGEST=$(aws ecr describe-images --region ap-northeast-2 --repository-name define-api \
+  --image-ids imageTag=latest --query 'imageDetails[0].imageDigest' --output text)
+
+# 3) 그 다이제스트로 새 리비전 등록 (기존 정의를 받아 image만 바꾼다)
+#    환경변수·시크릿을 손으로 다시 적지 말 것 — 빠뜨리면 컨테이너가 안 뜬다
+aws ecs describe-task-definition --region ap-northeast-2 --task-definition define-api \
+  --query 'taskDefinition' --output json > /tmp/td.json
+python3 - "$DIGEST" <<'PY2'
+import json, sys
+td = json.load(open('/tmp/td.json'))
+for k in ['taskDefinitionArn','revision','status','requiresAttributes',
+          'compatibilities','registeredAt','registeredBy','deregisteredAt']:
+    td.pop(k, None)
+td['containerDefinitions'][0]['image'] = \
+    '993232132996.dkr.ecr.ap-northeast-2.amazonaws.com/define-api@' + sys.argv[1]
+json.dump(td, open('/tmp/td-new.json','w'))
+PY2
+REV=$(aws ecs register-task-definition --region ap-northeast-2 \
+  --cli-input-json file:///tmp/td-new.json --query 'taskDefinition.revision' --output text)
+
+# 4) 배포
+aws ecs update-service --region ap-northeast-2 --cluster define --service define-api \
+  --task-definition define-api:$REV
+```
+
+**배포 전후로 같은 것을 재서 대조할 것.** 무중단인지는 눈으로 안 보인다:
+`/api/words` 응답 수(252) · `/auth/signup`에 코드 없이 → 426 · `/auth/apple` 가짜 토큰 → 401.
+
+서비스 설정은 `minimumHealthyPercent 100` / `maximumPercent 200`이라 **새 태스크를
+먼저 띄우고 옛 것을 내린다** — Fargate 유지보수 때도 무중단이다.
+
 ### (참고) 원래 계획
 
 **개념**: **S3** = 파일 저장소(정적 사이트 호스팅 가능). **CloudFront** = 그 파일을 전세계 엣지에서 캐시 + **HTTPS** 붙여 빠르게 서빙하는 CDN.
