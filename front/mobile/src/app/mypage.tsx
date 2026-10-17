@@ -22,7 +22,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Device from 'expo-device';
 import { useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { BugReportSheet } from '@/components/domain/bug-report-sheet';
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
@@ -393,15 +393,13 @@ export default function MyPageScreen() {
             onPress={openNicknameEditor}
           />
           <Divider theme={theme} />
-          {/* 진동 피드백 on/off — 진동에 민감한 사람이 끌 수 있어야 한다(접근성).
-              별도 스위치 UI를 들이지 않고 옆줄과 같은 Row로 값만 보여준다(탭하면 토글). */}
+          {/* 진동 피드백 on/off — 진동에 민감한 사람이 끌 수 있어야 한다(접근성). */}
           <Row
             theme={theme}
             icon="settings"
             label="진동 피드백"
-            value={haptics ? '켬' : '끔'}
+            toggle={haptics}
             onPress={() => setHaptics(!haptics)}
-            showChevron={false}
           />
           {SHOW_NOTIFICATION_SETTING && (
             <>
@@ -690,6 +688,7 @@ function Row({
   onPress,
   showChevron = true,
   disabled,
+  toggle,
 }: {
   theme: Theme;
   icon: IconName;
@@ -701,29 +700,58 @@ function Row({
   /** >는 "눌러서 다음 화면으로 간다"는 뜻이다. 제자리에서 값만 바뀌는 토글 행에서는 끈다. */
   showChevron?: boolean;
   disabled?: boolean;
+  /**
+   * 켜고 끄는 행. 주면 값·셰브론 대신 스위치를 그린다.
+   *
+   * '켬'/'끔'이라는 **글자만** 있으면 눌러서 바뀐다는 걸 알 수 없다 — 바로 아래
+   * 비활성 행('알림 설정 · 준비 중')과 생김새가 똑같았다. 스위치는 OS가 이미
+   * 가르쳐 놓은 모양이라 설명이 필요 없다.
+   */
+  toggle?: boolean;
 }) {
   return (
     <PressableScale
       onPress={onPress}
       disabled={disabled || !onPress}
+      // 스위치는 그림일 뿐(pointerEvents none) — 누르는 주체는 행이다. 그래서 역할·상태도 행이 말한다.
+      accessibilityRole={toggle !== undefined ? 'switch' : undefined}
+      accessibilityState={toggle !== undefined ? { checked: toggle } : undefined}
       style={[styles.row, { backgroundColor: 'transparent' }, disabled && { opacity: 0.5 }]}
     >
       <Icon name={icon} size={19} color={theme.colors.ink.secondary} />
       <ThemedText variant="body" tone="strong" style={{ flex: 1, marginLeft: 12 }} numberOfLines={1}>
         {label}
       </ThemedText>
-      {value ? (
-        <ThemedText
-          variant="sm"
-          tone="placeholder"
-          style={[{ marginRight: 6 }, valueColor ? { color: valueColor, fontWeight: '700' } : null]}
-        >
-          {value}
-        </ThemedText>
-      ) : null}
-      {onPress && showChevron ? (
-        <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} />
-      ) : null}
+      {toggle !== undefined ? (
+        <Switch
+          value={toggle}
+          pointerEvents="none"
+          trackColor={{ false: theme.colors.line.strong, true: theme.colors.point.p500 }}
+          // 엄지는 흰색으로 고정 — 안 주면 플랫폼마다 제 색(RN Web은 초록)을 써서 톤이 깨진다.
+          thumbColor="#FFFFFF"
+          ios_backgroundColor={theme.colors.line.strong}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      ) : (
+        <>
+          {value ? (
+            <ThemedText
+              variant="sm"
+              tone="placeholder"
+              style={[
+                { marginRight: 6 },
+                valueColor ? { color: valueColor, fontWeight: '700' } : null,
+              ]}
+            >
+              {value}
+            </ThemedText>
+          ) : null}
+          {onPress && showChevron ? (
+            <Icon name="chevronR" size={16} color={theme.colors.ink.placeholder} />
+          ) : null}
+        </>
+      )}
     </PressableScale>
   );
 }
