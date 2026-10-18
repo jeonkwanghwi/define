@@ -4,95 +4,101 @@
  * tokens.css의 8단계 타입 스케일을 RN TextStyle로 옮김.
  * lineHeight는 원본의 배수(예: 1.6) * fontSize를 미리 계산한 값.
  *
+ * 화면은 theme.typography로 쓴다(글꼴 세트가 반영된 것). 이 함수는 theme가 부른다.
+ *
  * 사용:
  *   <Text style={theme.typography.display}>오늘의 단어</Text>
  *   또는 ThemedText의 variant prop으로: <ThemedText variant="display">
  */
 import type { TextStyle } from 'react-native';
 
-import { fontFamily } from './fonts';
+import type { FontSet } from './fonts';
 
-export const typography = {
-  // ─── 읽는 글: 나눔명조 ───────────────────────────────────
-  // 정적 폰트라 fontWeight로 두께를 못 고른다 → 두께별 패밀리를 직접 지정하고
-  // fontWeight는 비워 둔다(지정하면 iOS가 가짜 굵게를 덧씌워 뭉갠다).
+/** 글꼴 세트를 받아 글자 스타일 묶음을 만든다 — 세트가 바뀌면 모든 화면 글꼴이 같이 바뀐다. */
+export function buildTypography(fontFamily: FontSet) {
+  return {
+    // ─── 읽는 글: 나눔명조 ───────────────────────────────────
+    // 정적 폰트라 fontWeight로 두께를 못 고른다 → 두께별 패밀리를 직접 지정하고
+    // fontWeight는 비워 둔다(지정하면 iOS가 가짜 굵게를 덧씌워 뭉갠다).
 
-  // 메인 화면의 "오늘의 단어" 같은 디스플레이 (가장 크고 인상적)
-  display: {
-    fontFamily: fontFamily.serifBold,
-    fontSize: 44,
-    lineHeight: 58, // 44 * 1.32 — 명조는 글자 상자를 꽉 채워 여유가 더 필요하다
-    letterSpacing: -0.5,
-  } satisfies TextStyle,
+    // 메인 화면의 "오늘의 단어" 같은 디스플레이 (가장 크고 인상적)
+    display: {
+      fontFamily: fontFamily.serifBold,
+      fontSize: 44,
+      lineHeight: 58, // 44 * 1.32 — 명조는 글자 상자를 꽉 채워 여유가 더 필요하다
+      letterSpacing: -0.5,
+    } satisfies TextStyle,
 
-  /**
-   * display와 같은 크기의 **보조** 글자 — 메인의 "…이란" 접미사처럼
-   * 톤을 한 단계 낮춰 쓰는 자리. 두께로 낮추면 iOS가 가짜 굵게를 덧씌우므로
-   * Regular 패밀리로 낸다. 화면이 글꼴 이름을 직접 알지 않게 하는 역할도 한다.
-   */
-  displaySub: {
-    fontFamily: fontFamily.serif,
-    fontSize: 44,
-    lineHeight: 58,
-    letterSpacing: -0.5,
-  } satisfies TextStyle,
+    /**
+     * display와 같은 크기의 **보조** 글자 — 메인의 "…이란" 접미사처럼
+     * 톤을 한 단계 낮춰 쓰는 자리. 두께로 낮추면 iOS가 가짜 굵게를 덧씌우므로
+     * Regular 패밀리로 낸다. 화면이 글꼴 이름을 직접 알지 않게 하는 역할도 한다.
+     */
+    displaySub: {
+      fontFamily: fontFamily.serif,
+      fontSize: 44,
+      lineHeight: 58,
+      letterSpacing: -0.5,
+    } satisfies TextStyle,
 
-  h1: {
-    fontFamily: fontFamily.serifBold,
-    fontSize: 30,
-    lineHeight: 42, // 30 * 1.4
-  } satisfies TextStyle,
+    h1: {
+      fontFamily: fontFamily.serifBold,
+      fontSize: 30,
+      lineHeight: 42, // 30 * 1.4
+    } satisfies TextStyle,
 
-  h2: {
-    fontFamily: fontFamily.serifBold,
-    fontSize: 22,
-    lineHeight: 32, // 22 * 1.45
-  } satisfies TextStyle,
+    h2: {
+      fontFamily: fontFamily.serifBold,
+      fontSize: 22,
+      lineHeight: 32, // 22 * 1.45
+    } satisfies TextStyle,
 
-  h3: {
-    fontFamily: fontFamily.serifBold,
-    fontSize: 18,
-    lineHeight: 27, // 18 * 1.5
-  } satisfies TextStyle,
+    h3: {
+      fontFamily: fontFamily.serifBold,
+      fontSize: 18,
+      lineHeight: 27, // 18 * 1.5
+    } satisfies TextStyle,
 
-  // 본문 — 사용자가 쓴 정의·회상 대화처럼 "읽는" 글
-  body: {
-    fontFamily: fontFamily.serif,
-    fontSize: 16,
-    lineHeight: 28, // 16 * 1.75 — 명조 본문은 줄간격을 더 벌려야 읽힌다
-  } satisfies TextStyle,
+    // 본문 — 사용자가 쓴 정의·회상 대화처럼 "읽는" 글
+    body: {
+      fontFamily: fontFamily.serif,
+      fontSize: 16,
+      lineHeight: 28, // 16 * 1.75 — 명조 본문은 줄간격을 더 벌려야 읽힌다
+    } satisfies TextStyle,
 
-  // 본문 강조
-  bodyMd: {
-    fontFamily: fontFamily.serifBold,
-    fontSize: 16,
-    lineHeight: 28,
-  } satisfies TextStyle,
+    // 본문 강조
+    bodyMd: {
+      fontFamily: fontFamily.serifBold,
+      fontSize: 16,
+      lineHeight: 28,
+    } satisfies TextStyle,
 
-  // ─── 조작하는 글: Pretendard ─────────────────────────────
-  // 명조는 이 크기에서 획이 뭉개진다. 버튼·라벨·글자수처럼 빠르게 훑는 글은 산세리프.
+    // ─── 조작하는 글: Pretendard ─────────────────────────────
+    // 명조는 이 크기에서 획이 뭉개진다. 버튼·라벨·글자수처럼 빠르게 훑는 글은 산세리프.
 
-  sm: {
-    fontFamily: fontFamily.sans,
-    fontSize: 14,
-    lineHeight: 22, // 14 * 1.55
-    fontWeight: '400',
-  } satisfies TextStyle,
+    sm: {
+      fontFamily: fontFamily.sans,
+      fontSize: 14,
+      lineHeight: 22, // 14 * 1.55
+      fontWeight: '400',
+    } satisfies TextStyle,
 
-  /** 버튼 라벨 — 누르는 글이라 크기가 커도 산세리프. 명조 bodyMd를 쓰던 자리를 대신한다. */
-  label: {
-    fontFamily: fontFamily.sans,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '600',
-  } satisfies TextStyle,
+    /** 버튼 라벨 — 누르는 글이라 크기가 커도 산세리프. 명조 bodyMd를 쓰던 자리를 대신한다. */
+    label: {
+      fontFamily: fontFamily.sans,
+      fontSize: 16,
+      lineHeight: 22,
+      fontWeight: '600',
+    } satisfies TextStyle,
 
-  caption: {
-    fontFamily: fontFamily.sans,
-    fontSize: 12,
-    lineHeight: 17, // 12 * 1.4
-    fontWeight: '500',
-  } satisfies TextStyle,
-} as const;
+    caption: {
+      fontFamily: fontFamily.sans,
+      fontSize: 12,
+      lineHeight: 17, // 12 * 1.4
+      fontWeight: '500',
+    } satisfies TextStyle,
+  } as const;
+}
 
-export type TypographyVariant = keyof typeof typography;
+export type Typography = ReturnType<typeof buildTypography>;
+export type TypographyVariant = keyof Typography;

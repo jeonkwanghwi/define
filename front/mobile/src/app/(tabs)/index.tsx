@@ -44,7 +44,7 @@ import { topicSuffix } from '@/lib/korean';
 import { getRecommendedWords } from '@/services/word-api';
 import { useAuthHydrated, useAuthStore } from '@/store/auth-store';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
-import { controlPresets, fontFamily, useTheme } from '@/theme';
+import { controlPresets, useTheme } from '@/theme';
 
 // 입력창 고정 높이(px). 처음부터 이 크기로 고정 — 타이핑에 따라 박스가 커지지 않아
 // 화면이 출렁이지 않는다. 내용이 넘치면 입력창 내부에서 스크롤(캐럿=마지막 줄 따라감).
@@ -680,7 +680,7 @@ export default function RecordScreen() {
                     styles.definitionInput,
                     {
                       color: theme.colors.ink.primary,
-                      fontFamily: fontFamily.sans,
+                      fontFamily: theme.fonts.sans,
                     },
                   ]}
                 />
