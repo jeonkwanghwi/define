@@ -93,7 +93,7 @@ type JournalState = {
    *   "시작 때 깨끗"이 아니라서 서버 목록에 없다고 지워지지 않는다.
    * 바뀐 게 없으면 state를 그대로 둔다(불필요한 리렌더·동기화 방지). 멱등.
    */
-  applyServerEntries: (incoming: SavedEntry[], cleanAtStart: Set<string>) => void;
+  applyServerEntries: (incoming: SavedEntry[], cleanAtStart: Map<string, SavedEntry>) => void;
   /**
    * 로컬을 비우고 주인을 바꾼다(계정 전환·탈퇴). **한 번의 set으로** — auto-sync가 "주인이 바뀐
    * 변경"을 보고 이번 삭제를 서버에 보내지 않는다(남의/사라진 계정에 DELETE를 쏟아붓지 않게).
@@ -181,7 +181,8 @@ export const useJournalStore = create<JournalState>()(
           return {
             entries,
             dirtyIds,
-            pendingDeletes: withDirty(state.pendingDeletes, id),
+            // 익명일 때 지운 글은 어느 서버에도 없다 — 가입 순간 쓸데없는 DELETE를 줄줄이 보내지 않게.
+            pendingDeletes: state.ownerId === null ? state.pendingDeletes : withDirty(state.pendingDeletes, id),
           };
         }),
       applyServerEntries: (incoming, cleanAtStart) =>
@@ -193,7 +194,8 @@ export const useJournalStore = create<JournalState>()(
           const kept: SavedEntry[] = [];
           for (const e of state.entries) {
             const remote = server.get(e.id);
-            const synced = cleanAtStart.has(e.id) && !dirty.has(e.id);
+            // 시작 때와 **같은 객체**이고 지금도 깨끗해야 "서버에 있던 그대로" — 받는 사이 고친 글은 빠진다.
+            const synced = cleanAtStart.get(e.id) === e && !dirty.has(e.id);
             if (!remote) {
               if (synced) changed = true; // 다른 폰에서 지웠다 → 여기서도 뺀다
               else kept.push(e);

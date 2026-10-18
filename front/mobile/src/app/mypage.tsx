@@ -121,7 +121,9 @@ export default function MyPageScreen() {
    * 로그아웃 **전에** 올려 둔다. 실패하면 몇 개가 남는지 말하고 고르게 한다.
    */
   const [logoutStep, setLogoutStep] = useState<'closed' | 'ask' | 'syncing' | 'failed'>('closed');
-  const unsynced = useJournalStore((s) => s.dirtyIds.length);
+  // 경고에 쓰는 개수 — 서버가 받지 않을 항목은 빼고 대기 중인 삭제는 더한 실제 미동기화 수.
+  useJournalStore((s) => s.dirtyIds.length + s.pendingDeletes.length); // 바뀌면 다시 그리도록 구독만
+  const unsynced = countUnsynced();
   const unuploadable = useUnuploadableCount();
   /**
    * 탈퇴 확인 단계. 0 = 닫힘 · 1 = 첫 확인 · 2 = 마지막 확인.
@@ -132,6 +134,7 @@ export default function MyPageScreen() {
    * 두 단계는 **한 창이 내용만 바꾼다** — 닫고 새로 열면 iOS가 닫히는 중인 창 위의 새 창을 무시했다.
    */
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+  const stepChangedAt = useRef(0);
   const [deleting, setDeleting] = useState(false);
   // 탈퇴 실패는 조용히 넘기면 안 된다 — 사용자는 지워진 줄 안다.
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -706,7 +709,19 @@ export default function MyPageScreen() {
         cancelLabel={deleteStep === 2 ? '아니요' : '취소'}
         // 버튼 폭이 좁아 '탈퇴하기'는 '탈퇴…'로 잘렸다. 두 글자로 맞춘다.
         confirmLabel={deleteStep === 2 ? (deleting ? '탈퇴 중…' : '탈퇴') : '다음'}
-        onConfirm={deleteStep === 2 ? handleDeleteAccount : () => setDeleteStep(2)}
+        // 같은 자리 버튼이 '다음'→'탈퇴'로 바뀐다. 빠른 두 번 탭이 둘째 단계를 건너뛰지 않게,
+        // 단계가 바뀐 뒤 0.6초 동안의 누름은 무시한다(되돌릴 수 없는 일이라 일부러 한 번 멈추게).
+        onConfirm={
+          deleteStep === 2
+            ? () => {
+                if (Date.now() - stepChangedAt.current < 600) return;
+                void handleDeleteAccount();
+              }
+            : () => {
+                stepChangedAt.current = Date.now();
+                setDeleteStep(2);
+              }
+        }
         onClose={() => {
           if (!deleting) setDeleteStep(0); // 지우는 중엔 닫지 않는다 — 결과를 볼 자리가 사라진다
         }}

@@ -134,7 +134,22 @@ function toChunks(entries: SavedEntry[]): SavedEntry[][] {
  * 하나라도 실패하면 throw(호출부가 "동기화 안 됨"을 표시) — 실패를 성공처럼 지우지 않는다.
  * 남은 것은 다음 동기화(편집·포그라운드 복귀·다시 시도)가 이어서 처리한다.
  */
-export async function syncJournal(token: string): Promise<ImportResult> {
+let inFlight: { token: string; promise: Promise<ImportResult> } | null = null;
+
+/**
+ * 업로드(삭제 → 올리기). **한 번에 하나만** 돈다 — 업데이트 직후 전체 재업로드 중에 편집·복귀가 겹치면
+ * 같은 글을 두 번 만들려다 서버가 충돌(500)을 내고 '동기화 안 됨'이 잠깐 뜬다. 진행 중이면 그걸 같이 기다린다.
+ */
+export function syncJournal(token: string): Promise<ImportResult> {
+  if (inFlight && inFlight.token === token) return inFlight.promise;
+  const promise = runSync(token).finally(() => {
+    if (inFlight?.promise === promise) inFlight = null;
+  });
+  inFlight = { token, promise };
+  return promise;
+}
+
+async function runSync(token: string): Promise<ImportResult> {
   // ① 삭제 — 하나씩, 성공한 것만 목록에서 뺀다. 서버 DELETE는 멱등(없는 것도 성공).
   for (const id of useJournalStore.getState().pendingDeletes) {
     await deleteJournalEntry(token, id);
@@ -184,7 +199,8 @@ export async function downloadJournal(
   // 받기 시작한 순간 이미 서버에 있던 것 — 받는 사이 올라간 글을 "서버에 없다"고 지우지 않게.
   const { entries, dirtyIds } = useJournalStore.getState();
   const dirty = new Set(dirtyIds);
-  const cleanAtStart = new Set(entries.filter((e) => !dirty.has(e.id)).map((e) => e.id));
+  // id가 아니라 그 순간의 객체를 기억한다 — 받는 사이 고쳐서 올린 글은 객체가 바뀌어 "동기화된 것"에서 빠진다.
+  const cleanAtStart = new Map(entries.filter((e) => !dirty.has(e.id)).map((e) => [e.id, e] as const));
   const serverEntries = await getJournal(token);
   if (!stillCurrent()) return 0;
   const restored: SavedEntry[] = serverEntries.map((e) => ({

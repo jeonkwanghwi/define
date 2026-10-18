@@ -96,6 +96,8 @@ export function deleteAccount(token: string): Promise<{ unlinked: string[]; fail
   return apiRequest<{ unlinked: string[]; failed: string[] }>('/auth/me', {
     method: 'DELETE',
     token,
+    // 서버가 카카오·Apple 연결 해제를 기다린 뒤 지운다 — 15초 기본값이면 실제론 지워졌는데 "실패"로 보일 수 있다.
+    timeoutMs: 45_000,
   });
 }
 

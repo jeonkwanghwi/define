@@ -18,8 +18,9 @@ export class OpenAiClient {
 
   constructor(config: ConfigService) {
     const apiKey = config.get<string>('openai.apiKey');
-    // timeout 30초·재시도 1번: 기본값(10분·2번 재시도)이면 OpenAI가 느릴 때 요청이 몇 분씩 매달린다.
-    this.client = apiKey ? new OpenAI({ apiKey, timeout: 30_000, maxRetries: 1 }) : null;
+    // timeout 25초·재시도 없음: CloudFront가 오리진 응답을 30초까지만 기다린다. 그보다 길면 사용자는
+    // 504를 받는데 서버는 늦게 성공해 잉크만 빠진다(환불도 안 됨). 실패는 503+환불로 빨리 돌려준다.
+    this.client = apiKey ? new OpenAI({ apiKey, timeout: 25_000, maxRetries: 0 }) : null;
   }
 
   /** 메시지 배열로 1회 완성. 키 미설정이면 503. maxTokens = 폭주 방지 안전 상한(길이 제어는 프롬프트로). */

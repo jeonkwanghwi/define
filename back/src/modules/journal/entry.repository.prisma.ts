@@ -5,6 +5,7 @@
  * 복합 유니크 키 입력 이름은 Prisma가 자동 생성한 `userId_clientId`.
  */
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma.service';
 import { EntryInput, EntryRecord, EntryRepository } from './entry.repository';
@@ -32,10 +33,22 @@ export class PrismaEntryRepository extends EntryRepository {
       return { created: false };
     }
 
-    await this.prisma.entry.create({
-      data: { userId, clientId: input.clientId, ...data },
-    });
-    return { created: true };
+    try {
+      await this.prisma.entry.create({
+        data: { userId, clientId: input.clientId, ...data },
+      });
+      return { created: true };
+    } catch (e) {
+      // 같은 글을 두 요청이 동시에 만들려 하면 하나는 유니크 충돌(P2002)이 난다 — 이미 생긴 것이니 갱신으로.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        await this.prisma.entry.update({
+          where: { userId_clientId: { userId, clientId: input.clientId } },
+          data,
+        });
+        return { created: false };
+      }
+      throw e;
+    }
   }
 
   async deleteByClientId(userId: string, clientId: string): Promise<void> {

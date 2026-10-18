@@ -185,14 +185,24 @@ export const useAuthStore = create<AuthState>()(
         if (!token) return; // 익명 — 동기화할 서버가 없음
         // 기다리는 사이에 로그아웃·계정 전환이 일어났으면 그 결과는 이미 남의 것이다 — 버린다.
         const stillCurrent = () => get().token === token;
+        // 올리기와 받기를 따로 시도한다 — 한 항목이 거부돼 올리기가 실패해도
+        // 다른 폰의 변경은 계속 받아야 한다. 둘 중 하나라도 실패하면 '동기화 안 됨'.
+        let failed = false;
         try {
           const res = await syncJournal(token);
           if (res.recordBonus && stillCurrent()) get().applyRecordBonus(res.recordBonus);
-          await downloadJournal(token, stillCurrent);
-          if (stillCurrent()) set({ lastSyncedAt: new Date().toISOString(), syncFailedAt: null });
         } catch (e) {
-          console.warn('[auth] 재동기화 실패 (다음 기회에 재시도):', e);
-          if (stillCurrent()) set({ syncFailedAt: new Date().toISOString() });
+          failed = true;
+          console.warn('[auth] 올리기 실패 (다음 기회에 재시도):', e);
+        }
+        try {
+          await downloadJournal(token, stillCurrent);
+        } catch (e) {
+          failed = true;
+          console.warn('[auth] 받기 실패 (다음 기회에 재시도):', e);
+        }
+        if (stillCurrent()) {
+          set(failed ? { syncFailedAt: new Date().toISOString() } : { lastSyncedAt: new Date().toISOString(), syncFailedAt: null });
         }
       },
       setBalance: (balance) => {
