@@ -1,6 +1,6 @@
 /**
- * RecallConsentSheet — tab3 첫 진입 AI 동의 시트(가벼운 1회).
- * 무거운 "데이터 외부 전송" 경고 대신 절제된 안내. CustomWordSheet의 Modal 패턴.
+ * RecallConsentSheet — tab3 첫 진입 AI 동의 시트(1회).
+ * 무엇이 어디로 가는지는 분명히 말하되, 경고문처럼 무겁지 않게. CustomWordSheet의 Modal 패턴.
  */
 import {
   KeyboardAvoidingView,
@@ -58,12 +58,22 @@ export function RecallConsentSheet({
             <ThemedText variant="h3" style={{ marginTop: theme.spacing.s3 }}>
               회상 시작하기
             </ThemedText>
+            {/* 무엇이 · 누구에게 · 어디에 쓰이는지를 동의 전에 분명히 (심사 5.1.2(i)).
+                내용은 개인정보처리방침의 OpenAI 행과 같은 말이어야 한다 — 두 곳이 어긋나면 안 된다. */}
             <ThemedText
               variant="body"
               tone="secondary"
               style={{ marginTop: theme.spacing.s2, textAlign: 'center', lineHeight: 24 }}
             >
-              이 기능은 생성형 AI를 활용해, 그동안 적어온 정의로 그 시절의 나를 되살려요.
+              {'회상 대화를 만들기 위해, 선택한 시기의 정의 글과 대화 내용이 OpenAI로 전송돼요.\n'}
+              {'OpenAI는 이를 답변을 만드는 데만 쓰고, 학습에는 쓰지 않아요.'}
+            </ThemedText>
+            <ThemedText
+              variant="sm"
+              tone="secondary"
+              style={{ marginTop: theme.spacing.s3, textAlign: 'center' }}
+            >
+              동의하지 않으면 회상만 쓸 수 없고, 다른 기능은 그대로예요.
             </ThemedText>
             {error ? (
               <ThemedText
@@ -78,7 +88,7 @@ export function RecallConsentSheet({
               </ThemedText>
             ) : null}
             <Button
-              label="시작하기"
+              label="동의하고 시작하기"
               onPress={onConsent}
               loading={submitting}
               style={{ marginTop: theme.spacing.s5, alignSelf: 'stretch' }}

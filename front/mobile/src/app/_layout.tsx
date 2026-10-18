@@ -11,7 +11,7 @@
  * 화면 위에서 날짜 칩을 가렸기 때문이고, 지금 토스트는 탭바 위 하단이라 가리는 것이 없다.
  */
 import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, useRouter } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LaunchIntro } from '@/components/domain/launch-intro';
 import { ToastProvider, useToast } from '@/components/primitives';
@@ -110,6 +110,8 @@ export default function RootLayout() {
         >
           <View style={{ flex: 1, backgroundColor: theme.colors.paper.base }}>
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
+            {/* Stack 다음에 둔다 — 이동(replace)은 네비게이터가 먼저 그려진 뒤여야 한다. */}
+            <ProfileGate />
             {/* 시작 인트로 — 스플래시가 걷히는 순간부터 화면 위를 덮고, 아래에선 앱이 그대로 준비된다. */}
             <LaunchIntro />
           </View>
@@ -155,6 +157,29 @@ function RecordBonusToast() {
   useEffect(() => {
     if (bonus) show(`${bonus.milestone}일 연속 기록 · 잉크 ${bonus.amount}개가 쌓였어요`);
   }, [bonus, show]);
+
+  return null;
+}
+
+/**
+ * 프로필 미완성 로그인 상태면 어디서든 /profile-setup으로 돌려보낸다.
+ *
+ * 왜: 가입 직후 /profile-setup으로 보내긴 하지만, iOS 뒤로 스와이프나 앱을 껐다 켜는 것으로
+ * 건너뛸 수 있었다. 출생연도를 안 받은 채로 광장·회상을 쓰면 **만 14세 미만 차단이 뚫린다**
+ * (출생연도 목록이 차단을 맡으므로, 이 화면을 반드시 지나야 차단이 의미가 있다).
+ * /auth·/password-reset은 끝나면 스스로 여기로 보내므로 그 흐름 중에는 끼어들지 않는다.
+ */
+function ProfileGate() {
+  const token = useAuthStore((s) => s.token);
+  const incomplete = useAuthStore((s) => s.user != null && !s.user.profileCompleted);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!token || !incomplete) return;
+    if (pathname === '/profile-setup' || pathname === '/auth' || pathname === '/password-reset') return;
+    router.replace('/profile-setup');
+  }, [token, incomplete, pathname, router]);
 
   return null;
 }

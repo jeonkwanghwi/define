@@ -57,6 +57,11 @@ export function clearLocalJournal(): void {
   journal.setOwner(null);
 }
 
+/** 가입 취소 시: 기록은 그대로 두고 주인만 익명으로 되돌린다(계정은 사라졌지만 글은 그 사람 폰의 것). */
+export function releaseLocalOwner(): void {
+  useJournalStore.getState().setOwner(null);
+}
+
 /** 업로드: 로컬 → 서버 (멱등 import). 검증 통과 항목만, 0개면 호출 생략. */
 export async function syncJournal(token: string): Promise<ImportResult> {
   const { entries } = useJournalStore.getState();

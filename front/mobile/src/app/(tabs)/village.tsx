@@ -53,7 +53,8 @@ const DEAD_ZONE = 0.08;
  * **지우지 않고 플래그로 가린다** — 아래 VillageMap과 맵 데이터는 그대로 살아 있어서
  * 이 상수만 true로 바꾸면 즉시 돌아온다.
  */
-const VILLAGE_OPEN = false;
+// 탭바(_layout.tsx)도 이 값을 읽어 탭 자체를 숨긴다 — 스위치는 여기 하나.
+export const VILLAGE_OPEN = false;
 
 export default function VillageScreen() {
   if (!VILLAGE_OPEN) {

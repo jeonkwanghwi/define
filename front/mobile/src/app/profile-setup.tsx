@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChoiceChip } from '@/components/domain/choice-chip';
 import { YearPickerSheet } from '@/components/domain/year-picker-sheet';
-import { Button, FadeIn, PressableScale, useToast } from '@/components/primitives';
+import { Button, ConfirmDialog, FadeIn, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { INTERESTS } from '@/constants/interests';
@@ -24,6 +24,23 @@ export default function ProfileSetupScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const router = useRouter();
+  const cancelSignup = useAuthStore((st) => st.cancelSignup);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  /** 가입 취소 — 서버 계정만 지우고 기록 탭으로. 실패하면 남은 계정이 있으니 말해 준다. */
+  async function handleCancelSignup() {
+    setCancelling(true);
+    try {
+      await cancelSignup();
+      show('가입을 취소했어요');
+      router.replace('/');
+    } catch {
+      show('가입을 취소하지 못했어요. 잠시 후 다시 시도해 주세요', { tone: 'error' });
+    } finally {
+      setCancelling(false);
+    }
+  }
   const updateProfile = useAuthStore((s) => s.updateProfile);
   const { show } = useToast();
 
@@ -97,6 +114,10 @@ export default function ProfileSetupScreen() {
           </ThemedText>
           <Icon name="chevronD" size={18} color={theme.colors.ink.placeholder} />
         </PressableScale>
+        {/* 목록엔 가입 가능한 해만 있다 — 자기 해가 없는 아이가 "왜 없지?"를 바로 알 수 있게. */}
+        <ThemedText variant="caption" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
+          만 14세 이상부터 가입할 수 있어요
+        </ThemedText>
 
         {/* 성별 */}
         <ThemedText variant="h3" style={[styles.label, { marginTop: theme.spacing.s6 }]}>
@@ -154,7 +175,28 @@ export default function ProfileSetupScreen() {
           fullWidth
           style={{ marginTop: missing.length > 0 ? theme.spacing.s3 : theme.spacing.s6 }}
         />
+
+        {/* 출구 — 이 단계는 건너뛸 수 없으니(ProfileGate) 그만두는 길이 꼭 있어야 한다.
+            만 14세 미만은 여기서 끝낼 수 없어 이 버튼으로 나간다. 폰의 기록은 그대로 남는다. */}
+        <Button
+          label="가입 취소"
+          variant="ghost"
+          size="sm"
+          onPress={() => setCancelOpen(true)}
+          disabled={cancelling}
+          style={{ marginTop: theme.spacing.s3, alignSelf: 'center' }}
+        />
       </ScrollView>
+
+      <ConfirmDialog
+        visible={cancelOpen}
+        title="가입을 취소할까요?"
+        message={'계정을 지우고 가입 전처럼 돌아가요.\n이 폰에 쓴 기록은 그대로 남아요.'}
+        confirmLabel={cancelling ? '취소 중…' : '가입 취소'}
+        destructive
+        onConfirm={handleCancelSignup}
+        onClose={() => setCancelOpen(false)}
+      />
 
       {/* 출생연도 선택 시트 */}
       <YearPickerSheet

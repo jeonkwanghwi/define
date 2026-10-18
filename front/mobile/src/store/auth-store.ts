@@ -13,6 +13,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import {
   claimLocalOwner,
+  releaseLocalOwner,
   clearLocalJournal,
   downloadJournal,
   getLocalOwner,
@@ -111,6 +112,12 @@ type AuthState = {
    * 실패 시 throw — 화면이 에러를 보여주고 상태는 그대로 둔다.
    */
   deleteAccount: () => Promise<{ unlinked: string[]; failed: string[] }>;
+  /**
+   * 가입 취소(프로필 설정 단계에서 나가기) — 서버 계정만 지우고 **이 폰의 기록은 남긴다.**
+   * 탈퇴(deleteAccount)와 다른 점: 가입 전에 쓴 글은 원래 그 사람 폰에 있던 것이라 지우면 안 된다.
+   * 만 14세 미만이 프로필 설정에서 갇히지 않게 하는 출구이기도 하다.
+   */
+  cancelSignup: () => Promise<void>;
 };
 
 export const useAuthStore = create<AuthState>()(
@@ -205,6 +212,13 @@ export const useAuthStore = create<AuthState>()(
         clearLocalJournal();
         set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null });
         return result;
+      },
+      cancelSignup: async () => {
+        const token = get().token;
+        if (!token) throw new Error('로그인이 필요합니다.');
+        await deleteAccountApi(token);
+        releaseLocalOwner(); // 기록은 그대로, 주인만 익명으로 되돌린다
+        set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null });
       },
       logout: () => set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null }),
     }),

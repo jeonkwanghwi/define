@@ -12,14 +12,14 @@
   :root {
     --paper: #FCFAF6; --surface: #FFFEFB; --nested: #FBF7F1;
     --ink: #211E1A; --ink-2: #5C564D; --ink-3: #918A7D;
-    --line: #EAE3D7; --point: #2E3192; --point-050: #F2F2F8;
+    --line: #EAE3D7; --point: #8A5A1E; --point-050: #F8F4EE;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --paper: #1A1815; --surface: #262320; --nested: #2E2A26;
       --ink: #EFEAE0; --ink-2: #A59E90; --ink-3: #7C7568;
-      --line: #38332C; --point: #9294C6; --point-050: #0C0D26;
+      --line: #38332C; --point: #C5AD8F; --point-050: #3F3324;
       color-scheme: dark;
     }
   }
@@ -72,7 +72,7 @@
 
   <div class="brand">define</div>
   <h1>개인정보처리방침</h1>
-  <p class="meta">시행일 2026년 10월 11일 · 버전 1.1</p>
+  <p class="meta">시행일 2026년 10월 18일 · 버전 1.2</p>
 
   <p class="lede">
     define은 사용자가 직접 단어를 정의하고, 그 생각이 시간에 따라 어떻게 변하는지 기록하는 앱입니다.
@@ -118,14 +118,22 @@
   <ul>
     <li><strong>기록</strong> — 정의한 단어, 정의 글, 변화 노트, 기록한 시각</li>
     <li><strong>활동</strong> — 좋아요, 출석일, 잉크 잔액</li>
+    <li><strong>신고·차단</strong> — 내가 신고한 정의와 사유, 내가 차단한 사용자</li>
+    <li><strong>광고 보상 기록</strong> — 보상형 광고를 끝까지 봤을 때 Google이 보내는 거래 번호, 지급한 잉크, 시각
+      (<span class="sub">중복 지급과 하루 횟수 제한에만 씁니다</span>)</li>
     <li><strong>회상 말투 요약</strong> — 회상 대화에서 추출한 몇 줄의 문체 특징
       (<span class="sub">대화 원문은 저장하지 않습니다</span>)</li>
     <li><strong>AI 사용량</strong> — 회상 기능의 토큰 수와 비용
       (<span class="sub">대화 내용은 포함되지 않습니다</span>)</li>
+    <li><strong>버그 제보</strong> — 마이페이지 &gt; 버그 제보로 보낸 제목·내용과 함께 닉네임, 이메일(있으면), 회원번호,
+      앱 버전, 운영체제 버전, 기기 모델명이 운영자 메일로 전달됩니다
+      (<span class="sub">원인을 찾는 데만 쓰며, 서버 데이터베이스에는 저장하지 않습니다</span>)</li>
   </ul>
 
   <div class="note">
-    <b>자동으로 수집하지 않는 것</b> — 위치, 연락처, 사진, 광고 식별자, 기기 식별자는 수집하지 않습니다.
+    <b>수집하지 않는 것</b> — define은 위치, 연락처, 사진, 광고 식별자(IDFA), 기기 식별자를 수집하지 않으며,
+    앱 추적 허용(ATT)을 요청하지 않습니다. 광고는 <strong>비개인화 광고</strong>로만 요청합니다.
+    다만 광고를 보여주는 Google AdMob은 광고 표시에 필요한 정보를 직접 수집할 수 있습니다 — 아래 04를 봐주세요.
     기록은 가입 없이도 쓸 수 있으며, 그때는 <strong>기기 안에만</strong> 저장되고 서버로 보내지 않습니다.
   </div>
 
@@ -146,11 +154,17 @@
     <li>기록의 저장·동기화 — 기기를 바꾸거나 앱을 다시 설치해도 단어장이 복원되도록</li>
     <li>광장·마을에서 다른 사용자의 정의를 함께 보는 기능</li>
     <li>회상 기능 — 과거에 쓴 정의로 그 시절의 나와 대화</li>
-    <li>잉크(앱 내 재화) 적립과 사용</li>
+    <li>잉크(앱 내 재화) 적립과 사용 — 보상형 광고 시청 확인 포함</li>
+    <li>신고·차단 처리와 부적절한 글 관리</li>
+    <li>문의·버그 제보 응대</li>
   </ul>
 
   <h2><span class="no">04</span>제3자 제공과 처리위탁</h2>
-  <p>개인정보를 판매하거나 광고 목적으로 제공하지 않습니다. 서비스 운영에 필요한 범위에서만 아래에 맡깁니다.</p>
+  <p>
+    개인정보를 판매하지 않으며, 맞춤형 광고를 위해 다른 회사에 넘기지 않습니다.
+    서비스 운영에 필요한 범위에서만 아래에 맡깁니다. 이 중 Google AdMob은 앱에 들어 있는 광고 도구가
+    기기에서 직접 정보를 수집합니다.
+  </p>
   <div class="scroll">
   <table>
     <tr><th>맡기는 곳</th><th>맡기는 일</th><th>전달되는 것</th></tr>
@@ -163,7 +177,15 @@
       <td>OpenAI</td>
       <td>회상 기능의 대화 생성</td>
       <td><strong>동의한 경우에만</strong> 선택한 시기의 정의 글과 대화 내용<br>
-        <span class="sub">회상을 처음 쓸 때 별도로 동의를 받으며, 동의 전에는 전송하지 않습니다.</span></td>
+        <span class="sub">회상을 처음 쓸 때 별도로 동의를 받으며, 동의 전에는 전송하지 않습니다. OpenAI는 API로 받은 내용을 답변 생성에만 쓰고 모델 학습에 쓰지 않습니다(OpenAI API 데이터 정책).</span></td>
+    </tr>
+    <tr>
+      <td>Google AdMob<br><span class="sub">Google LLC</span></td>
+      <td>보상형 광고 표시(비개인화 광고)와 시청 확인</td>
+      <td>광고를 볼 때 광고 도구가 수집하는 정보 — IP 주소(대략적인 지역 추정), 기기·운영체제 정보,
+        광고 노출·조작 같은 사용 정보, 오류·성능 같은 진단 정보<br>
+        <span class="sub">시청 확인을 위해 define의 회원번호(무작위 문자열)를 함께 전달하며, 이메일·닉네임·기록은 보내지 않습니다.
+        자세한 내용은 <a href="https://policies.google.com/technologies/partner-sites?hl=ko" style="color: var(--point)">Google 파트너 사이트 데이터 사용 방식</a>을 참고해 주세요.</span></td>
     </tr>
     <tr>
       <td>카카오 / Apple</td>
@@ -199,7 +221,10 @@
   </ul>
 
   <h2><span class="no">08</span>만 14세 미만 아동</h2>
-  <p>define은 만 14세 미만 아동의 가입을 받지 않으며, 아동의 개인정보를 의도적으로 수집하지 않습니다.</p>
+  <p>
+    define은 <strong>만 14세 미만은 가입할 수 없으며</strong>, 아동의 개인정보를 의도적으로 수집하지 않습니다.
+    가입 없이 기록 기능은 이용할 수 있고, 이 경우 기록은 <strong>기기 안에만</strong> 저장됩니다.
+  </p>
 
   <h2><span class="no">09</span>개인정보 보호책임자</h2>
   <p>
@@ -215,8 +240,13 @@
     이 방침이 바뀌면 앱 안에서 알리고, 이 페이지의 시행일을 갱신합니다.
     수집 항목이나 이용 목적이 늘어나는 변경은 미리 알리고 동의를 받습니다.
   </p>
+  <ul class="sub">
+    <li>v1.2 (2026-10-18) — Google AdMob(보상형 광고) 처리 내용, 광고 보상·신고·차단·버그 제보 항목 추가</li>
+    <li>v1.1 (2026-10-11) — 출생연도·관심사·성별의 쓰임새를 실제 용도에 맞게 정리</li>
+  </ul>
+  <p class="sub">서비스 이용 규칙은 <a href="./terms.html" style="color: var(--point)">이용약관</a>에 적어두었습니다.</p>
 
-  <footer>define · 개인정보처리방침 v1.1 · 시행일 2026년 10월 11일</footer>
+  <footer>define · 개인정보처리방침 v1.2 · 시행일 2026년 10월 18일 · <a href="./terms.html" style="color: inherit">이용약관</a></footer>
 </div>
 </body>
 </html>

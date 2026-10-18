@@ -18,7 +18,8 @@ export class PrismaVillageRepository extends VillageRepository {
     wordsPerUser: number,
   ): Promise<VillageNeighborRow[]> {
     const users = await this.prisma.user.findMany({
-      where: { id: { not: excludeUserId }, entries: { some: {} } },
+      // 프로필을 마친 계정만 이웃으로(광장과 같은 공개 규칙 — plaza.repository.prisma.ts PROFILED)
+      where: { id: { not: excludeUserId }, entries: { some: {} }, birthYear: { not: null } },
       select: {
         id: true,
         nickname: true,
