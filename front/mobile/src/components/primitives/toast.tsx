@@ -27,7 +27,8 @@ import { Animated, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { darkColors, lightColors, motion, useTheme } from '@/theme';
+import { useSettingsStore } from '@/store/settings-store';
+import { getColors, motion, useTheme } from '@/theme';
 
 /**
  * 표시 시간(ms). 1500이면 손이 화면 아래에 있다가 눈을 올리는 사이에 사라졌다.
@@ -105,6 +106,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
  */
 function ToastView({ message, tone, seq }: { message: string; tone: ToastTone; seq: number }) {
   const theme = useTheme();
+  const palette = useSettingsStore((s) => s.palette); // 에러 점: 반대 모드의 같은 팔레트 루비
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -177,7 +179,7 @@ function ToastView({ message, tone, seq }: { message: string; tone: ToastTone; s
                   // 쪽지 바탕이 반대 테마의 잉크라, 루비도 **반대 테마의 값**을 쓴다.
                   // 그대로 ruby.base를 쓰면 다크에서 밝은 바탕 위 밝은 분홍(2.1:1)이라 안 보인다.
                   backgroundColor:
-                    theme.mode === 'dark' ? lightColors.ruby.base : darkColors.ruby.base,
+                    getColors(palette, theme.mode === 'dark' ? 'light' : 'dark').ruby.base,
                 },
               ]}
             />

@@ -1,20 +1,14 @@
 /**
- * define 디자인 토큰 — 컬러.
+ * define 디자인 토큰 — 컬러의 **모양(Colors 타입)**.
  *
- * tokens.css(design-source)의 라이트/다크 변수를 RN 객체로 옮긴 것.
- * 같은 키 모양(shape)을 가진 두 페어:
- *   - lightColors: warm paper + ink typography (기본)
- *   - darkColors:  warm charcoal + off-white ink (밤 사용 1급 시민)
+ * 실제 색 값은 palettes.ts가 만든다: 팔레트 spec(포인트·중성 계열·경고색) + 라이트/다크 →
+ * buildColors()가 아래 모양의 객체 하나를 돌려준다. 포인트 색을 바꾸려면 palettes.ts만 보면 된다.
  *
  * 컴포넌트는 useTheme()으로 받은 theme.colors.X를 참조하므로,
- * 라이트/다크를 신경 쓰지 않고 "의미"만 쓰면 된다 (예: ink.primary, paper.base).
- *
- * 포인트 색의 다크 모드 값은 색대비 위해 라이트보다 밝게 조정됨
- * (원래 CSS color-mix(pt 60% + white 40%) 등을 미리 계산해서 박은 값).
+ * 라이트/다크·팔레트를 신경 쓰지 않고 "의미"만 쓰면 된다 (예: ink.primary, paper.base).
  */
 
-// 색 shape를 명시적으로 정의 — 라이트/다크가 같은 키를 가지도록 강제하고
-// (`as const`로 잡힌 hex literal이 양쪽 충돌하는 것을 막음)
+// 색 shape를 명시적으로 정의 — 모든 팔레트·모드가 같은 키를 가지도록 강제
 export type Colors = {
   paper: { base: string; recessed: string };
   surface: { base: string; nested: string };
@@ -33,92 +27,4 @@ export type Colors = {
   ruby: { base: string; soft: string };
   /** 모달/시트 뒤 어둡게 덮는 배경(반투명). 라이트=웜 차콜, 다크=더 진하게. */
   scrim: string;
-};
-
-// ---- Light theme: warm paper + ink ----
-export const lightColors: Colors = {
-  paper: {
-    base: '#FCFAF6', // 페이지 배경 — 가장 따뜻한 톤
-    recessed: '#F5EFE6', // 안쪽 영역 (살짝 깊은 느낌)
-  },
-  surface: {
-    base: '#FFFEFB', // 카드 표면
-    nested: '#FBF7F1', // 카드 안의 또 다른 영역
-  },
-  ink: {
-    primary: '#211E1A', // 본문 텍스트 — 따뜻한 거의 검정
-    strong: '#423D36',
-    secondary: '#5C564D', // 2차 정보
-    // 3차/플레이스홀더. 캡션(12px) 34곳이 이 색을 쓴다 — 장식이 아니라 **정보를 나르는 글자**다.
-    // 전에는 #918A7D(3.2:1)라 WCAG AA(작은 글자 4.5:1)에 못 미쳤다. 색조·채도는 그대로 두고
-    // 명도만 낮춰 4.5:1을 넘겼다. primary·strong·secondary와의 위계는 그대로다.
-    placeholder: '#736C61',
-    onPoint: '#FFFFFF', // p600 위 10.7:1
-    onRuby: '#FFFFFF', // ruby.base 위 5.2:1
-  },
-  line: {
-    base: '#EAE3D7', // 헤어라인 보더 (따뜻한 톤)
-    strong: '#DDD4C5',
-  },
-  // 포인트 색 — 슬로건 "각자의 정의"를 상징하는 단일 포인트 (딥 인디고 #2E3192)
-  point: {
-    p700: '#252775', // 80% pt + 20% black
-    p600: '#2E3192', // base
-    p500: '#6062AC', // 76% pt + 24% white
-    p300: '#AFB1D5',
-    p100: '#E4E4F1',
-    p050: '#F2F2F8',
-  },
-  // 루비 (재화) — 포인트와 명확히 구분된 별도 액센트.
-  // 실제로는 **에러 문구가 이 색의 주 사용처**다(동기화 실패·탈퇴 실패·인증번호 오류…).
-  // 전에는 #D6456A(4.1:1)라 가장 읽혀야 할 글자가 기준 미달이었다 → 4.5:1을 넘기게 낮췄다.
-  ruby: {
-    base: '#CC2D56',
-    soft: '#FBE6EC',
-  },
-  scrim: 'rgba(20,18,15,0.45)',
-};
-
-// ---- Dark theme: warm charcoal + off-white ----
-export const darkColors: Colors = {
-  paper: {
-    base: '#1A1815', // warm charcoal
-    recessed: '#211E1A',
-  },
-  surface: {
-    base: '#262320',
-    nested: '#2E2A26',
-  },
-  ink: {
-    primary: '#EFEAE0', // warm off-white
-    strong: '#CFC8BB',
-    secondary: '#A59E90',
-    // 라이트와 같은 이유로 올렸다(3.1~3.9:1 → 4.5:1 이상).
-    placeholder: '#989184',
-    // 다크의 p600·ruby는 밝은 파스텔이라 흰 글자가 묻힌다 → 페이지 바탕색 잉크로 뒤집는다.
-    onPoint: '#1A1815', // p600 위 6.1:1
-    onRuby: '#1A1815', // ruby.base 위 7.2:1
-  },
-  line: {
-    base: '#38332C',
-    strong: '#463F36',
-  },
-  // 다크에서는 흰색을 섞어 가독성 확보 (라이트의 p값과 의미적으로 같지만 hex 다름)
-  point: {
-    // p700은 "옅은 포인트 바탕(p100) 위의 글자"로 쓰인다. 다크에선 강조 = 더 밝게라서
-    // p600보다 밝아야 위계가 맞다. 구 #6D6FB3은 새 p100 위에서 2.7:1이라 올렸다(→5.2:1).
-    p700: '#A4A6D8',
-    p600: '#9294C6', // 52% pt + 48% white
-    p500: '#8284BE',
-    p300: '#4A4C7E', // 옅은 포인트(옛 dot·빈 상태 아이콘·좋아요 보더) — 구 #1C1D58은 배경과 동화되어 안 보였음
-    // 옅은 포인트 바탕(soft 버튼·선택 표시). 구 #111337/#0C0D26은 카드(surface)보다 **어두워서**
-    // 선택한 자리가 구멍처럼 꺼져 보였다. 인디고 색조는 그대로, 명도만 surface.nested 위로 올렸다.
-    p100: '#30325A',
-    p050: '#2A2B47',
-  },
-  ruby: {
-    base: '#EE85A0',
-    soft: '#3A2730',
-  },
-  scrim: 'rgba(0,0,0,0.6)',
 };

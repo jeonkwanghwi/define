@@ -52,7 +52,7 @@ export const lightShadows: Shadows = {
     elevation: 6,
   },
   point: {
-    shadowColor: '#2E3192',
+    shadowColor: '#000000', // 자리표시 — useTheme()가 고른 팔레트의 p600으로 덮어쓴다(index.ts)
     shadowOpacity: 0.28,
     shadowOffset: { width: 0, height: 12 },
     shadowRadius: 30,
