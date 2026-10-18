@@ -29,7 +29,7 @@ export function NeighborSheet({ neighbor, onClose }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       {/* 바깥 어둡게 + 탭하면 닫힘 */}
-      <Pressable style={styles.scrim} onPress={onClose} />
+      <Pressable style={[styles.scrim, { backgroundColor: theme.colors.scrim }]} onPress={onClose} />
 
       <View
         style={[
@@ -39,7 +39,8 @@ export function NeighborSheet({ neighbor, onClose }: Props) {
         // 시트 내부 탭이 scrim까지 전달돼 닫히는 것 방지
         onStartShouldSetResponder={() => true}
       >
-        <View style={styles.handle} />
+        {/* 손잡이는 다른 시트들과 같은 토큰 — 하드코딩한 반투명 검정은 다크 바탕에서 사라졌다. */}
+        <View style={[styles.handle, { backgroundColor: theme.colors.line.strong }]} />
 
         <View style={styles.head}>
           <ThemedText variant="h3">{neighbor?.nickname}</ThemedText>
@@ -76,7 +77,7 @@ export function NeighborSheet({ neighbor, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.35)' },
+  scrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   sheet: {
     position: 'absolute',
     left: 0,
@@ -86,7 +87,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 32,
   },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#00000022', marginBottom: 12 },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 12 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   closeBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   card: { borderWidth: 1, paddingVertical: 14, paddingHorizontal: 16 },

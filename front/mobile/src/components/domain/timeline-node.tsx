@@ -81,7 +81,8 @@ export function TimelineNode({
   clampLines,
 }: TimelineNodeProps) {
   const theme = useTheme();
-  const dotBorderColor = isNow ? theme.colors.point.p600 : theme.colors.point.p300;
+  // 지난 점은 회색 — p300은 바탕과 2:1이라 다크에서 사라졌다. '지금'만 포인트로 남겨 구분한다.
+  const dotBorderColor = isNow ? theme.colors.point.p600 : theme.colors.ink.placeholder;
 
   // ─── 진입 연출: 세로선이 시간 타고 위→아래로 그려지고, 변화 지점 dot이 살짝 펄스 ───
   // 기본값은 "완성 상태"(선 scaleY=1, dot scale=1)라 reduced-motion이거나 연출이 실패해도 정상 표시.

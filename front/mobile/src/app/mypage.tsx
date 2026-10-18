@@ -7,6 +7,7 @@
  * 범위 (P0+P1):
  *   - 프로필: 닉네임(서버 저장·중복 방지, 로그인 필요) + 실제 기록 통계. 탭하면 닉네임 시트.
  *   - 화면: ThemeModeToggle (라이트/다크/시스템) — 다크 모드 복원 입구.
+ *   - 테마: PalettePicker — 포인트 색 계열(호박·와인·쪽빛…) 고르기.
  *   - 설정: 닉네임 변경 / 진동 피드백 on-off / 알림(준비 중)
  *   - 지원: 버그 제보 (시트에 제목·내용 → 서버가 운영자 메일로. 로그인 필요) /
  *           차단한 사용자 (목록 시트에서 해제 — 차단만 되고 풀 수 없으면 불친절하다) / 개인정보처리방침
@@ -22,7 +23,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Device from 'expo-device';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { BugReportSheet } from '@/components/domain/bug-report-sheet';
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
@@ -33,7 +34,8 @@ import { ActionSheet, Button, ConfirmDialog, FadeIn, PressableScale, useToast } 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
-import { hapticError, hapticSuccess, hapticWarning } from '@/lib/haptics';
+import { hapticError, hapticSuccess, hapticTap, hapticWarning } from '@/lib/haptics';
+import { toSuffix } from '@/lib/korean';
 import { API_BASE } from '@/services/api-client';
 import { sendFeedback } from '@/services/feedback-api';
 import {
@@ -44,7 +46,7 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStats, useJournalStreak } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
-import { useTheme } from '@/theme';
+import { getColors, PALETTE_IDS, PALETTES, useTheme, type PaletteId } from '@/theme';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
@@ -117,6 +119,17 @@ export default function MyPageScreen() {
   const haptics = useSettingsStore((s) => s.haptics);
   const setHaptics = useSettingsStore((s) => s.setHaptics);
   const themeMode = useSettingsStore((s) => s.themeMode);
+  const palette = useSettingsStore((s) => s.palette);
+  const setPalette = useSettingsStore((s) => s.setPalette);
+
+  // 바뀐 건 앱 전체 색이 바로 보여준다 — 토스트는 "무엇으로" 바뀌었는지 말만 한다.
+  function choosePalette(id: PaletteId) {
+    if (id === palette) return;
+    setPalette(id);
+    hapticTap();
+    const { label } = PALETTES[id];
+    show(`테마를 ${label}${toSuffix(label)} 바꿨어요`);
+  }
 
   /**
    * 진동 켜기/끄기 — 스위치 하나만 바뀌면 눈치채기 어렵다. 켜면 **실제로 한 번 울려**
@@ -406,9 +419,26 @@ export default function MyPageScreen() {
               ? `기기 설정을 따라요 · 지금은 ${theme.mode === 'dark' ? '다크' : '라이트'}`
               : themeMode === 'dark'
                 ? '밤에도 눈이 편한 다크 톤이에요'
-                : '따뜻한 페이퍼 톤이에요'}
+                : '낮에 읽기 편한 밝은 화면이에요'}
           </ThemedText>
         </FadeIn>
+
+        {/* ─── 테마 (포인트 색) ─── */}
+        <SectionLabel theme={theme} text="테마" />
+        <View style={styles.swatchRow} accessibilityRole="radiogroup">
+          {PALETTE_IDS.map((id) => (
+            <PaletteSwatch
+              key={id}
+              theme={theme}
+              id={id}
+              selected={id === palette}
+              onPress={() => choosePalette(id)}
+            />
+          ))}
+        </View>
+        <ThemedText variant="caption" tone="placeholder" style={{ marginTop: theme.spacing.s2 }}>
+          버튼·강조에 쓰이는 포인트 색을 바꿔요
+        </ThemedText>
 
         {/* ─── 설정 ─── */}
         <SectionLabel theme={theme} text="설정" />
@@ -653,6 +683,7 @@ export default function MyPageScreen() {
           '이 폰에 저장된 것까지요.'
         }
         confirmLabel="다음"
+        destructive // "모두 사라져요"라는 말과 버튼 색을 맞춘다 — 평범한 다음처럼 보이면 가볍게 누른다
         onConfirm={() => setDeleteStep(2)}
         onClose={() => setDeleteStep(0)}
       />
@@ -694,7 +725,7 @@ function SectionLabel({ theme, text }: { theme: Theme; text: string }) {
     <ThemedText
       variant="caption"
       style={{
-        color: theme.colors.point.p600,
+        color: theme.colors.ink.secondary, // 누를 수 없는 제목 — 포인트는 누르는 것·선택된 것에만
         letterSpacing: 1.5,
         textTransform: 'uppercase',
         marginTop: theme.spacing.s8,
@@ -703,6 +734,69 @@ function SectionLabel({ theme, text }: { theme: Theme; text: string }) {
     >
       {text}
     </ThemedText>
+  );
+}
+
+/**
+ * 팔레트 하나 — 그 팔레트의 p600(지금 모드 기준)으로 칠한 동그라미 + 이름.
+ * 고른 것: 진한 잉크 테 + 체크 / 나머지: 옅은 헤어라인 테. 테는 스르륵 바뀐다.
+ */
+function PaletteSwatch({
+  theme,
+  id,
+  selected,
+  onPress,
+}: {
+  theme: Theme;
+  id: PaletteId;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const colors = getColors(id, theme.mode); // 그 팔레트의 색(지금 모드)
+  const on = useRef(new Animated.Value(selected ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(on, {
+      toValue: selected ? 1 : 0,
+      duration: theme.motion.duration.base,
+      easing: theme.motion.easing.standard,
+      useNativeDriver: true,
+    }).start();
+  }, [selected, on, theme.motion]);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityLabel={PALETTES[id].label}
+      accessibilityState={{ selected, checked: selected }}
+      style={styles.swatchCell}
+    >
+      <View style={[styles.swatchRing, { borderColor: theme.colors.line.strong }]}>
+        {/* 고른 테는 헤어라인 위에 겹쳐 두고 투명도만 바꾼다(테 굵기를 애니메이션하면 동그라미가 출렁인다) */}
+        <Animated.View
+          style={[
+            styles.swatchRing,
+            styles.swatchRingOn,
+            { borderColor: theme.colors.ink.primary, opacity: on },
+          ]}
+        />
+        <View style={[styles.swatchDot, { backgroundColor: colors.point.p600 }]}>
+          <Animated.View style={{ opacity: on }}>
+            <Icon name="check" size={16} color={colors.ink.onPoint} />
+          </Animated.View>
+        </View>
+      </View>
+      <ThemedText
+        variant="caption"
+        numberOfLines={1}
+        style={{
+          marginTop: theme.spacing.s2,
+          color: selected ? theme.colors.ink.primary : theme.colors.ink.secondary,
+        }}
+      >
+        {PALETTES[id].label}
+      </ThemedText>
+    </Pressable>
   );
 }
 
@@ -850,6 +944,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+
+  // 6개가 한 줄 — 360pt 폰(본문 폭 312)에 50×6=300으로 들어간다. 더 좁으면 줄바꿈.
+  swatchRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
+  swatchCell: { width: 50, alignItems: 'center' },
+  swatchRing: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+    // 바깥 테 안쪽 기준으로 놓이니 헤어라인만큼 당겨 같은 자리에 겹친다
+  swatchRingOn: {
+    position: 'absolute',
+    top: -StyleSheet.hairlineWidth,
+    left: -StyleSheet.hairlineWidth,
+    borderWidth: 2,
+  },
+  swatchDot: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   group: {

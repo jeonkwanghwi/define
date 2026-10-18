@@ -62,7 +62,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
               ? theme.colors.ruby.base
               : focused
                 ? theme.colors.point.p500
-                : theme.colors.line.base,
+                : theme.colors.line.strong, // base는 시트 위에서 1.2:1로 묻혔다
             borderRadius: theme.radii.md,
           },
           // multiline일 때만 좀 더 큰 기본 높이 + 안드로이드 상단 정렬

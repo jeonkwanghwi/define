@@ -19,6 +19,19 @@ export function topicSuffix(word: string): '이란' | '란' {
   return (code - 0xac00) % 28 > 0 ? '이란' : '란';
 }
 
+/**
+ * '으로' / '로' 선택 — 받침이 있으면 '으로', 없거나 ㄹ받침이면 '로'(예: 호박으로, 코발트로, 연필로).
+ * 한글 음절이 아니면 '로'.
+ */
+export function toSuffix(word: string): '으로' | '로' {
+  const last = word[word.length - 1];
+  if (!last) return '로';
+  const code = last.charCodeAt(0);
+  if (code < 0xac00 || code > 0xd7a3) return '로';
+  const jong = (code - 0xac00) % 28; // 8 = ㄹ
+  return jong === 0 || jong === 8 ? '로' : '으로';
+}
+
 // ─── 단어 검색 (초성·입력 중인 글자 포함) ───
 
 // 초성 19개 / 종성 28개(0 = 받침 없음)를 "호환 자모"(ㄱ U+3131~)로 적은 표.

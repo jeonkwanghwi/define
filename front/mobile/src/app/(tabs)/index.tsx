@@ -576,7 +576,7 @@ export default function RecordScreen() {
             <ThemedText variant="caption" tone="secondary">
               {formatKoreanDate(today)}
             </ThemedText>
-            <View style={[styles.todayBadge, { backgroundColor: theme.colors.point.p050 }]}>
+            <View style={[styles.todayBadge, { backgroundColor: theme.colors.point.p100 }]}>
               <ThemedText variant="caption" style={{ color: theme.colors.point.p600 }}>
                 오늘
               </ThemedText>

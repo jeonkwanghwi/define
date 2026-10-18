@@ -42,7 +42,8 @@ export function WordRow({ item, onPress, highlight }: WordRowProps) {
                 // 중첩 Text는 한 줄 안에서 색만 바꾼다(레이아웃 그대로).
                 <>
                   {item.word.slice(0, highlight.start)}
-                  <ThemedText variant="h3" style={{ color: theme.colors.point.p600 }}>
+                  {/* 글자색만 바꾸면 다크에선 주변 글자보다 어두워 '흐려진' 걸로 읽힌다 → 배지처럼 바탕을 깐다. */}
+                  <ThemedText variant="h3" style={{ color: theme.colors.point.p700, backgroundColor: theme.colors.point.p100 }}>
                     {item.word.slice(highlight.start, highlight.end)}
                   </ThemedText>
                   {item.word.slice(highlight.end)}
@@ -52,7 +53,7 @@ export function WordRow({ item, onPress, highlight }: WordRowProps) {
               )}
             </ThemedText>
             {isToday ? (
-              <View style={[styles.badge, { backgroundColor: theme.colors.point.p050 }]}>
+              <View style={[styles.badge, { backgroundColor: theme.colors.point.p100 }]}>
                 <ThemedText variant="caption" style={{ color: theme.colors.point.p600 }}>
                   오늘
                 </ThemedText>
@@ -87,7 +88,7 @@ export function WordRow({ item, onPress, highlight }: WordRowProps) {
           <View style={styles.metaRow}>
             {/* 다시 정의한 단어만 표시 — 한 번뿐인 단어까지 "1"을 달면 신호가 묽어진다. */}
             {count >= 2 ? (
-              <View style={[styles.badge, { backgroundColor: theme.colors.point.p050 }]}>
+              <View style={[styles.badge, { backgroundColor: theme.colors.point.p100 }]}>
                 <ThemedText variant="caption" style={{ color: theme.colors.point.p700, fontWeight: '600' }}>
                   {count}번
                 </ThemedText>
