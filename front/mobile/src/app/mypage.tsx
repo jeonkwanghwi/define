@@ -10,7 +10,7 @@
  *   - 테마: PalettePicker — 포인트 색 계열(호박·와인·쪽빛…) 고르기.
  *   - 설정: 닉네임 변경 / 진동 피드백 on-off / 알림(준비 중)
  *   - 지원: 버그 제보 (시트에 제목·내용 → 서버가 운영자 메일로. 로그인 필요) /
- *           차단한 사용자 (목록 시트에서 해제 — 차단만 되고 풀 수 없으면 불친절하다) / 개인정보처리방침
+ *           차단한 사용자 (목록 시트에서 해제 — 차단만 되고 풀 수 없으면 불친절하다) / 이용약관 / 개인정보처리방침
  *   - 곧 만나요: 프리미엄 테마·폰트 (BM 로드맵, 비활성). PDF 내보내기는 단어장 탭으로 이동함
  *   - 버전 정보
  *
@@ -19,7 +19,6 @@
  *   - "데이터 초기화" → Task #14에서 디버그 편의로 판정되어 제거 확정. 정식 "전체 삭제"는 P2로 분리.
  */
 import Constants from 'expo-constants';
-import * as WebBrowser from 'expo-web-browser';
 import * as Device from 'expo-device';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
@@ -36,6 +35,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
 import { hapticError, hapticSuccess, hapticTap, hapticWarning } from '@/lib/haptics';
 import { toSuffix } from '@/lib/korean';
+import { DOCS_ORIGIN, openDoc } from '@/lib/open-doc';
 import { API_BASE } from '@/services/api-client';
 import { sendFeedback } from '@/services/feedback-api';
 import {
@@ -49,45 +49,6 @@ import { useSettingsStore } from '@/store/settings-store';
 import { getColors, PALETTE_IDS, PALETTES, useTheme, type PaletteId } from '@/theme';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
-
-/**
- * 방침 페이지가 올라가는 웹 주소 — API_BASE에서 '/api'를 떼어 만든다.
- * 둘이 같은 CloudFront 배포라 주소가 갈라질 일이 없다.
- */
-/**
- * 지원·방침 문서가 사는 곳. API 주소에서 끌어 쓰지 않고 **브랜드 도메인을 박는다.**
- *
- * 앱 안 브라우저 시트는 상단에 도메인을 보여준다. 거기 'd2kejc3sjm91mt.cloudfront.net'이
- * 뜨면 방침 문서가 미덥지 않아 보인다 — 하필 신뢰를 보여줘야 하는 자리다.
- * 스토어에 적은 지원·방침 URL과도 같은 주소가 된다(같은 CloudFront가 서빙한다).
- *
- * 앱↔서버 통신 주소(API_BASE)는 그대로 둔다 — 카카오 콘솔에 등록된 redirect URI가
- * 그 주소라 바꾸면 카카오 로그인이 깨진다.
- */
-const DOCS_ORIGIN = 'https://defineink.com';
-
-/**
- * 지원·방침 문서를 **앱 안에서** 연다(iOS: SFSafariViewController가 시트로 올라온다).
- *
- * 전에는 Linking.openURL로 Safari를 띄웠다 — 앱 밖으로 튕겨 나가고, 돌아오려면
- * 앱 전환을 해야 했다. 방침을 한 번 확인하려다 쓰던 흐름이 끊긴다.
- *
- * 문서 자체를 앱에 넣지 않는 이유: privacy.html·support.html은 **웹 빌드와 함께
- * 배포돼 앱 업데이트 없이 고칠 수 있다.** 앱 안에 복사해 두면 문구 한 줄 고치는 데
- * 심사를 받아야 하고, 스토어에 적은 URL과 앱 안 내용이 **어긋날 수 있다**
- * (방침이 두 벌 생기는 건 그 자체로 위험하다).
- */
-function openDoc(url: string, theme: Theme) {
-  void WebBrowser.openBrowserAsync(url, {
-    // 전체 화면이 아니라 시트로 — "잠깐 보고 덮는 것"이라는 뜻이 모양에 있어야 한다.
-    presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-    toolbarColor: theme.colors.paper.base,
-    controlsColor: theme.colors.point.p600,
-    dismissButtonStyle: 'close',
-  }).catch(() => {
-    // 브라우저를 못 띄우는 건 사실상 없다. 떠도 조용히 넘긴다 — 여기서 막을 일이 아니다.
-  });
-}
 
 /**
  * 아직 만들지 않은 메뉴를 가린다 (2026-10-12).
@@ -567,6 +528,14 @@ export default function MyPageScreen() {
             icon="help"
             label="고객 지원"
             onPress={() => openDoc(`${DOCS_ORIGIN}/support.html`, theme)}
+          />
+          <Divider theme={theme} />
+          {/* 가입 화면에서 "동의하게 돼요"라고 말한 문서 — 가입 뒤에도 다시 열어볼 수 있어야 한다. */}
+          <Row
+            theme={theme}
+            icon="book"
+            label="이용약관"
+            onPress={() => openDoc(`${DOCS_ORIGIN}/terms.html`, theme)}
           />
           <Divider theme={theme} />
           {/* 수집 항목·공개 범위를 사용자가 확인할 수 있어야 한다(스토어 심사 요건이기도 하다).

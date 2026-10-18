@@ -23,6 +23,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { AppleCanceled, getAppleCredential, isAppleAuthAvailable } from '@/lib/apple-auth';
 import { hapticError, hapticSuccess } from '@/lib/haptics';
 import { KakaoCanceled, useKakaoAuth } from '@/lib/kakao-auth';
+import { DOCS_ORIGIN, openDoc } from '@/lib/open-doc';
 import { type ApiError, userFacingMessage } from '@/services/api-client';
 import { requestEmailCode } from '@/services/auth-api';
 import { useAuthStore } from '@/store/auth-store';
@@ -447,6 +448,8 @@ export default function AuthScreen() {
                   </ThemedText>
                 </FadeIn>
               ) : null}
+
+              <TermsNote />
             </View>
 
             {/* 반대 모드로 가는 작은 링크 — 회원가입은 로그인 방법 고르기 전 결정 → 하단에.
@@ -636,6 +639,8 @@ export default function AuthScreen() {
                 style={{ marginTop: theme.spacing.s5 }}
               />
 
+              {isSignup ? <TermsNote /> : null}
+
               {/* 로그인 폼에서 신규 유저용 회원가입 링크(가입 폼은 chooser 하단에서 진입). */}
               {!isSignup ? (
                 <PressableScale
@@ -680,6 +685,45 @@ function mapAuthError(e: unknown): string {
 
 /** 가입하면 비로그인 때 쓴 정의가 광장으로 가져와진다 — 가입 화면 두 곳(방법 선택·이메일 폼)에서 같은 말. */
 const SIGNUP_PUBLISH_NOTE = '가입하면 지금까지 쓴 정의가 광장에 함께 올라가요';
+
+/**
+ * 가입 버튼 아래 약관 동의 한 줄 (Apple 심사 1.2 — 남이 쓴 글이 보이는 앱은 가입 때
+ * 약관에 동의받고, 불쾌한 글을 용납하지 않는다는 걸 알려야 한다).
+ * 체크박스 대신 "누르면 동의"로 — 가입 버튼을 누르는 행동이 곧 동의다(흔한 묵시적 동의 방식).
+ * 차분하게 caption·secondary로 두되, 두 문서 이름은 눌러서 바로 열 수 있게.
+ */
+function TermsNote() {
+  const theme = useTheme();
+  // Text 안의 Text는 같은 줄에서 이어 흐르고, 따로 onPress를 받는다 — 문장 중간 링크에 딱 맞다.
+  const link = { color: theme.colors.point.p600, fontWeight: '700' as const };
+  return (
+    <ThemedText
+      variant="caption"
+      tone="secondary"
+      style={{ marginTop: theme.spacing.s5, textAlign: 'center' }}
+    >
+      가입하면{' '}
+      <ThemedText
+        variant="caption"
+        style={link}
+        onPress={() => openDoc(`${DOCS_ORIGIN}/terms.html`, theme)}
+        accessibilityRole="link"
+      >
+        이용약관
+      </ThemedText>
+      과{' '}
+      <ThemedText
+        variant="caption"
+        style={link}
+        onPress={() => openDoc(`${DOCS_ORIGIN}/privacy.html`, theme)}
+        accessibilityRole="link"
+      >
+        개인정보처리방침
+      </ThemedText>
+      에 동의하게 돼요.{'\n'}광장에 불쾌하거나 해로운 글은 올릴 수 없어요.
+    </ThemedText>
+  );
+}
 
 /** 카카오 브랜드 가이드가 정한 노란 배경 위 글자·로고 색. 배경은 #FEE500. */
 const KAKAO_INK = '#191600';

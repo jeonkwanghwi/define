@@ -6,7 +6,9 @@
  *   - report/block/unblock/listBlocked: 중재(Apple 심사 가이드 1.2). 전부 멱등.
  * 닉네임 없으면 '익명'.
  */
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+
+import { MailService } from '../auth/mail.service';
 
 import {
   PlazaBlockedUsersResponse,
@@ -38,7 +40,12 @@ export const PLAZA_DEFINITION_PAGE = 10;
 
 @Injectable()
 export class PlazaService {
-  constructor(private readonly repo: PlazaRepository) {}
+  private readonly logger = new Logger(PlazaService.name);
+
+  constructor(
+    private readonly repo: PlazaRepository,
+    private readonly mail: MailService,
+  ) {}
 
   async listWords(userId: string): Promise<PlazaWordResponse[]> {
     const rows = await this.repo.listWordsWithCounts(PLAZA_WORD_LIMIT, userId);
@@ -111,7 +118,27 @@ export class PlazaService {
     if (ownerId === userId) {
       throw new BadRequestException('내 정의는 신고할 수 없어요.');
     }
-    await this.repo.addReport(userId, entryId, reason, REPORT_HIDE_THRESHOLD);
+    const reported = await this.repo.addReport(userId, entryId, reason, REPORT_HIDE_THRESHOLD);
+    if (!reported) return; // 재신고 — 같은 메일을 또 보낼 이유가 없다
+
+    // 운영자에게 바로 알린다(심사 1.2 — 신고에 "제때" 대응해야 한다. 자동 감춤만으로는 부족하다).
+    // 메일이 실패해도 신고는 이미 저장됐다 → 사용자에게 실패를 돌려주지 않고 로그만 남긴다.
+    // await는 한다: 응답이 조금 늦어도 메일이 정말 나갔는지를 이 요청 안에서 확정하는 편이 단순하다.
+    const text = [
+      `정의 id: ${entryId}`,
+      `단어: ${reported.word}`,
+      `글(앞 200자): ${reported.text.slice(0, 200)}`,
+      `사유: ${reason}`,
+      `신고한 사람 userId: ${userId}`,
+      `누적 신고: ${reported.reportCount}건 (${REPORT_HIDE_THRESHOLD}건이면 자동 감춤)`,
+      `자동 감춤: ${reported.hidden ? '감춰짐' : '아직 보임'}`,
+      `받은 시각(KST): ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`,
+    ].join('\n');
+    try {
+      await this.mail.sendSupport(`[define 신고] ${reported.word}`, text);
+    } catch (e) {
+      this.logger.error(`신고 알림 메일 실패 (entry ${entryId})`, e instanceof Error ? e.stack : e);
+    }
   }
 
   /** 차단. 자기 자신은 400(의미 없다). 이미 차단했으면 그대로 성공. */

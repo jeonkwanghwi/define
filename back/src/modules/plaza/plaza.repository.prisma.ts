@@ -15,7 +15,15 @@ import {
   PlazaRepository,
   PlazaStatsRow,
   PlazaWordCount,
+  ReportedEntry,
 } from './plaza.repository';
+
+/**
+ * 프로필 설정(출생연도 등)을 마친 계정의 글만 공개한다.
+ * 가입 순간 폰의 기록이 서버로 올라가므로, 프로필을 안 마친 계정(만 14세 미만이 가입만 누르고
+ * 나간 경우 포함)의 글이 광장에 뜨면 안 된다. 출생연도는 프로필 설정에서만 채워진다.
+ */
+const PROFILED = Prisma.sql`AND e."userId" IN (SELECT id FROM users WHERE "birthYear" IS NOT NULL)`;
 
 @Injectable()
 export class PrismaPlazaRepository extends PlazaRepository {
@@ -45,7 +53,7 @@ export class PrismaPlazaRepository extends PlazaRepository {
              (COUNT(*) FILTER (WHERE e."userId" = ${me}))::int AS "myCount",
              MAX(e."savedAt") AS "lastActivityAt"
       FROM entries e
-      WHERE e.hidden = false ${notBlocked}
+      WHERE e.hidden = false ${notBlocked} ${PROFILED}
       GROUP BY e.word
       ORDER BY MAX(e."savedAt") DESC, COUNT(*) DESC
       LIMIT ${limit}
@@ -72,7 +80,7 @@ export class PrismaPlazaRepository extends PlazaRepository {
         FROM entries e
         JOIN users u ON u.id = e."userId"
         LEFT JOIN likes l ON l."entryId" = e.id
-        WHERE e.word = ANY(${wordList}) AND e.hidden = false ${notBlocked}
+        WHERE e.word = ANY(${wordList}) AND e.hidden = false ${notBlocked} ${PROFILED}
         GROUP BY e.id, e.word, e."userId", u.nickname, e.text, e."savedAt"
       ) t
       WHERE rn <= 2
@@ -109,7 +117,7 @@ export class PrismaPlazaRepository extends PlazaRepository {
     // 사용자는 그걸 버그로 읽는다.
     const visible = {
       hidden: false,
-      user: { blocksReceived: { none: { blockerId: userId } } },
+      user: { blocksReceived: { none: { blockerId: userId } }, birthYear: { not: null } },
     };
     const notBlocked = Prisma.sql`AND e."userId" NOT IN (SELECT "blockedId" FROM blocks WHERE "blockerId" = ${userId})`;
 
@@ -137,13 +145,13 @@ export class PrismaPlazaRepository extends PlazaRepository {
     const topLiked = await this.prisma.$queryRaw<{ word: string; likeCount: number }[]>`
       SELECT e.word, COUNT(l.id)::int AS "likeCount"
       FROM entries e JOIN likes l ON l."entryId" = e.id
-      WHERE e.hidden = false ${notBlocked}
+      WHERE e.hidden = false ${notBlocked} ${PROFILED}
       GROUP BY e.word ORDER BY COUNT(l.id) DESC LIMIT 1
     `;
     const mostDefined = await this.prisma.$queryRaw<{ word: string; count: number }[]>`
       SELECT e.word, COUNT(*)::int AS count
       FROM entries e
-      WHERE e.hidden = false ${notBlocked}
+      WHERE e.hidden = false ${notBlocked} ${PROFILED}
       GROUP BY e.word ORDER BY COUNT(*) DESC LIMIT 1
     `;
     const topLikedWord = topLiked[0] ?? null;
@@ -170,7 +178,7 @@ export class PrismaPlazaRepository extends PlazaRepository {
       where: {
         word,
         hidden: false,
-        user: { blocksReceived: { none: { blockerId: userId } } },
+        user: { blocksReceived: { none: { blockerId: userId } }, birthYear: { not: null } },
         userId: page.mine ? userId : { not: userId },
       },
       // 정렬을 DB가 해야 skip/take가 "좋아요 상위 N개"가 된다. id는 동점 순서를 고정하는 마지막 기준.
@@ -228,25 +236,27 @@ export class PrismaPlazaRepository extends PlazaRepository {
     entryId: string,
     reason: string,
     hideThreshold: number,
-  ): Promise<void> {
+  ): Promise<ReportedEntry | null> {
     // 신고 1건과 카운터 증가가 따로 커밋되면 숫자가 어긋난다 → 한 트랜잭션.
-    await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       // createMany + skipDuplicates: (reporterId, entryId) 유니크에 걸리면 조용히 0건.
       // 재신고로 카운트가 부풀지 않는다 — upsert보다 "중복이면 아무 일도 없음"이 직접적이다.
       const { count } = await tx.report.createMany({
         data: [{ reporterId, entryId, reason }],
         skipDuplicates: true,
       });
-      if (count === 0) return;
+      if (count === 0) return null; // 재신고 — 알릴 것도 없다
 
       const entry = await tx.entry.update({
         where: { id: entryId },
         data: { reportCount: { increment: 1 } },
-        select: { reportCount: true },
+        select: { word: true, text: true, reportCount: true, hidden: true },
       });
-      if (entry.reportCount >= hideThreshold) {
+      if (entry.reportCount >= hideThreshold && !entry.hidden) {
         await tx.entry.update({ where: { id: entryId }, data: { hidden: true } });
+        return { ...entry, hidden: true };
       }
+      return entry;
     });
   }
 

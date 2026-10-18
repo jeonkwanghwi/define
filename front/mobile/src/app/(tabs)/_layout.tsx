@@ -12,6 +12,7 @@
  * 따라서 라우트 경로는 /, /plaza, /village, /past, /journal.
  *
  * 좌→우 순서 (배열 첫 항목이 왼쪽): plaza · village · index(기록) · past · journal.
+ * 단, 마을은 VILLAGE_OPEN이 false인 동안 탭바에서 숨긴다(→ 4탭).
  * 중앙 강조(칩 형태)는 Task #6 이후 별도 단계에서 추가 예정. 지금은 표준 탭바.
  */
 import { Tabs } from 'expo-router';
@@ -20,6 +21,8 @@ import { Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/icons';
+
+import { VILLAGE_OPEN } from './village';
 import { motion, radii, useTheme } from '@/theme';
 
 // 한 곳에서 탭 설정 관리. 5개 탭 모두 동일 규칙 — 선택 시 진한 알약, 비선택 시 아이콘만.
@@ -97,6 +100,9 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.label,
+            // 심사 가이드 2.1 — "준비 중" 탭은 미완성 기능으로 본다. 열기 전까지 탭바에서 뺀다.
+            // href: null = 라우트는 살아 있되 탭 버튼만 안 그린다(expo-router 규칙).
+            ...(tab.name === 'village' && !VILLAGE_OPEN ? { href: null } : null),
             // 중앙 탭은 chip 컨테이너로 강조. 나머지는 평범한 아이콘.
             // color/size는 React Navigation이 자동 주입(active/inactive 색 분기).
             // color는 ColorValue(string | OpaqueColorValue)지만 실제로는 항상 string이라 캐스트.

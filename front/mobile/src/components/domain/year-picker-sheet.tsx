@@ -4,7 +4,7 @@
  * NicknameSheet와 동일한 UX 규약(슬라이드업 + scrim 탭 닫기 + grip).
  * 직접 입력 대신 리스트에서 탭 한 번으로 선택 — 프로필 설정의 입력 마찰 줄이기.
  *
- * 리스트는 최신 연도부터 내림차순(1900~올해). 열릴 때 현재 선택(없으면 1996) 근처로
+ * 리스트는 최신 연도부터 내림차순(1900~가입 가능한 마지막 해). 열릴 때 현재 선택(없으면 1996) 근처로
  * 스크롤해 시작 — 4자리 타이핑보다 빠르게 자기 연도에 닿는 게 목적.
  *
  * 사용:
@@ -17,9 +17,16 @@ import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { useTheme } from '@/theme';
 
-const THIS_YEAR = 2026; // 백엔드 검증(1900~현재)과 동일. 매년 갱신 또는 추후 동적 계산.
+/**
+ * 만 14세 미만은 가입할 수 없다(개인정보보호법 22조의2 — 법정대리인 동의가 필요해진다).
+ * 연도만 받으니 생일이 지났는지 모른다 → **올해 아직 13살일 수 있는 사람까지 막는다.**
+ * 올해 − 출생연도 ≥ 15 인 해만 보여준다. 백엔드 UpdateProfileDto와 같은 규칙.
+ */
+const MIN_AGE_GAP = 15;
+// 상수로 박아 두면 해가 바뀔 때마다 고쳐야 한다 — 앱이 켜질 때의 올해로 계산.
+const LATEST_YEAR = new Date().getFullYear() - MIN_AGE_GAP;
 const MIN_YEAR = 1900;
-const YEARS = Array.from({ length: THIS_YEAR - MIN_YEAR + 1 }, (_, i) => THIS_YEAR - i);
+const YEARS = Array.from({ length: LATEST_YEAR - MIN_YEAR + 1 }, (_, i) => LATEST_YEAR - i);
 
 const ITEM_HEIGHT = 52;
 /** 미선택 시 스크롤 시작점 — placeholder 예시와 같은 연도. */

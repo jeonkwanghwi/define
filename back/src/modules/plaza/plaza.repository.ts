@@ -44,6 +44,14 @@ export type PlazaBlockedUserRow = {
   nickname: string | null;
 };
 
+/** 방금 신고된 글 — 운영자 알림 메일에 적을 값. */
+export type ReportedEntry = {
+  word: string;
+  text: string;
+  reportCount: number;
+  hidden: boolean;
+};
+
 export abstract class PlazaRepository {
   /**
    * 정의가 1개 이상인 단어 목록(활동순) + 정의 수 + 대표 정의 미리보기 2개.
@@ -77,13 +85,14 @@ export abstract class PlazaRepository {
   /**
    * 신고 1건을 남기고 누적 수를 올린다. 이미 신고한 글이면 아무 일도 하지 않는다(멱등).
    * hideThreshold에 닿으면 같은 트랜잭션에서 hidden을 켠다 — 임계치는 service가 정한다.
+   * 새로 남겼으면 신고된 글의 모습을 돌려주고(운영자 메일용), 중복이면 null.
    */
   abstract addReport(
     reporterId: string,
     entryId: string,
     reason: string,
     hideThreshold: number,
-  ): Promise<void>;
+  ): Promise<ReportedEntry | null>;
   /** 차단. 이미 차단한 사람이면 아무 일도 하지 않는다(멱등). */
   abstract addBlock(blockerId: string, blockedId: string): Promise<void>;
   /** 차단 해제. 차단한 적 없어도 조용히 지나간다(멱등). */

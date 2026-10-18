@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>이용약관 · define</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap">
+<style>
+  /* privacy.html과 같은 토큰 — 세 문서가 다른 서비스처럼 보이면 안 된다. */
+  :root {
+    --paper: #FCFAF6; --surface: #FFFEFB; --nested: #FBF7F1;
+    --ink: #211E1A; --ink-2: #5C564D; --ink-3: #918A7D;
+    --line: #EAE3D7; --point: #8A5A1E; --point-050: #F8F4EE;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #1A1815; --surface: #262320; --nested: #2E2A26;
+      --ink: #EFEAE0; --ink-2: #A59E90; --ink-3: #7C7568;
+      --line: #38332C; --point: #C5AD8F; --point-050: #3F3324;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "Nanum Myeongjo", "Apple SD Gothic Neo", serif;
+    line-height: 1.85; font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+  .page { max-width: 680px; margin: 0 auto; padding: 48px 20px 72px; }
+
+  .brand { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 { font-size: 28px; font-weight: 700; margin: 10px 0 6px; letter-spacing: -0.5px; text-wrap: balance; }
+  .meta { color: var(--ink-3); font-size: 14px; margin: 0 0 8px; }
+  .lede {
+    color: var(--ink-2); font-size: 15px; margin: 20px 0 0;
+    background: var(--nested); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px 18px;
+  }
+
+  h2 {
+    font-size: 19px; font-weight: 700; margin: 42px 0 10px;
+    padding-top: 22px; border-top: 1px solid var(--line);
+  }
+  h2 .no { color: var(--point); font-size: 14px; margin-right: 8px; }
+  h3 { font-size: 16px; font-weight: 700; margin: 22px 0 6px; }
+  p { margin: 10px 0; }
+  ul { margin: 10px 0; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 700; }
+  .sub { color: var(--ink-2); font-size: 15px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 700; font-size: 13px; letter-spacing: 0.4px; white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+
+  .note {
+    background: var(--point-050); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px 16px; margin: 16px 0; font-size: 15px;
+  }
+  .note b { color: var(--point); }
+
+  a { color: var(--point); }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="brand">define</div>
+  <h1>이용약관</h1>
+  <p class="meta">시행일 2026년 10월 18일 · 버전 1.0</p>
+
+  <p class="lede">
+    define을 쓰시는 동안 지켜주셨으면 하는 것과, 운영자가 약속하는 것을 적었습니다.
+    define은 개인(전광휘)이 운영하는 무료 앱입니다.
+  </p>
+
+  <h2><span class="no">01</span>서비스</h2>
+  <p>
+    define은 단어를 내 말로 정의하고, 그 생각이 시간에 따라 어떻게 변하는지 기록하는 앱입니다.
+    기록·단어장은 가입 없이 쓸 수 있고, 광장(다른 사람의 정의 보기)과 회상(과거의 나와 대화)은 가입 후 쓸 수 있습니다.
+    서비스는 무료이며, 기능은 더 나은 방향으로 바뀌거나 추가·종료될 수 있습니다.
+    이용자에게 불리한 큰 변경은 미리 알립니다.
+  </p>
+
+  <h2><span class="no">02</span>계정</h2>
+  <ul>
+    <li><strong>만 14세 이상</strong>만 가입할 수 있습니다.</li>
+    <li>가입은 이메일, 카카오, Apple 중 하나로 합니다. 계정은 본인만 쓰고, 비밀번호는 직접 관리해 주세요.</li>
+    <li><strong>언제든 탈퇴할 수 있습니다</strong> — 마이페이지 &gt; 회원 탈퇴. 탈퇴하면 기록과 계정 정보가 즉시 지워지고 되돌릴 수 없습니다.</li>
+  </ul>
+
+  <h2><span class="no">03</span>광장 — 내 정의는 공개됩니다</h2>
+  <p>
+    <strong>가입하면 내가 쓴 정의가 광장에 공개됩니다.</strong> 가입 전에 기기에 쓴 정의도 가입하는 순간 함께 올라갑니다.
+    다른 사용자에게는 <strong>닉네임, 단어, 정의 글, 기록 시각</strong>이 보입니다.
+    공개를 원하지 않는 글은 가입 전에 지우거나, 가입 후 단어장에서 삭제해 주세요.
+  </p>
+  <p class="sub">
+    내가 쓴 글의 권리는 나에게 있습니다. 다만 광장에 보여주기 위해 필요한 범위에서
+    운영자가 그 글을 저장·표시하는 것에 동의하는 것으로 봅니다. 글을 지우면 광장에서도 사라집니다.
+  </p>
+
+  <h2><span class="no">04</span>글쓰기 규칙 — 무관용</h2>
+  <p>
+    광장은 모르는 사람들이 함께 보는 자리입니다. 아래와 같은 글은 <strong>예외 없이 허용하지 않습니다.</strong>
+  </p>
+  <ul>
+    <li>특정 집단이나 사람에 대한 혐오·차별</li>
+    <li>괴롭힘, 모욕, 위협, 따돌림</li>
+    <li>음란하거나 성적인 내용</li>
+    <li>폭력을 묘사·조장하거나 자해·자살을 부추기는 내용</li>
+    <li>불법 행위를 하거나 돕는 내용, 남의 권리(저작권 등)를 침해하는 내용</li>
+    <li>광고·홍보·도배 같은 스팸</li>
+    <li>다른 사람이나 운영자를 사칭하는 것</li>
+    <li>다른 사람의 이름, 연락처, 주소 같은 개인정보</li>
+  </ul>
+  <div class="note">
+    <b>신고와 차단</b> — 광장의 정의 오른쪽 ⋯을 누르면 <strong>신고</strong>하거나 그 사람을 <strong>차단</strong>할 수 있습니다.
+    차단하면 그 사람의 글이 내 광장에서 보이지 않습니다.
+    신고가 여러 건 쌓인 글은 자동으로 광장에서 가려지며, 신고는 운영자가 빠르게 확인합니다.
+  </div>
+  <p>
+    운영자는 규칙을 어긴 글을 <strong>알리지 않고 가리거나 삭제할 수 있고</strong>,
+    규칙을 어긴 사용자의 이용을 <strong>정지하거나 계정을 해지</strong>할 수 있습니다.
+    잘못 조치됐다고 생각되면 <a href="mailto:definepjt@gmail.com">definepjt@gmail.com</a>으로 알려주세요.
+  </p>
+
+  <h2><span class="no">05</span>잉크</h2>
+  <ul>
+    <li>잉크는 앱 안에서만 쓰는 <strong>가상의 재화</strong>입니다. 출석, 연속 기록, 보상형 광고 시청으로 무료로 받고, 회상에 씁니다.</li>
+    <li><strong>현금 가치가 없으며</strong>, 돈으로 바꾸거나 환불하거나 다른 사람에게 넘길 수 없습니다.</li>
+    <li>받는 양·쓰는 양·하루 한도는 서비스 운영에 맞게 바뀔 수 있습니다.</li>
+    <li>부정한 방법(조작, 자동화 등)으로 받은 잉크는 회수할 수 있습니다. 탈퇴하면 잉크도 함께 사라집니다.</li>
+  </ul>
+
+  <h2><span class="no">06</span>회상 (AI 대화)</h2>
+  <p>
+    회상은 내가 쓴 정의를 바탕으로 외부 AI(OpenAI)가 "그 시절의 나"처럼 답하는 기능입니다.
+    처음 쓸 때 따로 동의를 받습니다.
+  </p>
+  <ul>
+    <li>답은 <strong>AI가 만든 것</strong>이라 사실과 다르거나 엉뚱할 수 있습니다.</li>
+    <li>의료·법률·심리 상담 같은 <strong>전문적인 조언이 아닙니다.</strong> 중요한 결정은 회상의 답에 기대지 마세요.</li>
+    <li>마음이 많이 힘드시다면 자살예방상담전화 <strong>109</strong>(24시간)에 연락해 주세요.</li>
+  </ul>
+
+  <h2><span class="no">07</span>광고</h2>
+  <p>
+    잉크를 받고 싶을 때 <strong>직접 골라서</strong> 보상형 광고를 볼 수 있습니다. 광고는 Google AdMob이 보여주며,
+    광고 내용과 광고 속 상품·서비스에 대한 책임은 광고주에게 있습니다.
+    광고와 관련된 정보 처리는 <a href="./privacy.html">개인정보처리방침</a>에 적어두었습니다.
+  </p>
+
+  <h2><span class="no">08</span>책임의 범위</h2>
+  <ul>
+    <li>운영자는 서비스를 안정적으로 제공하려고 노력하지만, 점검·장애·천재지변 등으로 잠시 멈출 수 있습니다.</li>
+    <li>다른 사용자가 쓴 글의 내용은 그 글을 쓴 사람의 책임입니다.</li>
+    <li>무료 서비스 이용 중 생긴 손해에 대해 운영자는 <strong>고의 또는 중대한 과실이 있는 경우</strong>에 책임을 집니다.
+      관련 법령이 이와 다르게 정한 경우에는 법령을 따릅니다.</li>
+    <li>기기에만 저장된 기록(가입 전 기록)은 앱 삭제나 기기 분실로 사라질 수 있으니 오래 모으실 거라면 가입을 권합니다.</li>
+  </ul>
+
+  <h2><span class="no">09</span>약관 변경</h2>
+  <p>
+    약관을 바꿀 때는 시행 <strong>7일 전</strong>부터 앱 안이나 이 페이지에 알리고,
+    이용자에게 불리한 변경은 <strong>30일 전</strong>부터 알립니다.
+    바뀐 약관에 동의하지 않으면 탈퇴할 수 있습니다.
+  </p>
+
+  <h2><span class="no">10</span>준거법과 문의</h2>
+  <p>
+    이 약관은 대한민국 법을 따르며, 분쟁이 생기면 민사소송법에 따른 관할 법원에서 해결합니다.
+  </p>
+  <ul>
+    <li>운영자: 전광휘 (개인)</li>
+    <li>문의: <a href="mailto:definepjt@gmail.com">definepjt@gmail.com</a></li>
+  </ul>
+
+  <footer>define · 이용약관 v1.0 · 시행일 2026년 10월 18일 · <a href="./privacy.html" style="color: inherit">개인정보처리방침</a> · <a href="./support.html" style="color: inherit">고객 지원</a></footer>
+</div>
+</body>
+</html>
