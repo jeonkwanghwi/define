@@ -17,6 +17,7 @@
  */
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
+import { useAfterDismiss } from '@/components/primitives/use-after-dismiss';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/theme';
 
@@ -46,13 +47,14 @@ export function ActionSheet({
   cancelLabel = '취소',
 }: ActionSheetProps) {
   const theme = useTheme();
+  const after = useAfterDismiss();
 
   function handleItemPress(item: ActionSheetItem) {
     if (item.disabled) return;
-    // 누른 직후 닫고 → 액션 실행. 시각적 흐름이 자연스러움(시트 사라진 다음 결과).
+    // 누른 직후 닫고 → 시트가 다 사라진 뒤 액션 실행. 후속 UI(확인창·신고 시트)가
+    // 닫히는 중인 시트와 겹치면 iOS가 무시하기 때문(use-after-dismiss 참고).
+    after.schedule(item.onPress);
     onClose();
-    // 시트 닫힘 애니메이션과 액션의 후속 UI(예: confirm) 충돌 방지 — 약간 늦춤.
-    setTimeout(item.onPress, 200);
   }
 
   return (
@@ -61,6 +63,7 @@ export function ActionSheet({
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      onDismiss={after.onDismiss}
       statusBarTranslucent
     >
       <Pressable

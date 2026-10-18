@@ -16,5 +16,6 @@ export class UserEntity {
   interests: string[]; // 미완성이면 빈 배열
   balance: number; // 잉크 잔액(중립어). 신규/익명 0.
   recallConsentAt: Date | null; // tab3 회상 동의 시각. null=미동의.
+  tokenVersion: number; // 비밀번호 재설정 때 +1 → 그 전 토큰 무효화.
   createdAt: Date;
 }

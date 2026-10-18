@@ -2,7 +2,7 @@
  * OpenAiClient — OpenAI Chat Completions 래퍼. 키는 서버 .env에서만(프론트 노출 X).
  * 키 없으면 503(우리 톤) — 회상은 비치명적, 재시도 가능.
  */
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
@@ -14,10 +14,12 @@ export type ChatResult = { content: string; model: string; usage: TokenUsage & {
 @Injectable()
 export class OpenAiClient {
   private readonly client: OpenAI | null;
+  private readonly logger = new Logger(OpenAiClient.name);
 
   constructor(config: ConfigService) {
     const apiKey = config.get<string>('openai.apiKey');
-    this.client = apiKey ? new OpenAI({ apiKey }) : null;
+    // timeout 30초·재시도 1번: 기본값(10분·2번 재시도)이면 OpenAI가 느릴 때 요청이 몇 분씩 매달린다.
+    this.client = apiKey ? new OpenAI({ apiKey, timeout: 30_000, maxRetries: 1 }) : null;
   }
 
   /** 메시지 배열로 1회 완성. 키 미설정이면 503. maxTokens = 폭주 방지 안전 상한(길이 제어는 프롬프트로). */
@@ -27,12 +29,21 @@ export class OpenAiClient {
         '지금 과거의 나를 부를 수 없어요. 잠시 후 다시 시도해 주세요.',
       );
     }
-    const res = await this.client.chat.completions.create({
-      model: 'gpt-4.1-mini',
-      messages,
-      temperature: 0.9,
-      max_completion_tokens: opts?.maxTokens,
-    });
+    let res: OpenAI.Chat.Completions.ChatCompletion;
+    try {
+      res = await this.client.chat.completions.create({
+        model: 'gpt-4.1-mini',
+        messages,
+        temperature: 0.9,
+        max_completion_tokens: opts?.maxTokens,
+      });
+    } catch (e) {
+      // 시간 초과·OpenAI 장애·한도 초과는 우리 서버 버그(500)가 아니다 — 앱이 아는 503으로 바꾼다.
+      this.logger.error('OpenAI 호출 실패', e instanceof Error ? e.message : e);
+      throw new ServiceUnavailableException(
+        '지금 과거의 나를 부를 수 없어요. 잠시 후 다시 시도해 주세요.',
+      );
+    }
     const u = res.usage;
     return {
       content: res.choices[0]?.message?.content ?? '',

@@ -46,6 +46,11 @@ export type RewardedAdState = {
   error: RewardedAdError | null;
   /** 광고 재생. ready가 아닐 때 누르면 아무 일도 하지 않는다. */
   show: () => void;
+  /**
+   * 실패(no-fill·error) 뒤 다시 받아오기. SDK는 실패 후 **스스로 다시 받지 않는다**
+   * (요청 폭주 방지) — 이걸 부르지 않으면 버튼이 영영 죽어 있다.
+   */
+  retry: () => void;
 };
 
 export type UseRewardedAdOptions = {
@@ -96,5 +101,6 @@ export function useRewardedAd({ userId, onClosed }: UseRewardedAdOptions): Rewar
     loading: status === 'loading' || status === 'showing',
     error: status === 'no-fill' ? 'no-fill' : status === 'error' ? 'failed' : null,
     show: ad.show,
+    retry: ad.retry,
   };
 }

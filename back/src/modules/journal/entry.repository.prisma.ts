@@ -43,6 +43,11 @@ export class PrismaEntryRepository extends EntryRepository {
     await this.prisma.entry.deleteMany({ where: { userId, clientId } });
   }
 
+  async findCreatedAtByUserId(userId: string): Promise<Date[]> {
+    const rows = await this.prisma.entry.findMany({ where: { userId }, select: { createdAt: true } });
+    return rows.map((r) => r.createdAt);
+  }
+
   async findByUserId(userId: string): Promise<EntryRecord[]> {
     const rows = await this.prisma.entry.findMany({
       where: { userId },

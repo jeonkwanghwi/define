@@ -103,12 +103,13 @@ export class EmailCodeService {
       return false;
     }
 
-    // 비교 전에 시도를 먼저 센다 — 틀렸을 때 기록을 빼먹으면 횟수 제한이 무력해진다.
-    await this.codes.incrementAttempts(row.id);
+    // 비교 전에 시도를 먼저 차지한다 — 틀렸을 때 기록을 빼먹으면 횟수 제한이 무력해진다.
+    // 위의 row.attempts 검사는 "읽은 시점"의 값이라 동시 요청을 못 막는다. 진짜 관문은 여기다.
+    if (!(await this.codes.claimAttempt(row.id, MAX_ATTEMPTS))) return false;
     if (!(await bcrypt.compare(code, row.codeHash))) return false;
 
-    await this.codes.consume(row.id);
-    return true;
+    // 소비에 성공한 요청만 통과 — 같은 코드로 가입/재설정이 두 번 일어나지 않게.
+    return this.codes.consume(row.id);
   }
 
   /** @nestjs/common에 429 전용 예외 클래스가 없어 HttpException으로 직접 만든다. */

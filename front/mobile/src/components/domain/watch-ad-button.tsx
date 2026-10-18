@@ -104,10 +104,13 @@ export function WatchAdButton({ style }: WatchAdButtonProps) {
   const busy = ad.loading || checking || preparing;
   const adMessage =
     ad.error === 'no-fill'
-      ? '지금은 광고가 없어요. 잠시 후 다시 시도해 주세요'
+      ? '지금은 광고가 없어요. 잠시 후 다시 불러와 주세요'
       : ad.error === 'failed'
-        ? '광고를 불러오지 못했어요. 잠시 후 다시 시도해 주세요'
+        ? '광고를 불러오지 못했어요. 잠시 후 다시 불러와 주세요'
         : null;
+  // 실패하면 버튼이 "다시 불러오기"가 된다. 전엔 회색으로 죽어 화면을 나갔다 와도 그대로였다
+  // (SDK는 실패 뒤 스스로 다시 받지 않는다 — rewarded-ad.ts).
+  const failed = !soldOut && !!ad.error && !busy;
   // "N번 더"는 지금 누를 수 있을 때만 — 못 누르는데 횟수를 말하면 약속처럼 읽힌다.
   const caption = soldOut
     ? '오늘은 다 받았어요 · 내일 다시 받을 수 있어요'
@@ -120,15 +123,16 @@ export function WatchAdButton({ style }: WatchAdButtonProps) {
   return (
     <View style={style}>
       <Button
-        label={`광고 보고 잉크 ${quota.amount}개 받기`}
+        label={failed ? '광고 다시 불러오기' : `광고 보고 잉크 ${quota.amount}개 받기`}
         variant="soft"
         fullWidth
         loading={busy}
-        // 다 받았거나, 광고를 못 받았으면(no-fill·실패) 누를 수 없다.
-        disabled={soldOut || (!ad.ready && !busy)}
+        // 다 받았으면 누를 수 없다. 실패했으면 다시 불러오기로 누를 수 있다.
+        disabled={soldOut || (!ad.ready && !busy && !failed)}
         onPress={() => {
           setPending(null);
-          ad.show();
+          if (failed) ad.retry();
+          else ad.show();
         }}
       />
       {caption ? (

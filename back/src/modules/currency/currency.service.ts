@@ -34,13 +34,23 @@ export class CurrencyService {
     if (state.lastAttendanceDate !== null && localDate <= state.lastAttendanceDate) {
       return { balance: state.balance, claimed: false, amount: ATTENDANCE_AMOUNT };
     }
-    const balance = await this.currency.grantAttendance(userId, ATTENDANCE_AMOUNT, localDate);
-    return { balance, claimed: true, amount: ATTENDANCE_AMOUNT };
+    // 위 검사는 빠른 길일 뿐, 진짜 관문은 조건부 UPDATE다(동시 요청 중 하나만 granted).
+    const { granted, balance } = await this.currency.grantAttendance(
+      userId,
+      ATTENDANCE_AMOUNT,
+      localDate,
+    );
+    return { balance, claimed: granted, amount: ATTENDANCE_AMOUNT };
   }
 
   /** balance >= cost 면 원자적 차감 후 {ok:true,balance}. 부족하면 {ok:false,balance}. */
   async spend(userId: string, cost: number): Promise<{ ok: boolean; balance: number }> {
     return this.currency.spend(userId, cost);
+  }
+
+  /** 차감을 되돌린다(차감 뒤 외부 호출이 실패했을 때). 갱신된 잔액. */
+  refund(userId: string, amount: number): Promise<number> {
+    return this.currency.refund(userId, amount);
   }
 
   /** 현재 잔액. 없으면 0. */

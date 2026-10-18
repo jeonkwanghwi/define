@@ -3,6 +3,7 @@
  * :word는 한글이라 클라가 encodeURIComponent로 보내고, @Param이 디코드해서 받는다.
  */
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -53,8 +54,12 @@ export class PlazaController {
     @Query('offset') offset: string | undefined,
     @Req() req: { user: { userId: string } },
   ): Promise<PlazaWordDetailResponse> {
-    // 숫자가 아니거나 음수면 첫 쪽으로. 쿼리 하나에 DTO 클래스를 만들 일은 아니다.
-    const n = Math.max(0, Math.floor(Number(offset) || 0));
+    // 없으면 첫 쪽. 정수가 아니거나 범위 밖(1e20 등)이면 400 — 그대로 DB에 넘기면 500이 났다.
+    // 쿼리 하나에 DTO 클래스를 만들 일은 아니다.
+    const n = offset === undefined ? 0 : Number(offset);
+    if (!Number.isSafeInteger(n) || n < 0 || n > 10_000) {
+      throw new BadRequestException('offset이 올바르지 않아요.');
+    }
     return this.plaza.getWord(word, req.user.userId, n);
   }
 

@@ -13,5 +13,5 @@ import type { RewardedAdState, UseRewardedAdOptions } from './rewarded-ad';
 export type { RewardedAdError, RewardedAdState, UseRewardedAdOptions } from './rewarded-ad';
 
 export function useRewardedAd(_options: UseRewardedAdOptions): RewardedAdState {
-  return { ready: false, loading: false, error: null, show: () => {} };
+  return { ready: false, loading: false, error: null, show: () => {}, retry: () => {} };
 }

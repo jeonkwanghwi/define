@@ -154,6 +154,11 @@ export default function WordDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        // 카드 안에서 정의·노트를 고칠 때 키보드가 입력칸을 덮었다. iOS는 키보드 높이만큼
+        // 스크롤 여백을 스스로 늘려 포커스된 칸을 위로 올린다(안드로이드는 adjustResize가 맡는다).
+        automaticallyAdjustKeyboardInsets
+        // 키보드가 떠 있어도 저장/취소 버튼이 첫 탭에 눌리게(기본값이면 첫 탭은 키보드만 내린다).
+        keyboardShouldPersistTaps="handled"
       >
         {/* ─── "생각이 변했어요" 배너 — **최신 정의에 노트가 있을 때만**(item.changeNote = entries[0]의 것).
             옛 노트를 여기 올리면 석 달 전 변화가 오늘 얘기처럼 읽힌다. 리빌의 마지막 결론처럼 등장 ─── */}

@@ -8,11 +8,21 @@ export abstract class CurrencyRepository {
   /** 잔액 + 마지막 출석 적립일 조회. 사용자 없으면 null. */
   abstract findState(userId: string): Promise<BalanceState | null>;
 
-  /** balance += amount, lastAttendanceDate = localDate. 갱신된 balance 반환. */
-  abstract grantAttendance(userId: string, amount: number, localDate: string): Promise<number>;
+  /**
+   * lastAttendanceDate가 없거나 localDate보다 이전일 때만 원자적으로 balance += amount, 날짜 = localDate.
+   * granted=false면 같은 날 다른 요청이 먼저 받아갔다(동시 요청 이중 지급 방지). balance=현재.
+   */
+  abstract grantAttendance(
+    userId: string,
+    amount: number,
+    localDate: string,
+  ): Promise<{ granted: boolean; balance: number }>;
 
   /** balance >= cost 일 때만 원자적 차감. 차감되면 {ok:true}, 부족/없음이면 {ok:false}. balance=차감 후(또는 현재). */
   abstract spend(userId: string, cost: number): Promise<{ ok: boolean; balance: number }>;
+
+  /** balance += amount — 차감 후 일이 실패했을 때 되돌려주는 용도. 갱신된 balance 반환. */
+  abstract refund(userId: string, amount: number): Promise<number>;
 
   /** 마지막으로 보상한 최고 연속 기록일. 없으면 0. */
   abstract getLastRewardedStreakDay(userId: string): Promise<number>;

@@ -51,11 +51,12 @@ export class PrismaPlazaRepository extends PlazaRepository {
       SELECT e.word, COUNT(*)::int AS count,
              -- 카드에 "내 정의" 표시용. 같은 WHERE 안이라 숨김 규칙이 목록과 어긋나지 않는다.
              (COUNT(*) FILTER (WHERE e."userId" = ${me}))::int AS "myCount",
-             MAX(e."savedAt") AS "lastActivityAt"
+             MAX(e."createdAt") AS "lastActivityAt"
       FROM entries e
       WHERE e.hidden = false ${notBlocked} ${PROFILED}
       GROUP BY e.word
-      ORDER BY MAX(e."savedAt") DESC, COUNT(*) DESC
+      -- 활동순은 createdAt(서버 시각)으로 — savedAt은 기기가 보낸 값이라 미래 날짜로 맨 위를 차지할 수 있다.
+      ORDER BY MAX(e."createdAt") DESC, COUNT(*) DESC
       LIMIT ${limit}
     `;
     if (words.length === 0) return [];
@@ -70,7 +71,8 @@ export class PrismaPlazaRepository extends PlazaRepository {
       (PlazaPreviewRow & { word: string })[]
     >`
       SELECT id, word, nickname, text, "likeCount", "isMine" FROM (
-        SELECT e.id, e.word, u.nickname, e.text,
+        -- 카드 미리보기라 앞부분만 보낸다 — 아주 긴 글 몇 개가 목록 응답 전체를 부풀리지 않게.
+        SELECT e.id, e.word, u.nickname, LEFT(e.text, 300) AS text,
                (e."userId" = ${me}) IS TRUE AS "isMine",
                COUNT(l.id)::int AS "likeCount",
                ROW_NUMBER() OVER (
@@ -247,6 +249,19 @@ export class PrismaPlazaRepository extends PlazaRepository {
       });
       if (count === 0) return null; // 재신고 — 알릴 것도 없다
 
+      // 프로필을 안 마친 계정(= 가입만 누른 일회용 계정)의 신고는 기록·운영자 메일만 하고 누적엔 안 센다.
+      // 안 그러면 계정 3개만 만들어 남의 글을 지울 수 있다. 프로필은 마친 계정만 광장 글을 쓸 수 있는 것과 같은 기준.
+      const reporter = await tx.user.findUnique({
+        where: { id: reporterId },
+        select: { birthYear: true },
+      });
+      if (reporter?.birthYear == null) {
+        return tx.entry.findUniqueOrThrow({
+          where: { id: entryId },
+          select: { word: true, text: true, reportCount: true, hidden: true },
+        });
+      }
+
       const entry = await tx.entry.update({
         where: { id: entryId },
         data: { reportCount: { increment: 1 } },
@@ -260,11 +275,18 @@ export class PrismaPlazaRepository extends PlazaRepository {
     });
   }
 
-  async addBlock(blockerId: string, blockedId: string): Promise<void> {
-    await this.prisma.block.createMany({
-      data: [{ blockerId, blockedId }],
-      skipDuplicates: true,
-    });
+  async addBlock(blockerId: string, blockedId: string): Promise<boolean> {
+    try {
+      await this.prisma.block.createMany({
+        data: [{ blockerId, blockedId }],
+        skipDuplicates: true,
+      });
+      return true;
+    } catch (e) {
+      // P2003 = 외래키 위반 = 없는 사용자를 차단하려 했다. 서버 오류(500)가 아니라 "없음"이다.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') return false;
+      throw e;
+    }
   }
 
   async removeBlock(blockerId: string, blockedId: string): Promise<void> {

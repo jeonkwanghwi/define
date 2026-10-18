@@ -12,6 +12,8 @@ import { CreateFeedbackDto } from './dto/create-feedback.dto';
 
 /** 같은 사람이 연달아 보내지 못하게. 메일 폭주와 오발송을 막는 최소 장치다. */
 const COOLDOWN_MS = 30_000;
+/** 하루(UTC) 상한. 쿨다운만으론 30초마다 하루 2880통이 나간다 — 운영자 메일함과 SES 한도를 지킨다. */
+const DAILY_LIMIT = 20;
 
 @Injectable()
 export class FeedbackService {
@@ -22,6 +24,8 @@ export class FeedbackService {
    * 그때는 Redis나 DB로 옮겨야 한다.
    */
   private readonly lastSentAt = new Map<string, number>();
+  /** 사용자별 오늘(UTC) 보낸 수. 위 Map과 같은 이유로 메모리에 둔다. */
+  private readonly sentToday = new Map<string, { day: string; count: number }>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -37,6 +41,12 @@ export class FeedbackService {
     if (last !== undefined && Date.now() - last < COOLDOWN_MS) {
       // @nestjs/common에 429 전용 예외 클래스가 없어 HttpException으로 직접 만든다.
       throw new HttpException('잠시 후에 다시 보내주세요.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    const day = new Date().toISOString().slice(0, 10);
+    const today = this.sentToday.get(userId);
+    const countToday = today?.day === day ? today.count : 0;
+    if (countToday >= DAILY_LIMIT) {
+      throw new HttpException('오늘은 더 보낼 수 없어요. 내일 다시 보내주세요.', HttpStatus.TOO_MANY_REQUESTS);
     }
 
     const user = await this.prisma.user.findUnique({
@@ -62,5 +72,6 @@ export class FeedbackService {
 
     // 발송이 성공한 뒤에 기록한다 — 실패한 시도로 쿨다운을 먹이면 다시 보낼 수가 없다.
     this.lastSentAt.set(userId, Date.now());
+    this.sentToday.set(userId, { day, count: countToday + 1 });
   }
 }

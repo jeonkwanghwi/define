@@ -5,6 +5,8 @@
  * signup/login 성공 → token·user 저장 → 단어장 reconcile(업로드 로컬→서버 + 다운로드 서버→로컬, 멱등).
  *   다운로드 덕에 새 기기·재설치에서도 로그인하면 단어장이 복원된다.
  * logout → 인증 상태만 비움. 로컬 단어장(journal-store)은 절대 건드리지 않음.
+ *   (아직 안 올라간 기록이 있으면 마이페이지가 로그아웃 전에 먼저 올려 본다 — mypage.tsx)
+ * 어떤 요청이든 토큰이 거절(401)되면 → 자동 로그아웃 + sessionExpiredAt으로 루트가 안내 토스트.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
@@ -20,6 +22,7 @@ import {
   resetLocalForAccount,
   syncJournal,
 } from '@/lib/sync-journal';
+import { setUnauthorizedHandler } from '@/services/api-client';
 import {
   appleLogin as appleLoginApi,
   deleteAccount as deleteAccountApi,
@@ -52,6 +55,11 @@ type AuthState = {
    * 저장하지 않는다(partialize에서 뺀다): 다시 켤 때마다 지난 보상 토스트가 뜨면 안 된다.
    */
   recordBonus: { milestone: number; amount: number } | null;
+  /**
+   * 토큰이 거절돼 자동 로그아웃된 시각 — 루트가 "다시 로그인해 주세요" 토스트를 한 번 띄우는 이벤트.
+   * recordBonus와 같은 이유로 저장하지 않는다.
+   */
+  sessionExpiredAt: number | null;
   /** 실패 시 throw(화면이 인라인 에러로 표시). 성공 시에만 상태 갱신. */
   signup: (email: string, password: string, code: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -82,7 +90,8 @@ type AuthState = {
   /**
    * 이미 로그인된 세션에서 서버 단어장 변경을 로컬로 당겨온다(다른 기기에서 추가한 단어 반영).
    * 앱 시작·포그라운드 복귀 시 호출. 비치명적(실패는 warn, 다음 기회에 재시도).
-   * reconcileForUser(로그인 시)와 달리 다운로드만 — 업로드는 auto-sync가 담당.
+   * 당기기 전에 **지난번에 못 올린 기록(dirty)**이 있으면 먼저 올린다 — 오프라인에서 쓰고 앱을
+   * 껐다 켜면 편집이 다시 일어나기 전까지 아무도 올리지 않았다. 없으면 업로드는 요청 없이 끝난다.
    */
   pullRemoteJournal: () => Promise<void>;
   /** 동기화 성공 기록 — 시각 갱신 + 실패 표시 해제. (auto-sync 등 store 밖에서도 호출) */
@@ -129,6 +138,7 @@ export const useAuthStore = create<AuthState>()(
       syncFailedAt: null,
       hasLoggedInBefore: false,
       recordBonus: null,
+      sessionExpiredAt: null,
       signup: async (email, password, code) => {
         const { token, user } = await signupApi(email, password, code);
         set({ token, user, hasLoggedInBefore: true });
@@ -166,30 +176,23 @@ export const useAuthStore = create<AuthState>()(
         const { user } = await updateNicknameApi(token, nickname);
         set({ user });
       },
-      pullRemoteJournal: async () => {
-        const token = get().token;
-        if (!token) return; // 익명 — 서버 없음
-        try {
-          await downloadJournal(token);
-          set({ lastSyncedAt: new Date().toISOString(), syncFailedAt: null });
-        } catch (e) {
-          console.warn('[auth] 포그라운드 다운로드 실패 (다음 기회에 재시도):', e);
-          set({ syncFailedAt: new Date().toISOString() });
-        }
-      },
+      // 수동 재시도와 하는 일이 같다(업로드→다운로드). 한 곳에만 둔다.
+      pullRemoteJournal: () => get().retrySync(),
       markSynced: () => set({ lastSyncedAt: new Date().toISOString(), syncFailedAt: null }),
       markSyncFailed: () => set({ syncFailedAt: new Date().toISOString() }),
       retrySync: async () => {
         const token = get().token;
         if (!token) return; // 익명 — 동기화할 서버가 없음
+        // 기다리는 사이에 로그아웃·계정 전환이 일어났으면 그 결과는 이미 남의 것이다 — 버린다.
+        const stillCurrent = () => get().token === token;
         try {
           const res = await syncJournal(token);
-          if (res.recordBonus) get().applyRecordBonus(res.recordBonus);
-          await downloadJournal(token);
-          set({ lastSyncedAt: new Date().toISOString(), syncFailedAt: null });
+          if (res.recordBonus && stillCurrent()) get().applyRecordBonus(res.recordBonus);
+          await downloadJournal(token, stillCurrent);
+          if (stillCurrent()) set({ lastSyncedAt: new Date().toISOString(), syncFailedAt: null });
         } catch (e) {
-          console.warn('[auth] 수동 재동기화 실패:', e);
-          set({ syncFailedAt: new Date().toISOString() });
+          console.warn('[auth] 재동기화 실패 (다음 기회에 재시도):', e);
+          if (stillCurrent()) set({ syncFailedAt: new Date().toISOString() });
         }
       },
       setBalance: (balance) => {
@@ -209,8 +212,10 @@ export const useAuthStore = create<AuthState>()(
         if (!token) throw new Error('로그인이 필요합니다.');
         const result = await deleteAccountApi(token);
         // 서버 삭제가 성공한 뒤에만 로컬을 비운다(실패했는데 기기만 비면 데이터만 잃는다).
+        // 토큰을 먼저 지운다 — 비우는 순간 auto-sync가 "지워진 기록"을 사라진 계정에 DELETE로 보내지 않게.
+        // hasLoggedInBefore도 지운다 — 계정이 사라졌는데 "로그인이 안 되어 있어요"라고 재촉하면 엇나간다.
+        set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null, hasLoggedInBefore: false });
         clearLocalJournal();
-        set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null });
         return result;
       },
       cancelSignup: async () => {
@@ -218,7 +223,8 @@ export const useAuthStore = create<AuthState>()(
         if (!token) throw new Error('로그인이 필요합니다.');
         await deleteAccountApi(token);
         releaseLocalOwner(); // 기록은 그대로, 주인만 익명으로 되돌린다
-        set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null });
+        // 가입을 물렀으니 "로그인했던 사람"도 아니다 — 로그인 재촉 말풍선을 띄우지 않는다.
+        set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null, hasLoggedInBefore: false });
       },
       logout: () => set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null }),
     }),
@@ -227,10 +233,19 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => AsyncStorage),
       // recordBonus는 한 번 띄우고 끝나는 소식이라 저장하지 않는다.
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      partialize: ({ recordBonus, ...rest }) => rest,
+      partialize: ({ recordBonus, sessionExpiredAt, ...rest }) => rest,
     },
   ),
 );
+
+// 어떤 요청에서든 토큰이 거절되면(401) 로그아웃. 단, **지금 쓰는 토큰일 때만** —
+// 계정을 바꾼 직후 옛 토큰으로 나간 요청이 늦게 401을 받아 새 계정까지 로그아웃시키면 안 된다.
+setUnauthorizedHandler((rejected) => {
+  const s = useAuthStore.getState();
+  if (s.token !== rejected) return;
+  s.logout();
+  useAuthStore.setState({ sessionExpiredAt: Date.now() });
+});
 
 /**
  * 저장된 인증 상태를 다 읽었는지 구독하는 훅.

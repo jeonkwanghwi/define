@@ -93,6 +93,7 @@ export default function RootLayout() {
             여기서는 자기 Context를 읽을 수 없다(useToast가 터진다). 자식으로 내린다. */}
         <AttendanceClaim />
         <RecordBonusToast />
+        <SessionExpiredNotice />
         {/* 네비게이터가 화면 뒤에 칠하는 바탕색을 우리 종이색으로 바꾼다.
             기본값은 React Navigation의 중립 회색(rgb(242,242,242))이라, 화면이 아직
             안 그려졌거나 틈이 생기는 순간 **따뜻한 종이 톤이 아닌 회색**이 드러난다
@@ -130,17 +131,20 @@ export default function RootLayout() {
  */
 function AttendanceClaim() {
   const token = useAuthStore((s) => s.token);
+  // 가입 마무리(프로필) 전엔 적립하지 않는다 — 프로필 화면에 토스트가 뜨고, 만 14세 미만이라
+  // 곧 가입을 물릴 사람에게도 잉크가 쌓였다. 프로필을 마치는 순간 이 값이 바뀌어 그때 적립한다.
+  const profileCompleted = useAuthStore((s) => s.user?.profileCompleted ?? false);
   const { show } = useToast();
   const claimedRef = useRef(false);
 
   useEffect(() => {
-    if (!token || claimedRef.current) return;
+    if (!token || !profileCompleted || claimedRef.current) return;
     claimedRef.current = true;
     // 잔액 갱신은 runAttendanceClaim 내부의 setBalance가 담당 → 칩이 반응.
     runAttendanceClaim().then((res) => {
       if (res?.claimed) show(`잉크 ${res.amount}개가 쌓였어요`);
     });
-  }, [token, show]);
+  }, [token, profileCompleted, show]);
 
   return null;
 }
@@ -157,6 +161,28 @@ function RecordBonusToast() {
   useEffect(() => {
     if (bonus) show(`${bonus.milestone}일 연속 기록 · 잉크 ${bonus.amount}개가 쌓였어요`);
   }, [bonus, show]);
+
+  return null;
+}
+
+/**
+ * 토큰이 거절돼 자동 로그아웃됐을 때(만료·다른 폰에서 탈퇴·비밀번호 재설정) 한 번 알린다.
+ * 말없이 로그아웃되면 광장·회상이 갑자기 가입 유도로 바뀌어 고장처럼 보인다.
+ * 가입 마무리(/profile-setup)에 있었다면 그 화면은 로그인 전제라 갇힌다 → 기록 탭으로 보낸다.
+ */
+function SessionExpiredNotice() {
+  const at = useAuthStore((s) => s.sessionExpiredAt);
+  const { show } = useToast();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!at) return;
+    show('다시 로그인해 주세요', { tone: 'error' });
+    if (pathname === '/profile-setup') router.replace('/');
+    // pathname은 일부러 뺀다 — 이동할 때마다 다시 토스트가 뜨면 안 된다(at이 바뀔 때만).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [at]);
 
   return null;
 }
