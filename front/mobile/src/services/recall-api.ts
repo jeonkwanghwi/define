@@ -31,5 +31,7 @@ export function recallChat(
     method: 'POST',
     token,
     body,
+    // AI가 답을 쓰는 시간 — 서버가 OpenAI를 30초×(1+재시도 1번)까지 기다리므로 그보다 길게.
+    timeoutMs: 75_000,
   });
 }

@@ -37,7 +37,21 @@ type RequestOptions = {
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   token?: string;
+  /** 응답을 기다리는 최대 시간(ms). 기본 15초 — AI 답장처럼 원래 오래 걸리는 호출만 늘린다. */
+  timeoutMs?: number;
 };
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+/**
+ * 토큰이 거절됐을 때(401) 부를 함수. auth-store가 시작할 때 등록한다.
+ * 왜 직접 import하지 않나: auth-store가 이미 이 파일(…-api)을 import하고 있어서,
+ * 여기서 auth-store를 import하면 서로가 서로를 부르는 순환이 된다. 그래서 "등록" 방식.
+ */
+let onUnauthorized: ((token: string) => void) | null = null;
+export function setUnauthorizedHandler(fn: (token: string) => void): void {
+  onUnauthorized = fn;
+}
 
 /**
  * 한 번의 API 호출. 성공이면 파싱된 T, 실패면 ApiError를 throw.
@@ -49,13 +63,31 @@ export async function apiRequest<T>(path: string, options: RequestOptions): Prom
     headers.Authorization = `Bearer ${options.token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: options.method,
-    headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  // 서버가 응답을 안 주면 fetch는 끝없이 기다린다 → "진행 중"이 영원히 돈다. 시간을 정해 끊는다.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: options.method,
+      headers,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
+    });
+  } catch {
+    // 시간 초과(abort) 또는 네트워크 끊김. 영어 시스템 문구 대신 사용자가 할 수 있는 말로. status 0 = 응답 없음.
+    const err: ApiError = controller.signal.aborted
+      ? { status: 0, message: '서버 응답이 늦어요. 잠시 후 다시 시도해 주세요.' }
+      : { status: 0, message: '인터넷 연결을 확인하고 다시 시도해 주세요.' };
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
+    // 토큰을 실어 보냈는데 401 = 그 토큰이 더는 유효하지 않다(만료·다른 곳에서 탈퇴·비밀번호 재설정).
+    // 로그인/가입처럼 "비밀번호가 틀려서" 401이 나는 호출은 애초에 토큰을 싣지 않으므로 여기 안 걸린다.
+    if (res.status === 401 && options.token) onUnauthorized?.(options.token);
     let message = '요청을 처리하지 못했어요.';
     try {
       const data = await res.json();

@@ -7,7 +7,7 @@
  *   - kakaoLogin: 인가 코드 → (카카오) 회원번호 → 기존 연결 조회 or 신규 생성 → 토큰 발급
  *   - appleLogin: identityToken 검증 → (Apple) sub → 같은 흐름
  *   - deleteAccount: 제공자 연결 해제(best-effort) → 우리 데이터 삭제
- * 토큰 payload: { sub: userId, email }. (sub = JWT 표준 "subject" 클레임)
+ * 토큰 payload: { sub: userId, email, tv: tokenVersion }. (sub = JWT 표준 "subject" 클레임)
  *
  * 소셜 사용자는 email·passwordHash가 없다. 그래서 이메일 로그인 경로는
  * "비밀번호가 없는 계정"을 반드시 걸러야 한다(안 하면 bcrypt.compare가 터진다).
@@ -38,6 +38,18 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserEntity } from './entities/user.entity';
 import { generateNickname } from './nickname-generator';
 import { UserRepository } from './user.repository';
+
+/**
+ * 공식 계정으로 오해받을 수 있는 닉네임. 포함만 돼도 막는다("define운영자", "Admin_1").
+ * 디폴트 닉네임 생성기(nickname-generator.ts)의 단어 풀엔 이 말들이 없다.
+ */
+const RESERVED_NICKNAME_WORDS = ['운영자', '관리자', 'define', '디파인', '공식', 'admin'];
+
+/** NFKC로 전각(ＡＤＭＩＮ)·호환 문자를 보통 글자로 펴고, 공백을 빼("운 영 자") 소문자로 비교한다. */
+function isReservedNickname(nickname: string): boolean {
+  const normalized = nickname.normalize('NFKC').replace(/\s/g, '').toLowerCase();
+  return RESERVED_NICKNAME_WORDS.some((w) => normalized.includes(w));
+}
 
 @Injectable()
 export class AuthService {
@@ -119,8 +131,10 @@ export class AuthService {
       throw new BadRequestException('인증번호가 올바르지 않아요.');
     }
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    await this.users.updatePassword(user.id, passwordHash);
-    return this.buildAuthResponse(user);
+    // tokenVersion도 함께 올라간다 → 바꾸기 전에 발급된 토큰(도둑맞았을 수도 있는)은 전부 무효.
+    // 새 버전이 담긴 사용자로 토큰을 만들어야 지금 이 사람은 계속 로그인돼 있다.
+    const updated = await this.users.updatePassword(user.id, passwordHash);
+    return this.buildAuthResponse(updated);
   }
 
   /**
@@ -229,6 +243,9 @@ export class AuthService {
   async updateNickname(userId: string, dto: UpdateNicknameDto): Promise<AuthResponse> {
     const nickname = dto.nickname.trim() || null; // 빈 값 = 미설정으로 되돌리기
     if (nickname) {
+      if (isReservedNickname(nickname)) {
+        throw new BadRequestException('쓸 수 없는 닉네임이에요.');
+      }
       const existing = await this.users.findByNickname(nickname);
       if (existing && existing.id !== userId) {
         throw new ConflictException('이미 사용 중인 닉네임입니다.');
@@ -253,7 +270,8 @@ export class AuthService {
   }
 
   private buildAuthResponse(user: UserEntity): AuthResponse {
-    const token = this.jwt.sign({ sub: user.id, email: user.email });
+    // tv = tokenVersion. JwtStrategy가 매 요청 DB 값과 비교한다(비밀번호를 바꾸면 옛 토큰이 죽는다).
+    const token = this.jwt.sign({ sub: user.id, email: user.email, tv: user.tokenVersion });
     const profileCompleted =
       user.birthYear != null && user.gender != null && user.interests.length > 0;
     return {

@@ -93,8 +93,8 @@ export abstract class PlazaRepository {
     reason: string,
     hideThreshold: number,
   ): Promise<ReportedEntry | null>;
-  /** 차단. 이미 차단한 사람이면 아무 일도 하지 않는다(멱등). */
-  abstract addBlock(blockerId: string, blockedId: string): Promise<void>;
+  /** 차단. 이미 차단한 사람이면 아무 일도 하지 않는다(멱등). 그런 사용자가 없으면 false. */
+  abstract addBlock(blockerId: string, blockedId: string): Promise<boolean>;
   /** 차단 해제. 차단한 적 없어도 조용히 지나간다(멱등). */
   abstract removeBlock(blockerId: string, blockedId: string): Promise<void>;
   /** 내가 차단한 사람들(최근 차단 순). */

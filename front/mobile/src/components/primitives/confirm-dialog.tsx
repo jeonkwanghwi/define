@@ -19,6 +19,8 @@ import { useEffect, useRef } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/primitives/button';
+import { FadeIn } from '@/components/primitives/fade-in';
+import { useAfterDismiss } from '@/components/primitives/use-after-dismiss';
 import { ThemedText } from '@/components/themed-text';
 import { motion, spacing, useTheme } from '@/theme';
 
@@ -31,6 +33,17 @@ export type ConfirmDialogProps = {
   destructive?: boolean;
   onConfirm: () => void;
   onClose: () => void;
+  /**
+   * true면 확인을 눌러도 닫지 않고 onConfirm을 바로 부른다. 내용이 단계별로 바뀌는 확인창
+   * (탈퇴 2단계)이나 창 안에서 "…하는 중"을 보여줄 때. 닫기는 호출부가 visible로 정한다.
+   * 창을 닫았다 새로 여는 대신 쓰는 이유: iOS는 닫히는 중인 창 위에 새 창을 못 띄운다.
+   */
+  keepOpen?: boolean;
+  /**
+   * 취소 버튼만의 동작(기본 = onClose). 바깥 탭·뒤로가기는 언제나 onClose —
+   * 취소 버튼이 "그래도 로그아웃" 같은 실제 행동일 때 실수로 바깥을 눌러 실행되지 않게.
+   */
+  onCancel?: () => void;
 };
 
 export function ConfirmDialog({
@@ -42,8 +55,11 @@ export function ConfirmDialog({
   destructive,
   onConfirm,
   onClose,
+  keepOpen,
+  onCancel,
 }: ConfirmDialogProps) {
   const theme = useTheme();
+  const after = useAfterDismiss();
 
   const scale = useRef(new Animated.Value(0.92)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -71,9 +87,13 @@ export function ConfirmDialog({
   }, [visible, scale, opacity]);
 
   function handleConfirm() {
+    if (keepOpen) {
+      onConfirm();
+      return;
+    }
+    // 모달이 다 닫힌 뒤 실행 — 다음 화면(또 다른 Modal)이 iOS에서 무시되지 않게(use-after-dismiss 참고).
+    after.schedule(onConfirm);
     onClose();
-    // 모달이 닫히는(fade) 동안 기다렸다가 실행 — 다이얼로그 위로 다음 화면이 겹치지 않게.
-    setTimeout(onConfirm, motion.duration.base);
   }
 
   return (
@@ -82,6 +102,7 @@ export function ConfirmDialog({
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      onDismiss={after.onDismiss}
       statusBarTranslucent
     >
       <Pressable
@@ -101,29 +122,32 @@ export function ConfirmDialog({
               theme.shadows.lg,
             ]}
           >
-            <ThemedText variant="h3" style={{ textAlign: 'center' }}>
-              {title}
-            </ThemedText>
-            {message ? (
-              <ThemedText
-                variant="sm"
-                tone="secondary"
-                style={{
-                  textAlign: 'center',
-                  marginTop: theme.spacing.s2,
-                  lineHeight: 22,
-                }}
-              >
-                {message}
+            {/* 글이 바뀌면(단계 전환) 글만 스르륵 다시 나타난다 — 창이 깜빡이지 않게. */}
+            <FadeIn key={`${title}|${message ?? ''}`} offset={0}>
+              <ThemedText variant="h3" style={{ textAlign: 'center' }}>
+                {title}
               </ThemedText>
-            ) : null}
+              {message ? (
+                <ThemedText
+                  variant="sm"
+                  tone="secondary"
+                  style={{
+                    textAlign: 'center',
+                    marginTop: theme.spacing.s2,
+                    lineHeight: 22,
+                  }}
+                >
+                  {message}
+                </ThemedText>
+              ) : null}
+            </FadeIn>
 
             <View style={[styles.actions, { marginTop: theme.spacing.s5 }]}>
               <View style={styles.flex1}>
                 <Button
                   label={cancelLabel}
                   variant="ghost"
-                  onPress={onClose}
+                  onPress={onCancel ?? onClose}
                   fullWidth
                   style={styles.actionBtn}
                 />

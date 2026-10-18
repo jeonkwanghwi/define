@@ -36,6 +36,7 @@ import { Icon, type IconName } from '@/icons';
 import { hapticError, hapticSuccess, hapticTap, hapticWarning } from '@/lib/haptics';
 import { toSuffix } from '@/lib/korean';
 import { DOCS_ORIGIN, openDoc } from '@/lib/open-doc';
+import { countUnsynced, syncJournal, useUnuploadableCount } from '@/lib/sync-journal';
 import { API_BASE } from '@/services/api-client';
 import { sendFeedback } from '@/services/feedback-api';
 import {
@@ -44,7 +45,7 @@ import {
   type PlazaBlockedUser,
 } from '@/services/plaza-api';
 import { useAuthStore } from '@/store/auth-store';
-import { useJournalStats, useJournalStreak } from '@/store/journal-store';
+import { useJournalStats, useJournalStore, useJournalStreak } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
 import { getColors, PALETTE_IDS, PALETTES, useTheme, type PaletteId } from '@/theme';
 
@@ -114,15 +115,26 @@ export default function MyPageScreen() {
   const retrySync = useAuthStore((s) => s.retrySync);
   const logout = useAuthStore((s) => s.logout);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
-  const [logoutOpen, setLogoutOpen] = useState(false);
+  /**
+   * 로그아웃 확인창 단계. ask = 묻기 · syncing = 못 올린 기록 올리는 중 · failed = 올리기 실패.
+   * 로그아웃 뒤 다른 계정으로 로그인하면 이 폰의 기록이 지워진다 → 아직 안 올라간 게 있으면
+   * 로그아웃 **전에** 올려 둔다. 실패하면 몇 개가 남는지 말하고 고르게 한다.
+   */
+  const [logoutStep, setLogoutStep] = useState<'closed' | 'ask' | 'syncing' | 'failed'>('closed');
+  // 경고에 쓰는 개수 — 서버가 받지 않을 항목은 빼고 대기 중인 삭제는 더한 실제 미동기화 수.
+  useJournalStore((s) => s.dirtyIds.length + s.pendingDeletes.length); // 바뀌면 다시 그리도록 구독만
+  const unsynced = countUnsynced();
+  const unuploadable = useUnuploadableCount();
   /**
    * 탈퇴 확인 단계. 0 = 닫힘 · 1 = 첫 확인 · 2 = 마지막 확인.
    *
    * 두 번 묻는 이유: 되돌릴 수 없는 유일한 행동인데 한 번 더 누르면 끝이었다.
    * 1단계는 **무엇을 잃는지**, 2단계는 **되돌릴 수 없다**만 말한다 — 같은 말을 두 번
    * 하면 두 번째가 요식이 되어 그냥 누르게 된다.
+   * 두 단계는 **한 창이 내용만 바꾼다** — 닫고 새로 열면 iOS가 닫히는 중인 창 위의 새 창을 무시했다.
    */
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+  const stepChangedAt = useRef(0);
   const [deleting, setDeleting] = useState(false);
   // 탈퇴 실패는 조용히 넘기면 안 된다 — 사용자는 지워진 줄 안다.
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -138,10 +150,31 @@ export default function MyPageScreen() {
    * 광장·회상은 로그아웃 직후 가입 유도 화면이 되어 쫓아내는 꼴이 된다.
    */
   function handleLogout() {
+    setLogoutStep('closed');
     logout();
     hapticSuccess();
     show('로그아웃했어요');
     router.replace('/');
+  }
+
+  /** 로그아웃 확인 — 못 올린 기록이 있으면 먼저 올리고(창 안에서 "올리는 중…"), 다 올라가면 로그아웃. */
+  async function confirmLogout() {
+    if (logoutStep === 'syncing') return;
+    const t = useAuthStore.getState().token;
+    if (t && countUnsynced() > 0) {
+      setLogoutStep('syncing');
+      try {
+        await syncJournal(t);
+      } catch {
+        // 아래에서 남은 개수로 판단한다(일부 묶음만 올라갔을 수도 있다).
+      }
+      if (countUnsynced() > 0) {
+        hapticError();
+        setLogoutStep('failed');
+        return;
+      }
+    }
+    handleLogout();
   }
 
   async function handleDeleteAccount() {
@@ -151,17 +184,19 @@ export default function MyPageScreen() {
     try {
       const { failed } = await deleteAccount();
       setDeleteStep(0);
+      // 토큰이 사라져 이 화면의 계정 칸(인라인 문구 자리)도 같이 사라진다 → 결과는 토스트로, 기록 탭에서.
       // 제공자 연결을 못 끊었으면 사용자가 직접 끊도록 알려야 한다(조용히 삼키면 연결이 남는다).
       if (failed.length > 0) {
-        setDeleteError(
-          `계정은 삭제했지만 ${failed.join('·')} 연결 해제에 실패했어요. ` +
-            `해당 서비스 설정에서 직접 해제해 주세요.`,
-        );
+        const names = failed.map((p) => (p === 'apple' ? 'Apple' : p === 'kakao' ? '카카오' : p)).join('·');
+        show(`탈퇴했어요 · ${names} 연결은 그 앱 설정에서 직접 끊어 주세요`, { tone: 'error' });
       } else {
-        router.replace('/');
+        hapticSuccess();
+        show('탈퇴했어요. 그동안 고마웠어요');
       }
+      router.replace('/');
     } catch {
-      // 이미 인라인으로 에러를 그리는 자리라 진동을 더한다(새 에러 UI를 만들지 않는다).
+      // 실패면 아직 로그인 상태라 링크 아래 인라인 문구가 보인다. 창을 닫아 그 문구를 드러낸다.
+      setDeleteStep(0);
       hapticError();
       setDeleteError('탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
@@ -264,9 +299,10 @@ export default function MyPageScreen() {
 
   // 프로필 부제 — 실제 기록 통계 (가짜 수치 없이)
   // 연속 기록은 2일 이상일 때만 — "1일 연속"은 의미가 약하고, 0일은 압박이 되므로 생략.
-  // 덩어리 안의 띄어쓰기는 줄바꿈 없는 공백(\u00A0)으로 — 좁은 화면에서 "3 / 개"처럼
-  // 숫자와 단위가 갈라지지 않고, 줄은 " · " 사이에서만 넘어간다.
-  const keep = (s: string) => s.replace(/ /g, '\u00A0');
+  // 덩어리 안에서는 줄이 안 바뀌게 — 줄은 " · " 사이에서만 넘어간다.
+  // 띄어쓰기를 줄바꿈 없는 공백(\u00A0)으로 바꾸는 것만으론 모자랐다: 한글은 **글자 사이**에서도
+  // 줄이 바뀔 수 있어 "3개"가 "3 / 개"로 갈라졌다. 글자마다 사이에 단어 연결자(\u2060, 보이지 않음)를 넣는다.
+  const keep = (s: string) => [...s.replace(/ /g, '\u00A0')].join('\u2060');
   const statLine =
     stats.totalEntries === 0
       ? '아직 정의한 단어가 없어요'
@@ -359,6 +395,12 @@ export default function MyPageScreen() {
               {syncFailedAt ? (
                 <ThemedText variant="caption" tone="secondary" style={styles.syncNote}>
                   기록은 이 폰에 안전하게 있어요. 서버 반영만 실패했어요.
+                </ThemedText>
+              ) : null}
+              {/* 서버가 받지 않는 옛 기록(너무 긴 글·어긋난 날짜)은 조용히 빠진다 — 개수만큼은 말해 둔다. */}
+              {unuploadable > 0 ? (
+                <ThemedText variant="caption" tone="secondary" style={styles.syncNote}>
+                  {`기록 ${unuploadable}개는 너무 길거나 날짜가 어긋나 이 폰에만 있어요.`}
                 </ThemedText>
               ) : null}
             </>
@@ -574,7 +616,7 @@ export default function MyPageScreen() {
             label="로그아웃"
             variant="ghost"
             fullWidth
-            onPress={() => setLogoutOpen(true)}
+            onPress={() => setLogoutStep('ask')}
             style={styles.logoutButton}
           />
         )}
@@ -649,45 +691,69 @@ export default function MyPageScreen() {
         onClose={() => setBugSheetOpen(false)}
       />
 
-      {/* ─── 탈퇴 1단계: 무엇을 잃는지 ───
-          여기서는 아직 지우지 않는다. '다음'이라 적어 **이게 끝이 아님**을 알린다 —
-          '탈퇴'라고 적으면 여기서 끝나는 줄 알고 누른다. */}
+      {/* ─── 탈퇴 확인 (한 창, 두 단계) ───
+          1단계: 무엇을 잃는지. 여기서는 아직 지우지 않는다. '다음'이라 적어 **이게 끝이 아님**을 알린다 —
+            '탈퇴'라고 적으면 여기서 끝나는 줄 알고 누른다. 버튼 색은 "모두 사라져요"라는 말과 맞춘다.
+          2단계: 되돌릴 수 없다는 것만. 1단계와 같은 말을 반복하면 두 번째가 요식이 되어 그냥 누른다.
+            되돌아갈 길('아니요')을 둔다. 지우는 동안엔 창이 그대로 남아 "탈퇴 중…"을 보여준다. */}
       <ConfirmDialog
-        visible={deleteStep === 1}
-        title="정말 탈퇴할까요?"
+        visible={deleteStep > 0}
+        keepOpen
+        title={deleteStep === 2 ? '되돌릴 수 없어요' : '정말 탈퇴할까요?'}
         message={
-          '기록한 정의가 모두 사라져요.\n' +
-          '이 폰에 저장된 것까지요.'
+          deleteStep === 2
+            ? '지운 기록은 다시 찾을 수 없어요.\n그래도 탈퇴할까요?'
+            : '기록한 정의가 모두 사라져요.\n이 폰에 저장된 것까지요.'
         }
-        confirmLabel="다음"
-        destructive // "모두 사라져요"라는 말과 버튼 색을 맞춘다 — 평범한 다음처럼 보이면 가볍게 누른다
-        onConfirm={() => setDeleteStep(2)}
-        onClose={() => setDeleteStep(0)}
-      />
-
-      {/* ─── 탈퇴 2단계: 되돌릴 수 없다는 것만 ───
-          1단계와 같은 말을 반복하면 두 번째가 요식이 되어 그냥 누른다.
-          여기서는 **복구 불가** 하나만 말하고, 되돌아갈 길('아니요')을 기본으로 둔다. */}
-      <ConfirmDialog
-        visible={deleteStep === 2}
-        title="되돌릴 수 없어요"
-        message={'지운 기록은 다시 찾을 수 없어요.\n그래도 탈퇴할까요?'}
         destructive
-        cancelLabel="아니요"
+        cancelLabel={deleteStep === 2 ? '아니요' : '취소'}
         // 버튼 폭이 좁아 '탈퇴하기'는 '탈퇴…'로 잘렸다. 두 글자로 맞춘다.
-        confirmLabel={deleting ? '탈퇴 중…' : '탈퇴'}
-        onConfirm={handleDeleteAccount}
-        onClose={() => setDeleteStep(0)}
+        confirmLabel={deleteStep === 2 ? (deleting ? '탈퇴 중…' : '탈퇴') : '다음'}
+        // 같은 자리 버튼이 '다음'→'탈퇴'로 바뀐다. 빠른 두 번 탭이 둘째 단계를 건너뛰지 않게,
+        // 단계가 바뀐 뒤 0.6초 동안의 누름은 무시한다(되돌릴 수 없는 일이라 일부러 한 번 멈추게).
+        onConfirm={
+          deleteStep === 2
+            ? () => {
+                if (Date.now() - stepChangedAt.current < 600) return;
+                void handleDeleteAccount();
+              }
+            : () => {
+                stepChangedAt.current = Date.now();
+                setDeleteStep(2);
+              }
+        }
+        onClose={() => {
+          if (!deleting) setDeleteStep(0); // 지우는 중엔 닫지 않는다 — 결과를 볼 자리가 사라진다
+        }}
       />
 
-      {/* 앱 안에서는 '기기'가 아니라 '폰'으로 쓴다 — 한 화면에서 둘이 섞여 있었다. */}
+      {/* 로그아웃 — 앱 안에서는 '기기'가 아니라 '폰'으로 쓴다.
+          실패 단계의 취소 버튼은 "그래도 로그아웃"(onCancel). 바깥 탭은 그냥 닫기라 실수로 나가지 않는다. */}
       <ConfirmDialog
-        visible={logoutOpen}
-        title="로그아웃할까요?"
-        message="기록한 단어는 이 폰에 그대로 남아요."
-        confirmLabel="로그아웃"
-        onConfirm={handleLogout}
-        onClose={() => setLogoutOpen(false)}
+        visible={logoutStep !== 'closed'}
+        keepOpen
+        title={
+          logoutStep === 'failed'
+            ? `서버에 못 올린 기록 ${unsynced}개`
+            : '로그아웃할까요?'
+        }
+        message={
+          logoutStep === 'failed'
+            ? `아직 서버에 올라가지 않은 기록 ${unsynced}개가 있어요. 이 폰에는 그대로 남지만, ` +
+              '다른 계정으로 로그인하면 이 폰에서 지워져요.\n인터넷 연결을 확인하고 다시 시도해 주세요.'
+            : logoutStep === 'syncing'
+              ? '아직 안 올라간 기록을 서버에 올리고 있어요…'
+              : '기록한 단어는 이 폰에 그대로 남아요.'
+        }
+        confirmLabel={
+          logoutStep === 'syncing' ? '올리는 중…' : logoutStep === 'failed' ? '다시 시도' : '로그아웃'
+        }
+        cancelLabel={logoutStep === 'failed' ? '그래도 로그아웃' : '취소'}
+        onConfirm={confirmLogout}
+        onCancel={logoutStep === 'failed' ? handleLogout : undefined}
+        onClose={() => {
+          if (logoutStep !== 'syncing') setLogoutStep('closed');
+        }}
       />
     </ThemedView>
   );

@@ -39,6 +39,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
 import { formatRelativeLabel } from '@/lib/format-date';
 import { hapticError, hapticSuccess, hapticTap } from '@/lib/haptics';
+import { objectSuffix } from '@/lib/korean';
 import {
   blockUser,
   getPlazaWord,
@@ -284,7 +285,7 @@ export default function PlazaWordDetailScreen() {
             tone="secondary"
             style={{ marginTop: theme.spacing.s2, textAlign: 'center', lineHeight: 24 }}
           >
-            “{word}”을 사람들이 어떻게 정의했는지 보려면 가입해 주세요.
+            “{word}”{objectSuffix(word)} 사람들이 어떻게 정의했는지 보려면 가입해 주세요.
           </ThemedText>
           <Button
             label="가입하고 시작하기"

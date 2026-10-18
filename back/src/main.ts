@@ -34,6 +34,13 @@ async function bootstrap() {
     .filter(Boolean);
   app.enableCors({ origin: corsOrigins?.length ? corsOrigins : true });
 
+  // JSON 본문 상한 2mb. 기본값 100kb면 단어장이 큰 사용자의 동기화가 413으로 영원히 실패한다.
+  // (앱은 200개씩 나눠 보낸다. 한글 1자 ≈ 3바이트라 정의 평균 1000자여도 200개 ≈ 0.6mb.)
+  app.useBodyParser('json', { limit: '2mb' });
+
+  // Express가 응답마다 "X-Powered-By: Express"를 붙인다 — 공격자에게 서버 종류만 알려줄 뿐이다.
+  app.disable('x-powered-by');
+
   // whitelist: dto에 없는 필드는 잘라냄 / transform: 타입 자동 변환
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 

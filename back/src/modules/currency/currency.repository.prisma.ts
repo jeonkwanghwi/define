@@ -17,10 +17,31 @@ export class PrismaCurrencyRepository extends CurrencyRepository {
     return row ? { balance: row.balance, lastAttendanceDate: row.lastAttendanceDate } : null;
   }
 
-  async grantAttendance(userId: string, amount: number, localDate: string): Promise<number> {
+  async grantAttendance(
+    userId: string,
+    amount: number,
+    localDate: string,
+  ): Promise<{ granted: boolean; balance: number }> {
+    // "아직 오늘 안 받았으면"을 UPDATE 조건에 넣는다 — 읽고 나서 따로 쓰면 동시 요청이 모두 통과한다.
+    // YYYY-MM-DD 문자열은 lt 비교 = 날짜 비교.
+    const res = await this.prisma.user.updateMany({
+      where: {
+        id: userId,
+        OR: [{ lastAttendanceDate: null }, { lastAttendanceDate: { lt: localDate } }],
+      },
+      data: { balance: { increment: amount }, lastAttendanceDate: localDate },
+    });
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { balance: true },
+    });
+    return { granted: res.count > 0, balance: row?.balance ?? 0 };
+  }
+
+  async refund(userId: string, amount: number): Promise<number> {
     const row = await this.prisma.user.update({
       where: { id: userId },
-      data: { balance: { increment: amount }, lastAttendanceDate: localDate },
+      data: { balance: { increment: amount } },
       select: { balance: true },
     });
     return row.balance;

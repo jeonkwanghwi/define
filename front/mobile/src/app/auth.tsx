@@ -338,7 +338,7 @@ export default function AuthScreen() {
               <Button
                 label={isSignup ? '이메일로 가입하기' : '이메일로 로그인'}
                 fullWidth
-                leftIcon={<Icon name="mail" size={18} color="#FFFFFF" />}
+                leftIcon={<Icon name="mail" size={18} color={theme.colors.ink.onPoint} />}
                 onPress={() => goEmail(mode)}
                 style={{ height: SOCIAL_BTN_HEIGHT }}
               />

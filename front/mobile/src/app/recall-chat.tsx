@@ -4,6 +4,7 @@
  * 질문모드는 focusWord를 "다시 정의" 버튼으로 즉시 재정의(새 엔트리).
  */
 import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { usePreventRemove } from 'expo-router/react-navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
@@ -19,12 +20,13 @@ import { ConfirmDialog } from '@/components/primitives/confirm-dialog';
 import { RedefineSheet } from '@/components/domain/redefine-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { WatchAdButton } from '@/components/domain/watch-ad-button';
-import { FadeIn, Loading, PressableScale, useToast } from '@/components/primitives';
+import { Button, FadeIn, Loading, PressableScale, useToast } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECALL_COST } from '@/constants/recall';
 import { Icon } from '@/icons';
 import { hapticSuccess } from '@/lib/haptics';
+import { userFacingMessage } from '@/services/api-client';
 import { recallChat, type RecallFilter, type RecallMessage } from '@/services/recall-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStore } from '@/store/journal-store';
@@ -32,12 +34,42 @@ import { useTheme } from '@/theme';
 
 type ApiError = { status: number; message: string };
 
+/** 회상 대화 메시지 1개 상한 — 서버(2000자)보다 짧게 잡아 사용자가 400을 볼 일이 없게. */
+const MESSAGE_MAX = 1000;
+/** 한 요청에 실을 수 있는 대화 이력 상한(서버 DTO와 같은 값). 넘기면 서버가 이유 없이 400을 준다. */
+const HISTORY_MAX = 40;
+const CONVERSATION_DONE = '이 대화는 여기까지예요 · 새 대화를 시작해 주세요';
+
+/**
+ * 질문모드 자동 시작 표(start 파라미터)를 한 번만 쓴다. 이미 쓴 표면 false.
+ * 왜: 웹에서 새로고침·뒤로 갔다 앞으로 오면 같은 주소로 화면이 다시 열려 첫 질문을 또 받았다 —
+ * 새 대화라 잉크 30개가 또 빠졌다. 웹은 새로고침에도 남도록 sessionStorage에도 적는다.
+ */
+const usedStarts = new Set<string>();
+function takeStart(start: string | undefined): boolean {
+  if (!start || usedStarts.has(start)) return false;
+  usedStarts.add(start);
+  if (Platform.OS === 'web') {
+    try {
+      const key = `recall-start-${start}`;
+      if (sessionStorage.getItem(key)) return false;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      // 저장소를 못 쓰면 메모리 기록만으로 — 새로고침 방어만 약해진다
+    }
+  }
+  return true;
+}
+
 function mapError(e: unknown): string {
   const err = e as ApiError;
   if (err.status === 402) return `잉크 ${RECALL_COST}개가 필요해요 · 출석으로 모아보세요`;
-  if (err.status === 503) return '지금은 회상을 시작할 수 없어요. 잠시 후 다시 시도해 주세요.';
+  if (err.status === 503) return '과거의 내가 지금은 대답할 수 없어요. 잠시 후 다시 시도해 주세요.';
   if (err.status === 403) return '회상을 시작하려면 동의가 필요해요. 이전 화면에서 다시 시작해 주세요.';
-  return '전송하지 못했어요. 다시 시도해 주세요.';
+  // 429 = 한 대화의 턴 상한 / 하루 상한. 서버가 어느 쪽인지 한국어로 말해 주므로 그대로 보여 준다.
+  if (err.status === 429) return userFacingMessage(e) ?? CONVERSATION_DONE;
+  // 그 밖(네트워크 끊김·응답 지연 등) — api-client가 붙인 한국어 문구가 있으면 그것을.
+  return userFacingMessage(e) ?? '전송하지 못했어요. 다시 시도해 주세요.';
 }
 
 export default function RecallChatScreen() {
@@ -49,6 +81,7 @@ export default function RecallChatScreen() {
     periodEnd?: string;
     mode?: string;
     focusWord?: string;
+    start?: string;
   }>();
   const token = useAuthStore((s) => s.token);
   const balance = useAuthStore((s) => s.user?.balance ?? 0);
@@ -74,25 +107,23 @@ export default function RecallChatScreen() {
   const listRef = useRef<FlatList<RecallMessage>>(null);
 
   // 나가기 확인 — 잉크를 쓴 대화(ephemeral)라 실수로 나가면 통째로 사라짐.
-  // beforeRemove로 모든 나가기 경로(헤더 back·스와이프·하드웨어 back)를 가로챈다.
+  // usePreventRemove로 모든 나가기 경로(헤더 back·스와이프·하드웨어 back)를 가로챈다.
+  // 왜 beforeRemove 리스너가 아니라 이 훅인가: native-stack은 iOS 뒤로 스와이프를 **미리 알아야**
+  // 막을 수 있다. 리스너는 이미 스와이프가 끝난 뒤에 불려 화면만 사라지고 확인창은 못 띄웠다.
   const navigation = useNavigation();
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
-  // 액션 타입은 dispatch 시그니처에서 유도(@react-navigation/native는 직접 의존성이 아님).
+  // 대화가 생겼는가(= 서버가 대화 토큰을 줬다 = 잉크를 썼다). 훅에 넘기려고 state로 둔다.
+  const [hasConversation, setHasConversation] = useState(false);
+  // 액션 타입은 dispatch 시그니처에서 유도.
   const pendingExitRef = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
-  const allowExitRef = useRef(false);
 
-  useEffect(() => {
-    return navigation.addListener('beforeRemove', (e) => {
-      // 대화 시작 전(잉크 미차감)이거나 이미 확인했으면 그냥 나감.
-      if (!startedRef.current || allowExitRef.current) return;
-      e.preventDefault();
-      pendingExitRef.current = e.data.action;
-      setExitConfirmOpen(true);
-    });
-  }, [navigation]);
+  usePreventRemove(hasConversation, ({ data }) => {
+    pendingExitRef.current = data.action;
+    setExitConfirmOpen(true);
+  });
 
+  // 막혔던 그 액션을 그대로 다시 보내면 훅이 통과시킨다(react-navigation 계약).
   const confirmExit = () => {
-    allowExitRef.current = true;
     if (pendingExitRef.current) navigation.dispatch(pendingExitRef.current);
   };
 
@@ -100,8 +131,8 @@ export default function RecallChatScreen() {
     ? { age: Number(params.age) }
     : { periodStart: params.periodStart, periodEnd: params.periodEnd };
 
-  // 질문모드: 마운트 시 과거의 내가 먼저 질문(messages:[]).
-  useEffect(() => {
+  // 질문모드: 과거의 내가 먼저 질문(messages:[]). 마운트 시 자동, 실패하면 "다시 시도"로 다시 부른다.
+  const askFirst = () => {
     if (mode !== 'question' || startedRef.current || !token) return;
     startedRef.current = true;
     setSending(true);
@@ -120,6 +151,13 @@ export default function RecallChatScreen() {
         setSending(false);
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 120);
       });
+  };
+  // 자동 시작은 회상 화면에서 막 들어왔을 때 한 번만. 아니면(새로고침 등) 버튼으로 직접 시작한다.
+  const [needsStart, setNeedsStart] = useState(false);
+  useEffect(() => {
+    if (mode !== 'question' || startedRef.current) return;
+    if (takeStart(params.start)) askFirst();
+    else setNeedsStart(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -133,6 +171,7 @@ export default function RecallChatScreen() {
     // 줄어든 것도 "썼어요"로 오해한다 → 토큰이 바뀌었는지로 판정한다.
     const charged = newToken !== conversationTokenRef.current;
     conversationTokenRef.current = newToken;
+    setHasConversation(true);
     setBalance(next);
     if (charged) show(`잉크 ${RECALL_COST}개를 썼어요`);
   }
@@ -141,6 +180,11 @@ export default function RecallChatScreen() {
     const text = input.trim();
     if (!text || sending || !token) return;
     const next: RecallMessage[] = [...messages, { role: 'user', content: text }];
+    // 서버는 한 대화를 20왕복까지만 받는다 — 보내 봐야 거절될 요청은 보내지 않고 이유를 말한다.
+    if (next.length > HISTORY_MAX) {
+      setError(CONVERSATION_DONE);
+      return;
+    }
     setMessages(next);
     setInput('');
     setSending(true);
@@ -239,7 +283,11 @@ export default function RecallChatScreen() {
           }}
           ListEmptyComponent={
             <ThemedText variant="body" tone="placeholder" style={{ textAlign: 'center', marginTop: 40 }}>
-              {mode === 'question' ? '과거의 내가 곧 말을 걸어요…' : '그 시절의 나에게 말을 걸어보세요.'}
+              {mode !== 'question'
+                ? '그 시절의 나에게 말을 걸어보세요.'
+                : needsStart
+                  ? '과거의 내가 질문을 건넬 준비를 하고 있어요.'
+                  : '과거의 내가 곧 말을 걸어요…'}
             </ThemedText>
           }
         />
@@ -253,6 +301,17 @@ export default function RecallChatScreen() {
           <ThemedText variant="caption" style={{ color: theme.colors.ruby.base, textAlign: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
             {error}
           </ThemedText>
+        )}
+        {/* 질문모드 첫 질문을 받을 버튼 — 실패했을 때(보낼 입력이 없어 다시 시도할 길이 없었다)와
+            자동 시작을 하지 않은 재진입(새로고침 등) 때. 누르면 새 대화라 잉크가 든다고 미리 말한다. */}
+        {(error || needsStart) && !needInk && !sending && mode === 'question' && messages.length === 0 && (
+          <View style={styles.retryRow}>
+            <Button
+              label={error ? '다시 시도' : `질문 받기 · 잉크 ${RECALL_COST}개`}
+              variant="ghost"
+              onPress={askFirst}
+            />
+          </View>
         )}
         {/* 잉크가 모자라 막힌 자리 — 가장 필요한 순간에 바로 채울 수 있게.
             위 문구("잉크 30개가 필요해요 · 출석으로 모아보세요")를 대체하지 않고 더한다. */}
@@ -290,6 +349,7 @@ export default function RecallChatScreen() {
             placeholderTextColor={theme.colors.ink.placeholder}
             style={[styles.input, { backgroundColor: theme.colors.surface.base, borderColor: theme.colors.line.base, color: theme.colors.ink.primary }]}
             multiline
+            maxLength={MESSAGE_MAX}
             editable={!sending}
           />
           <PressableScale
@@ -333,6 +393,7 @@ const styles = StyleSheet.create({
   list: { padding: 16, gap: 10 },
   bubble: { maxWidth: '82%', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18 },
   watchAd: { paddingHorizontal: 16, paddingBottom: 10 },
+  retryRow: { alignItems: 'center', paddingBottom: 8 },
   sendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingBottom: 8 },
   // 뱃지 높이만큼 위아래 여백을 줄여 막대 전체 높이를 유지(완료로 바뀔 때 입력창이 밀리지 않게).
   redefineDone: { paddingVertical: 6 },

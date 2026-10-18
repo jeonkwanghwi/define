@@ -32,12 +32,23 @@ export class PrismaEmailCodeRepository extends EmailCodeRepository {
     });
   }
 
-  async incrementAttempts(id: string): Promise<void> {
-    await this.prisma.emailCode.update({ where: { id }, data: { attempts: { increment: 1 } } });
+  async claimAttempt(id: string, max: number): Promise<boolean> {
+    // 조건과 증가를 UPDATE 한 문장에 담는다 — DB가 행을 잠그고 하나씩 처리하므로
+    // 동시에 100개가 와도 정확히 max개만 count 1을 받는다.
+    const { count } = await this.prisma.emailCode.updateMany({
+      where: { id, consumedAt: null, attempts: { lt: max } },
+      data: { attempts: { increment: 1 } },
+    });
+    return count === 1;
   }
 
-  async consume(id: string): Promise<void> {
-    await this.prisma.emailCode.update({ where: { id }, data: { consumedAt: new Date() } });
+  async consume(id: string): Promise<boolean> {
+    // consumedAt: null 조건 = "아직 아무도 안 썼으면". 맞는 코드로 동시에 두 번 와도 한 번만 통과.
+    const { count } = await this.prisma.emailCode.updateMany({
+      where: { id, consumedAt: null },
+      data: { consumedAt: new Date() },
+    });
+    return count === 1;
   }
 
   async consumeAll(email: string, purpose: string): Promise<void> {

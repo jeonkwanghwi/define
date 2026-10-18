@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 
 import { Button, TextField } from '@/components/primitives';
+import { useAfterDismiss } from '@/components/primitives/use-after-dismiss';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/theme';
 
@@ -38,6 +39,7 @@ export function CustomWordSheet({ visible, onAdd, onClose }: CustomWordSheetProp
   const theme = useTheme();
   const [value, setValue] = useState('');
   const inputRef = useRef<TextInput>(null);
+  const after = useAfterDismiss();
 
   const trimmed = value.trim();
   const canSubmit = trimmed.length > 0;
@@ -55,7 +57,9 @@ export function CustomWordSheet({ visible, onAdd, onClose }: CustomWordSheetProp
 
   function handleSubmit() {
     if (!canSubmit) return;
-    onAdd(trimmed);
+    // 시트가 다 닫힌 뒤에 넘긴다 — 받는 쪽이 "쓰던 글 지울까요?" 확인창을 띄울 수 있는데,
+    // 닫히는 중인 시트 위로 띄우면 iOS가 무시한다(use-after-dismiss 참고).
+    after.schedule(() => onAdd(trimmed));
     onClose();
   }
 
@@ -65,6 +69,7 @@ export function CustomWordSheet({ visible, onAdd, onClose }: CustomWordSheetProp
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      onDismiss={after.onDismiss}
       statusBarTranslucent
     >
       {/* 외부 탭 → 닫기. 내부 탭은 stopPropagation 효과를 위해 별도 Pressable. */}

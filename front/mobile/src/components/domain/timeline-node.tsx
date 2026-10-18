@@ -30,6 +30,7 @@ import { Button, Card, PressableScale, TextField } from '@/components/primitives
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
+import { ENTRY_LIMITS } from '@/lib/sync-journal';
 import { spacing, useTheme } from '@/theme';
 import type { WordEntry } from '@/types/word';
 
@@ -254,6 +255,7 @@ export function TimelineNode({
               <TextField
                 ref={inputRef}
                 multiline
+                maxLength={ENTRY_LIMITS.text} // 서버 상한 — 넘기면 동기화가 거절된다
                 value={draft}
                 onChangeText={setDraft}
                 placeholder="정의를 수정해보세요"

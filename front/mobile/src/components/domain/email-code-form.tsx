@@ -10,7 +10,7 @@
  *   실패    → error (입력칸 아래 인라인 문구 — TextField의 error가 그린다)
  *   성공    → 부모가 화면을 넘기거나(확인) cooldownFrom을 갱신한다(재전송 = 카운트다운 재시작)
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button, FadeIn, TextField } from '@/components/primitives';
@@ -67,12 +67,29 @@ export function EmailCodeForm({
     return () => clearInterval(id);
   }, [cooldownFrom]);
 
+  /**
+   * 이미 보낸 확인이 진행 중인가. submitting prop은 부모가 다시 그려야 바뀌어서, 6자리 자동 제출 직후
+   * 확인 버튼을 누르면 그 틈에 한 번 더 나갔다(서버 시도 횟수 5번 중 2번을 한꺼번에 썼다).
+   * 부모의 진행이 끝나거나(submitting false) 번호를 고치면 풀린다.
+   */
+  const inFlight = useRef(false);
+  useEffect(() => {
+    if (!submitting) inFlight.current = false;
+  }, [submitting]);
+
+  function submit(value: string) {
+    if (inFlight.current || submitting) return;
+    inFlight.current = true;
+    onSubmit(value);
+  }
+
   // 숫자만 남긴다 — 메일에서 붙여넣으면 공백·줄바꿈이 섞여 들어와 6자리 검사가 조용히 틀린다.
   function handleChange(text: string) {
     const digits = text.replace(/\D/g, '').slice(0, 6);
+    if (digits !== code) inFlight.current = false; // 번호를 고쳤다 = 새 시도
     setCode(digits);
     // 6자리가 차면 바로 확인 — 번호를 다 넣고 버튼을 또 찾게 하지 않는다.
-    if (digits.length === 6 && !submitting) onSubmit(digits);
+    if (digits.length === 6) submit(digits);
   }
 
   return (
@@ -98,7 +115,7 @@ export function EmailCodeForm({
 
         <Button
           label="확인"
-          onPress={() => onSubmit(code)}
+          onPress={() => submit(code)}
           loading={submitting}
           disabled={code.length !== 6}
           fullWidth

@@ -125,8 +125,17 @@ function IntroLayer({ onDone }: { onDone: () => void }) {
     let cancelled = false;
     (async () => {
       // 다크·팔레트 설정이 읽히기 전에 시작하면 라이트로 그렸다가 바뀐다 → 하이드레이션을 기다린다.
+      // 단, 1초까지만 — 저장소가 끝내 응답하지 않으면 인트로가 화면을 덮은 채 영원히 멈춘다.
       const persist = useSettingsStore.persist;
-      if (!persist.hasHydrated()) await new Promise<void>((res) => persist.onFinishHydration(() => res()));
+      if (!persist.hasHydrated()) {
+        await new Promise<void>((res) => {
+          const timer = setTimeout(res, 1000);
+          persist.onFinishHydration(() => {
+            clearTimeout(timer);
+            res();
+          });
+        });
+      }
       // 그날 첫 실행이면 전체, 아니면 짧게. 저장소가 실패해도 인트로는 돈다(짧게).
       const today = formatYmd(new Date());
       let speed = SHORT_SPEED;

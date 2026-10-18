@@ -54,6 +54,8 @@ export class AuthController {
   /** POST /api/auth/signup — 이메일+비밀번호 가입(프로필은 별도 PATCH). 인증번호가 맞아야 통과. */
   @Post('signup')
   @HttpCode(201)
+  // 인증번호 대입을 IP 단위로도 묶는다(코드당 5회 제한은 코드를 다시 받으면 초기화된다).
+  @UseGuards(new IpRateLimit(20, 10 * MINUTE_MS))
   signup(@Body() dto: SignupDto): Promise<AuthResponse> {
     return this.auth.signup(dto);
   }
@@ -70,6 +72,8 @@ export class AuthController {
   /** POST /api/auth/password/reset — 인증번호 확인 + 새 비밀번호. 성공하면 바로 로그인된 토큰을 준다. */
   @Post('password/reset')
   @HttpCode(200)
+  // 가입과 같은 이유 — 이쪽이 뚫리면 남의 계정을 가져가니 더 중요하다.
+  @UseGuards(new IpRateLimit(20, 10 * MINUTE_MS))
   resetPassword(@Body() dto: ResetPasswordDto): Promise<AuthResponse> {
     return this.auth.resetPassword(dto);
   }

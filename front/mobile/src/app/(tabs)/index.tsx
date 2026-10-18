@@ -41,6 +41,7 @@ import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { formatKoreanDate, formatYmd } from '@/lib/format-date';
 import { hapticSuccess, hapticTap } from '@/lib/haptics';
 import { topicSuffix } from '@/lib/korean';
+import { ENTRY_LIMITS } from '@/lib/sync-journal';
 import { getRecommendedWords } from '@/services/word-api';
 import { useAuthHydrated, useAuthStore } from '@/store/auth-store';
 import { useEntryCountForWord, useJournalStore } from '@/store/journal-store';
@@ -494,14 +495,13 @@ export default function RecordScreen() {
       setPickedWord(newWord);
       return;
     }
-    // 시트(Modal)가 닫히는 중에 확인창(또 다른 Modal)을 띄우면 iOS가 무시한다 → 확인창이 안 뜨고
-    // 단어도 안 바뀐다. 닫힘 애니메이션 뒤로 미룬다(ActionSheet와 같은 200ms 규칙).
-    setTimeout(() => guardSwap(() => {
+    // CustomWordSheet가 자기 Modal이 다 닫힌 뒤에 이 함수를 부르므로, 확인창을 바로 띄워도 iOS가 무시하지 않는다.
+    guardSwap(() => {
       setPickedWord(newWord);
       const existing = pool.indexOf(newWord);
       if (existing >= 0) swapTo(existing);
       else swapTo(0, (prev) => [newWord, ...prev]);
-    }), 200);
+    });
   }
 
   function confirmSwap() {
@@ -661,6 +661,8 @@ export default function RecordScreen() {
               <Animated.View style={inputHeightStyle}>
                 <TextInput
                   multiline
+                  // 서버가 받는 정의 길이 상한 — 넘기면 동기화가 거절된다(sync-journal.ts).
+                  maxLength={ENTRY_LIMITS.text}
                   value={definition}
                   onChangeText={setDefinition}
                   // 쓰기 모드의 방아쇠. 키보드 이벤트가 아니라 포커스인 이유는 위 주석에.

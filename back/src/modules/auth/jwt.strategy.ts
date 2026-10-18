@@ -28,13 +28,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  /** payload(우리가 sign할 때 넣은 { sub, email })를 req.user 형태로 변환. */
-  async validate(payload: { sub: string; email: string }): Promise<{
+  /** payload(우리가 sign할 때 넣은 { sub, email, tv })를 req.user 형태로 변환. */
+  async validate(payload: { sub: string; email: string; tv?: number }): Promise<{
     userId: string;
     email: string;
   }> {
-    if (!(await this.users.existsById(payload.sub))) {
+    const version = await this.users.findTokenVersion(payload.sub);
+    if (version === null) {
       throw new UnauthorizedException('계정을 찾을 수 없습니다.');
+    }
+    // 비밀번호를 바꾸면 DB의 버전이 오른다 → 그 전에 받은 토큰은 여기서 거절된다.
+    // tv가 없는 토큰 = 이 기능 전에 발급된 토큰이다. 0으로 봐서 기존 사용자가 로그아웃되지 않게 한다.
+    if ((payload.tv ?? 0) !== version) {
+      throw new UnauthorizedException('다시 로그인해 주세요.');
     }
     return { userId: payload.sub, email: payload.email };
   }

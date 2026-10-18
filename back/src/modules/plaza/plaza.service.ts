@@ -146,7 +146,9 @@ export class PlazaService {
     if (blockerId === blockedId) {
       throw new BadRequestException('자기 자신은 차단할 수 없어요.');
     }
-    await this.repo.addBlock(blockerId, blockedId);
+    if (!(await this.repo.addBlock(blockerId, blockedId))) {
+      throw new NotFoundException('사용자를 찾을 수 없어요.');
+    }
   }
 
   async unblock(blockerId: string, blockedId: string): Promise<void> {

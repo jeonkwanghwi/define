@@ -34,9 +34,12 @@ export function Wordmark({ height }: { height: number }) {
   const width = (height * LOGO_VIEWBOX.w) / LOGO_VIEWBOX.h;
 
   useEffect(() => {
-    current = ref.current;
+    // 마운트 때의 노드를 붙잡아 둔다 — 정리(cleanup) 시점엔 ref.current가 이미 null이라
+    // 그걸로 비교하면 "내 것인가"가 늘 거짓이 돼, 사라진 로고가 current에 남았다.
+    const node = ref.current;
+    current = node;
     return () => {
-      if (current === ref.current) current = null;
+      if (current === node) current = null;
     };
   }, []);
 

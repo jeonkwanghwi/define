@@ -19,6 +19,7 @@ type Row = {
   createdAt: Date;
   balance: number;
   recallConsentAt: Date | null;
+  tokenVersion: number;
   interests: { interest: string }[];
 };
 
@@ -33,6 +34,7 @@ function toEntity(row: Row): UserEntity {
     createdAt: row.createdAt,
     balance: row.balance,
     recallConsentAt: row.recallConsentAt,
+    tokenVersion: row.tokenVersion,
     interests: row.interests.map((i) => i.interest),
   };
 }
@@ -51,10 +53,13 @@ export class PrismaUserRepository extends UserRepository {
     return row ? toEntity(row) : null;
   }
 
-  async existsById(userId: string): Promise<boolean> {
-    // 존재 여부만 필요하니 id 한 칸만 가져온다(관계 include 없음).
-    const row = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-    return row !== null;
+  async findTokenVersion(userId: string): Promise<number | null> {
+    // 한 칸만 가져온다(관계 include 없음) — 보호 라우트마다 불리는 조회다.
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { tokenVersion: true },
+    });
+    return row?.tokenVersion ?? null;
   }
 
   async create(input: {
@@ -93,8 +98,13 @@ export class PrismaUserRepository extends UserRepository {
     return toEntity(row);
   }
 
-  async updatePassword(userId: string, passwordHash: string): Promise<void> {
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  async updatePassword(userId: string, passwordHash: string): Promise<UserEntity> {
+    const row = await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
+      include: { interests: true },
+    });
+    return toEntity(row);
   }
 
   async findByNickname(nickname: string): Promise<UserEntity | null> {
@@ -135,9 +145,13 @@ export class PrismaUserRepository extends UserRepository {
   }
 
   async deleteUser(userId: string): Promise<void> {
+    // 인증번호 기록(email_codes)은 users와 FK로 묶여 있지 않아 Cascade로 안 지워진다 → 이메일로 직접 지운다.
+    // 이메일 주소 자체가 개인정보라 탈퇴 뒤에 남으면 안 된다.
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
     // 원장 익명화와 삭제를 한 트랜잭션으로 — 중간에 끊겨 "지워졌는데 원장엔 남는" 상태를 막는다.
     await this.prisma.$transaction([
       this.prisma.llmUsage.updateMany({ where: { userId }, data: { userId: 'deleted' } }),
+      ...(user?.email ? [this.prisma.emailCode.deleteMany({ where: { email: user.email } })] : []),
       this.prisma.user.delete({ where: { id: userId } }),
     ]);
   }

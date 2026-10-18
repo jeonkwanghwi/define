@@ -8,8 +8,8 @@ export abstract class UserRepository {
   /** 이메일로 1명 조회. 없으면 null. (가입 중복 검사·로그인에 사용) */
   abstract findByEmail(email: string): Promise<UserEntity | null>;
 
-  /** id로 존재 여부만 확인. 토큰이 가리키는 계정이 아직 있는지 보는 용도. */
-  abstract existsById(userId: string): Promise<boolean>;
+  /** id로 현재 tokenVersion만 조회. 계정이 없으면 null. 토큰이 아직 유효한지 보는 용도. */
+  abstract findTokenVersion(userId: string): Promise<number | null>;
 
   /** 새 사용자 생성. (해싱된 비밀번호를 받는다 — 해싱은 service 책임. nickname은 가입 시 자동 배정값) */
   abstract create(input: {
@@ -26,9 +26,9 @@ export abstract class UserRepository {
 
   /**
    * 비밀번호 교체 — 비밀번호 재설정에 사용. 해싱된 값을 받는다(해싱은 service 책임).
-   * 갱신된 사용자를 돌려주지 않는다: 바뀌는 건 passwordHash 하나고, 그건 응답에 담을 값이 아니다.
+   * tokenVersion을 같이 +1 해서 그 전 토큰을 모두 무효로 만든다. 새 버전이 담긴 사용자를 돌려준다.
    */
-  abstract updatePassword(userId: string, passwordHash: string): Promise<void>;
+  abstract updatePassword(userId: string, passwordHash: string): Promise<UserEntity>;
 
   /** 닉네임으로 1명 조회. 없으면 null. (닉네임 중복 검사에 사용) */
   abstract findByNickname(nickname: string): Promise<UserEntity | null>;

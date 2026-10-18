@@ -10,9 +10,9 @@ import { JwtService } from '@nestjs/jwt';
 import { CurrencyService } from '../currency/currency.service';
 import { UsageService } from '../usage/usage.service';
 import { RecallChatDto } from './dto/recall-chat.dto';
-import { ChatMessage, OpenAiClient } from './openai.client';
+import { ChatMessage, ChatResult, OpenAiClient } from './openai.client';
 import { buildSystemPrompt } from './prompt';
-import { RecallEntry, RecallRepository } from './recall.repository';
+import { RecallEntry, RecallRepository, RecallUserContext } from './recall.repository';
 
 /** 대화 1건 시작당 차감 잉크. */
 export const RECALL_COST = 30;
@@ -24,6 +24,10 @@ const MAX_ENTRIES = 60;
 const CONV_TOKEN_TTL = '2h';
 /** 대화 토큰 식별 클레임 — auth 액세스 토큰과 상호 오용 차단. */
 const CONV_TOKEN_PURPOSE = 'recall-conv';
+/** 대화 토큰 1개로 부를 수 있는 최대 횟수. DTO의 messages 상한(40 = 20왕복)과 맞춘 값. */
+export const MAX_TURNS_PER_CONVERSATION = 20;
+/** 한 사람이 하루(UTC)에 부를 수 있는 최대 횟수 — 토큰을 계속 새로 사도 OpenAI 비용이 끝없이 늘지 않게. */
+export const MAX_CALLS_PER_DAY = 200;
 
 /** 필터를 사람이 읽는 "시절" 라벨로. 나이 우선, 없으면 연도. 둘 다 없으면 전체(undefined). */
 function describePeriod(filter: RecallChatDto['filter']): string | undefined {
@@ -34,6 +38,14 @@ function describePeriod(filter: RecallChatDto['filter']): string | undefined {
 
 @Injectable()
 export class RecallService {
+  /**
+   * 대화 토큰별 사용 횟수 / 사용자별 오늘 호출 수. 메모리에 둔다.
+   * ponytail: 컨테이너가 1대라 맞다. 2대 이상이면 대수만큼 한도가 늘어난다 → 그때 Redis/DB로.
+   *   재배포하면 초기화되지만 그래 봐야 한도를 한 번 더 쓸 뿐이다.
+   */
+  private readonly turnsByToken = new Map<string, { count: number; expiresAt: number }>();
+  private readonly callsToday = new Map<string, { day: string; count: number }>();
+
   constructor(
     private readonly recall: RecallRepository,
     private readonly openai: OpenAiClient,
@@ -91,38 +103,46 @@ export class RecallService {
 
     // 새 대화 판단 = 서버 서명 토큰 유효성(클라 주장 불신). 없음·위조·만료·타유저 → 새 대화.
     const isNew = !this.isValidConvToken(dto.conversationToken, userId);
+    if (isNew && !ctx.recallConsentAt) {
+      throw new HttpException(
+        { message: '회상을 시작하려면 동의가 필요해요.', code: 'RECALL_CONSENT_REQUIRED' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    // 이어하기 턴 상한 — 토큰 하나로 무한정 무료 대화를 못 하게. (새 대화는 아래에서 1로 시작)
+    if (!isNew && !this.takeTurn(dto.conversationToken as string)) {
+      throw this.tooMany('이 대화는 여기까지예요. 새 대화를 시작해 주세요.');
+    }
+    if (!this.takeDailyCall(userId)) {
+      throw this.tooMany('오늘은 과거의 나와 충분히 이야기했어요. 내일 다시 만나요.');
+    }
 
-    // 새 대화만 동의·잔액 선검사(OpenAI 낭비 방지). 실제 차감은 성공 후.
+    // 프롬프트를 차감 전에 만든다 — 나이 필터 400 같은 입력 오류로 잉크가 나갔다 들어오는 일이 없게.
+    const messages = this.buildMessages(dto, allEntries, ctx);
+
+    // 새 대화는 **OpenAI를 부르기 전에** 원자적으로 차감한다. 예전엔 "잔액 확인 → 호출 → 차감"이라
+    // 동시에 10번 보내면 10번 다 확인을 통과하고, 차감 실패(ok:false)를 무시한 채 토큰까지 내줬다.
+    // 차감에 성공한 요청만 지나간다 — 잔액 30이면 동시 요청 중 정확히 하나.
+    let balance = 0;
     if (isNew) {
-      if (!ctx.recallConsentAt) {
-        throw new HttpException(
-          { message: '회상을 시작하려면 동의가 필요해요.', code: 'RECALL_CONSENT_REQUIRED' },
-          HttpStatus.FORBIDDEN,
-        );
-      }
-      const balance = await this.currency.getBalance(userId);
-      if (balance < RECALL_COST) {
+      const spent = await this.currency.spend(userId, RECALL_COST);
+      if (!spent.ok) {
         throw new HttpException(
           { message: `잉크가 ${RECALL_COST}개 필요해요. 출석으로 모아보세요.`, code: 'INSUFFICIENT_INK' },
           HttpStatus.PAYMENT_REQUIRED,
         );
       }
+      balance = spent.balance;
     }
 
-    const entries = this.applyFilter(allEntries, dto.filter, ctx.birthYear);
-    const system = buildSystemPrompt({
-      entries: entries.slice(0, MAX_ENTRIES),
-      mode: dto.mode ?? 'free',
-      focusWord: dto.focusWord,
-      period: describePeriod(dto.filter),
-      speechProfile: ctx.speechProfile,
-    });
-    const messages: ChatMessage[] = [
-      { role: 'system', content: system },
-      ...dto.messages.map((m) => ({ role: m.role, content: m.content })),
-    ];
-
-    const result = await this.openai.chat(messages, { maxTokens: 500 }); // 실패 시 throw → 미차감·미기록
+    let result: ChatResult;
+    try {
+      result = await this.openai.chat(messages, { maxTokens: 500 });
+    } catch (e) {
+      // 돈은 받았는데 답을 못 줬다 → 되돌려준다. 이 경우 토큰도 발급하지 않는다.
+      if (isNew) await this.currency.refund(userId, RECALL_COST);
+      throw e;
+    }
     // 사용량·비용 기록(비치명적). 매 턴 기록.
     await this.usage.recordLlm({
       userId,
@@ -131,13 +151,11 @@ export class RecallService {
       usage: result.usage,
     });
 
-    // 새 대화만 차감 + 새 토큰 발급. 이어하기는 유효 토큰을 그대로 에코(재서명 X = 고정 TTL 유지).
-    let balance: number;
+    // 새 대화만 새 토큰 발급(이번 호출이 1턴째). 이어하기는 유효 토큰을 그대로 에코(재서명 X = 고정 TTL 유지).
     let conversationToken: string;
     if (isNew) {
-      const spent = await this.currency.spend(userId, RECALL_COST);
-      balance = spent.balance;
       conversationToken = this.signConvToken(userId);
+      this.takeTurn(conversationToken);
     } else {
       balance = await this.currency.getBalance(userId);
       conversationToken = dto.conversationToken as string; // isValidConvToken이 존재 보장
@@ -149,6 +167,52 @@ export class RecallService {
     );
 
     return { message: result.content, balance, conversationToken };
+  }
+
+  /** 시스템 프롬프트(필터된 내 기록) + 앱이 보낸 대화 이력. */
+  private buildMessages(
+    dto: RecallChatDto,
+    allEntries: RecallEntry[],
+    ctx: RecallUserContext,
+  ): ChatMessage[] {
+    const entries = this.applyFilter(allEntries, dto.filter, ctx.birthYear);
+    const system = buildSystemPrompt({
+      entries: entries.slice(0, MAX_ENTRIES),
+      mode: dto.mode ?? 'free',
+      focusWord: dto.focusWord,
+      period: describePeriod(dto.filter),
+      speechProfile: ctx.speechProfile,
+    });
+    return [
+      { role: 'system', content: system },
+      ...dto.messages.map((m) => ({ role: m.role, content: m.content })),
+    ];
+  }
+
+  /** 토큰 하나의 턴을 1 쓴다. 상한에 닿았으면 false. 만료된 토큰 기록은 그때그때 치운다. */
+  private takeTurn(token: string): boolean {
+    const now = Date.now();
+    for (const [k, v] of this.turnsByToken) if (v.expiresAt <= now) this.turnsByToken.delete(k);
+    // 만료 시각은 토큰 TTL(2h)과 같게 — 토큰이 죽으면 기록도 필요 없다.
+    const cur = this.turnsByToken.get(token) ?? { count: 0, expiresAt: now + 2 * 60 * 60 * 1000 };
+    if (cur.count >= MAX_TURNS_PER_CONVERSATION) return false;
+    cur.count += 1;
+    this.turnsByToken.set(token, cur);
+    return true;
+  }
+
+  /** 오늘(UTC) 호출 1회를 쓴다. 상한에 닿았으면 false. */
+  private takeDailyCall(userId: string): boolean {
+    const day = new Date().toISOString().slice(0, 10);
+    const cur = this.callsToday.get(userId);
+    const count = cur?.day === day ? cur.count : 0;
+    if (count >= MAX_CALLS_PER_DAY) return false;
+    this.callsToday.set(userId, { day, count: count + 1 });
+    return true;
+  }
+
+  private tooMany(message: string): HttpException {
+    return new HttpException({ message, code: 'RECALL_LIMIT' }, HttpStatus.TOO_MANY_REQUESTS);
   }
 
   /**

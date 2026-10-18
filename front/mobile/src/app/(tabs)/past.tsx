@@ -205,6 +205,8 @@ function RecallHome() {
         periodEnd: target.periodEnd,
         mode: 'question',
         focusWord: target.focusWord,
+        // 이번 진입 한 번만 자동으로 질문을 받게 하는 표 — 새로고침·뒤로 다시 오기로 또 잉크가 빠지지 않게(recall-chat).
+        start: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       },
     });
   };

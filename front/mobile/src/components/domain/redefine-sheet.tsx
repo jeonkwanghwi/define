@@ -23,6 +23,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
 import { MIN_DEFINITION_LENGTH } from '@/lib/definition';
 import { topicSuffix } from '@/lib/korean';
+import { ENTRY_LIMITS } from '@/lib/sync-journal';
 import { controlPresets, useTheme } from '@/theme';
 
 export type RedefineSheetProps = {
@@ -102,6 +103,7 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
             <TextField
               ref={inputRef}
               multiline
+              maxLength={ENTRY_LIMITS.text} // 서버 상한 — 넘기면 동기화가 거절된다
               value={text}
               onChangeText={setText}
               placeholder={`${word}${topicSuffix(word)}…`}
@@ -145,8 +147,8 @@ export function RedefineSheet({ visible, word, onSave, onClose }: RedefineSheetP
         cancelLabel="계속 쓰기"
         destructive
         // 대화상자 Modal이 사라지는 중에 시트 Modal을 닫으라고 하면 iOS가 무시해, 안 보이는 시트가
-        // 터치를 막는다. 대화상자 퇴장(ConfirmDialog의 200ms)보다 넉넉히 기다린 뒤 닫는다.
-        onConfirm={() => setTimeout(onClose, 350)}
+        // 터치를 막는다. ConfirmDialog가 onConfirm을 자기 Modal이 다 닫힌 뒤에 불러 주므로 바로 닫아도 된다.
+        onConfirm={onClose}
         onClose={() => setDiscardOpen(false)}
       />
     </Modal>

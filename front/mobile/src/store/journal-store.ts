@@ -45,6 +45,30 @@ type JournalState = {
   /** 로컬 단어장의 주인 지정(로그인 계정 클레임 / 익명 복귀 시 null). */
   setOwner: (id: string | null) => void;
   /**
+   * 아직 서버에 올라가지 않은 entry id들("더러운" 것). 추가·수정하면 여기 들어가고,
+   * 업로드가 **성공한 뒤에만** 빠진다. 동기화는 이것만 올린다.
+   *
+   * 왜: 전에는 바뀔 때마다 단어장 전체를 올렸다. 기록이 많아지면 요청이 서버 한도를 넘어 영원히
+   * 실패했고(413), 다른 폰에서 지운 기록·고친 기록을 이 폰의 옛 사본이 되살리거나 덮어썼다.
+   * Set이 아니라 배열인 이유: AsyncStorage에 JSON으로 저장되는데 Set은 JSON이 안 된다.
+   */
+  dirtyIds: string[];
+  /**
+   * 업로드 성공 처리 — 보낸 entry가 **보낸 그대로**일 때만 깨끗하게 표시한다.
+   * 올리는 사이에 사용자가 또 고쳤다면(객체가 바뀌었다면) 다음 업로드를 위해 더러운 채로 둔다.
+   */
+  markClean: (sent: SavedEntry[]) => void;
+  /** 전부 다시 올려야 할 때(이 기록이 아직 없는 새 계정에 붙을 때). */
+  markAllDirty: () => void;
+  /**
+   * 지웠지만 서버에 아직 "지워라"를 못 전한 entry id들. 동기화가 DELETE로 하나씩 비운다.
+   * 왜 기억하나: 전엔 삭제 요청이 실패하면 그대로 잊혀서, 다음 다운로드가 서버의 사본을
+   * 다시 내려받아 지운 기록이 **되살아났다**(광장에도 계속 공개된 채로).
+   */
+  pendingDeletes: string[];
+  /** 서버 삭제 성공 — 목록에서 뺀다. */
+  clearPendingDelete: (id: string) => void;
+  /**
    * 정의 저장.
    * @param savedAt 지정 안 하면 현재 시각. 과거 날짜 기록(캘린더 선택) 시 그 Date 전달.
    * @param changeNote 재정의 시 "이전과 달라진 점" 선택 메모. 빈 값이면 생략.
@@ -60,13 +84,27 @@ type JournalState = {
   updateChangeNote: (id: string, changeNote: string) => void;
   removeEntry: (id: string) => void;
   /**
-   * 서버에서 받은 entries를 로컬에 머지 (다운로드 동기화: 새 기기·재설치 복원).
-   * id(=서버 clientId) 기준 union — 로컬에 없는 것만 추가(로컬 우선, 중복/덮어쓰기 X).
-   * 두 번 호출해도 안전(멱등). 머지 후 savedAt 역순 정렬로 "최신 먼저" 불변식 유지.
+   * 서버 단어장을 로컬에 맞춘다(다운로드 동기화: 새 기기·재설치 복원 + 다른 폰의 수정·삭제 반영).
+   * @param cleanAtStart 다운로드를 **시작할 때** 이미 서버에 올라가 있던(더럽지 않은) id들.
+   *   - 로컬에 없는 서버 entry → 추가 (단, 여기서 지운 뒤 서버 삭제를 기다리는 것은 빼고)
+   *   - 시작 때도 지금도 깨끗한 entry → 서버 사본이 이긴다(다른 폰에서 고친 것)
+   *   - 시작 때 깨끗했는데 서버에 없는 entry → 다른 폰에서 지운 것 → 지운다
+   *   더러운 것(아직 안 올린 이 폰의 글)은 절대 건드리지 않는다. 받는 사이 올라간 글도
+   *   "시작 때 깨끗"이 아니라서 서버 목록에 없다고 지워지지 않는다.
+   * 바뀐 게 없으면 state를 그대로 둔다(불필요한 리렌더·동기화 방지). 멱등.
    */
-  mergeEntries: (incoming: SavedEntry[]) => void;
-  clearAll: () => void;
+  applyServerEntries: (incoming: SavedEntry[], cleanAtStart: Map<string, SavedEntry>) => void;
+  /**
+   * 로컬을 비우고 주인을 바꾼다(계정 전환·탈퇴). **한 번의 set으로** — auto-sync가 "주인이 바뀐
+   * 변경"을 보고 이번 삭제를 서버에 보내지 않는다(남의/사라진 계정에 DELETE를 쏟아붓지 않게).
+   */
+  resetLocal: (ownerId: string | null) => void;
 };
+
+/** 추가·수정된 id를 더러운 목록에 넣는다(이미 있으면 그대로). */
+function withDirty(dirtyIds: string[], id: string): string[] {
+  return dirtyIds.includes(id) ? dirtyIds : [...dirtyIds, id];
+}
 
 function makeId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -77,12 +115,26 @@ export const useJournalStore = create<JournalState>()(
     (set) => ({
       entries: [],
       ownerId: null,
+      dirtyIds: [],
       setOwner: (id) => set({ ownerId: id }),
-      addEntry: (word, text, savedAt, changeNote) =>
+      markClean: (sent) =>
+        set((state) => {
+          const current = new Map(state.entries.map((e) => [e.id, e]));
+          // === 비교: zustand는 고칠 때 새 객체를 만든다 → 같은 객체면 보낸 뒤로 안 바뀐 것.
+          const done = new Set(sent.filter((e) => current.get(e.id) === e).map((e) => e.id));
+          return { dirtyIds: state.dirtyIds.filter((id) => !done.has(id)) };
+        }),
+      markAllDirty: () => set((state) => ({ dirtyIds: state.entries.map((e) => e.id) })),
+      pendingDeletes: [],
+      clearPendingDelete: (id) =>
+        set((state) => ({ pendingDeletes: state.pendingDeletes.filter((d) => d !== id) })),
+      addEntry: (word, text, savedAt, changeNote) => {
+        const id = makeId();
         set((state) => ({
+          dirtyIds: withDirty(state.dirtyIds, id),
           entries: [
             {
-              id: makeId(),
+              id,
               word,
               text,
               savedAt: (savedAt ?? new Date()).toISOString(),
@@ -91,15 +143,18 @@ export const useJournalStore = create<JournalState>()(
             },
             ...state.entries,
           ],
-        })),
+        }));
+      },
       updateEntry: (id, text) =>
         set((state) => ({
+          dirtyIds: withDirty(state.dirtyIds, id),
           entries: state.entries.map((e) =>
             e.id === id ? { ...e, text } : e,
           ),
         })),
       updateChangeNote: (id, changeNote) =>
         set((state) => ({
+          dirtyIds: withDirty(state.dirtyIds, id),
           entries: state.entries.map((e) =>
             e.id === id
               ? { ...e, changeNote: changeNote.trim() ? changeNote.trim() : undefined }
@@ -107,25 +162,83 @@ export const useJournalStore = create<JournalState>()(
           ),
         })),
       removeEntry: (id) =>
-        set((state) => ({
-          entries: state.entries.filter((e) => e.id !== id),
-        })),
-      mergeEntries: (incoming) =>
         set((state) => {
-          const known = new Set(state.entries.map((e) => e.id));
-          const additions = incoming.filter((e) => !known.has(e.id));
-          if (additions.length === 0) return state; // 새로 추가할 게 없으면 그대로(불필요한 리렌더 방지)
+          const removed = state.entries.find((e) => e.id === id);
+          let entries = state.entries.filter((e) => e.id !== id);
+          // 지운 건 올릴 필요가 없다. 대신 서버에 지우라고 전할 목록에 넣는다(동기화가 DELETE로).
+          let dirtyIds = state.dirtyIds.filter((d) => d !== id);
+          // 첫 정의를 지우면 그다음 정의가 첫 정의가 된다. 그 정의의 변화 노트("이전과 달라진 점")는
+          // 비교할 이전이 사라졌으니 남기면 안 된다 → 지우고 서버에도 다시 올린다.
+          if (removed) {
+            const oldest = entries
+              .filter((e) => e.word === removed.word)
+              .reduce<SavedEntry | null>((a, e) => (!a || e.savedAt < a.savedAt ? e : a), null);
+            if (oldest?.changeNote) {
+              entries = entries.map((e) => (e === oldest ? { ...e, changeNote: undefined } : e));
+              dirtyIds = withDirty(dirtyIds, oldest.id);
+            }
+          }
           return {
-            entries: [...state.entries, ...additions].sort((a, b) =>
-              b.savedAt.localeCompare(a.savedAt),
-            ),
+            entries,
+            dirtyIds,
+            // 익명일 때 지운 글은 어느 서버에도 없다 — 가입 순간 쓸데없는 DELETE를 줄줄이 보내지 않게.
+            pendingDeletes: state.ownerId === null ? state.pendingDeletes : withDirty(state.pendingDeletes, id),
           };
         }),
-      clearAll: () => set({ entries: [] }),
+      applyServerEntries: (incoming, cleanAtStart) =>
+        set((state) => {
+          const server = new Map(incoming.map((e) => [e.id, e]));
+          const dirty = new Set(state.dirtyIds);
+          const pending = new Set(state.pendingDeletes);
+          let changed = false;
+          const kept: SavedEntry[] = [];
+          for (const e of state.entries) {
+            const remote = server.get(e.id);
+            // 시작 때와 **같은 객체**이고 지금도 깨끗해야 "서버에 있던 그대로" — 받는 사이 고친 글은 빠진다.
+            const synced = cleanAtStart.get(e.id) === e && !dirty.has(e.id);
+            if (!remote) {
+              if (synced) changed = true; // 다른 폰에서 지웠다 → 여기서도 뺀다
+              else kept.push(e);
+              continue;
+            }
+            const same =
+              remote.word === e.word &&
+              remote.text === e.text &&
+              remote.savedAt === e.savedAt &&
+              (remote.changeNote ?? undefined) === (e.changeNote ?? undefined);
+            if (synced && !same) {
+              kept.push(remote); // 다른 폰에서 고쳤다 → 서버 사본
+              changed = true;
+            } else {
+              kept.push(e); // 같은 객체를 유지해야 markClean의 === 비교가 산다
+            }
+          }
+          const known = new Set(state.entries.map((e) => e.id));
+          const additions = incoming.filter((e) => !known.has(e.id) && !pending.has(e.id));
+          if (!changed && additions.length === 0) return state;
+          return {
+            entries: [...kept, ...additions].sort((a, b) => b.savedAt.localeCompare(a.savedAt)),
+          };
+        }),
+      resetLocal: (ownerId) => set({ entries: [], dirtyIds: [], pendingDeletes: [], ownerId }),
     }),
     {
       name: 'define-journal-v1', // 스토리지 키. 모델 깨는 변경 시 v2로 올려 마이그레이션.
       storage: createJSONStorage(() => AsyncStorage),
+      /**
+       * 저장 형식 버전. 1 = dirtyIds 도입(빌드 14).
+       * 업데이트 전에 저장된 데이터(version 0)엔 dirtyIds가 없다 — 어느 게 이미 서버에 있는지
+       * 알 길이 없으니 **전부 더러운 것으로** 보고 한 번 다 올린다(멱등 upsert라 중복은 안 생긴다).
+       * 빈 목록으로 시작하면 업데이트 직전에 못 올라간 기록이 영영 안 올라간다.
+       */
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<JournalState>;
+        if (version < 1) {
+          return { ...state, dirtyIds: (state.entries ?? []).map((e) => e.id) } as JournalState;
+        }
+        return state as JournalState;
+      },
     },
   ),
 );
