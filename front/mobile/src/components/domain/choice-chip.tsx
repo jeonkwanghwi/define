@@ -17,7 +17,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet } from 'react-native';
 
 import { PressableScale } from '@/components/primitives';
-import { motion, radii, typography, useTheme } from '@/theme';
+import { motion, radii, useTheme } from '@/theme';
 
 export type ChoiceChipProps = {
   label: string;
@@ -62,7 +62,7 @@ export function ChoiceChip({ label, selected, onPress, grow }: ChoiceChipProps) 
       <Animated.View style={[styles.chip, { backgroundColor, borderColor }]}>
         {/* 고르는 글이라 산세리프(typography.ts의 역할 구분). 선택되면 굵게 — 색만으론 약하다. */}
         <Animated.Text
-          style={[typography.sm, { color, fontWeight: selected ? '700' : '500', textAlign: 'center' }]}
+          style={[theme.typography.sm, { color, fontWeight: selected ? '700' : '500', textAlign: 'center' }]}
         >
           {label}
         </Animated.Text>

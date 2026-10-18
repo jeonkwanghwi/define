@@ -28,34 +28,37 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSettingsStore } from '@/store/settings-store';
 
 import type { Colors } from './colors';
-import { fontFamily } from './fonts';
+import { DEFAULT_FONT_SET, getFontSet, type FontSet } from './fonts';
 import { motion } from './motion';
 import { getColors, type PaletteId } from './palettes';
 import { radii } from './radii';
 import { darkShadows, lightShadows, type Shadows } from './shadows';
 import { controlPresets, spacing } from './spacing';
-import { typography } from './typography';
+import { buildTypography, type Typography } from './typography';
 
 export type Theme = {
   mode: 'light' | 'dark';
   colors: Colors;
   shadows: Shadows;
-  typography: typeof typography;
+  typography: Typography;
+  /** 지금 글꼴 세트의 패밀리 이름 — 스타일을 직접 짤 때(theme.fonts.sans). */
+  fonts: FontSet;
   spacing: typeof spacing;
   radii: typeof radii;
   presets: typeof controlPresets;
   motion: typeof motion;
 };
 
-// 팔레트 × 모드 = 12가지. 순수하게 만들어지니 한 번 만들고 같은 객체를 재사용한다.
+// 팔레트 × 모드 × 글꼴 세트. 순수하게 만들어지니 한 번 만들고 같은 객체를 재사용한다.
 const themeCache: Partial<Record<string, Theme>> = {};
 
-function getTheme(palette: PaletteId, mode: 'light' | 'dark'): Theme {
-  const key = `${palette}-${mode}`;
+function getTheme(palette: PaletteId, mode: 'light' | 'dark', fontSet: string): Theme {
+  const key = `${palette}-${mode}-${fontSet}`;
   const cached = themeCache[key];
   if (cached) return cached;
 
   const colors = getColors(palette, mode);
+  const fonts = getFontSet(fontSet);
   const shadows =
     mode === 'light'
       ? // 라이트의 포인트 글로우는 포인트 색을 따른다(다크는 검정 그대로)
@@ -65,7 +68,8 @@ function getTheme(palette: PaletteId, mode: 'light' | 'dark'): Theme {
     mode,
     colors,
     shadows,
-    typography,
+    typography: buildTypography(fonts),
+    fonts,
     spacing,
     radii,
     presets: controlPresets,
@@ -89,21 +93,21 @@ export function useTheme(): Theme {
   const themeMode = useSettingsStore((s) => s.themeMode);
   const systemScheme = useColorScheme(); // 'light' | 'dark' | null
   const palette = useSettingsStore((s) => s.palette);
+  const fontSet = useSettingsStore((s) => s.fontSet ?? DEFAULT_FONT_SET);
   const resolved = themeMode === 'system' ? (systemScheme ?? 'light') : themeMode;
-  return getTheme(palette, resolved === 'dark' ? 'dark' : 'light');
+  return getTheme(palette, resolved === 'dark' ? 'dark' : 'light', fontSet);
 }
 
 // 개별 토큰 모듈을 직접 import 하고 싶을 때 (드물지만 유틸성 코드에서)
 export {
-  fontFamily,
   lightShadows,
   darkShadows,
-  typography,
   spacing,
   controlPresets,
   radii,
   motion,
 };
 export type { Colors, Shadows };
-export type { TypographyVariant } from './typography';
+export type { TypographyVariant, Typography } from './typography';
+export { FONT_SETS, FONT_SET_IDS, DEFAULT_FONT_SET, type FontSetId, type FontSet } from './fonts';
 export { getColors, PALETTES, PALETTE_IDS, type PaletteId } from './palettes';

@@ -23,7 +23,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
 import { matchWord, type MatchRange } from '@/lib/korean';
 import { useGroupedByWord, useJournalStats, useJournalStreak } from '@/store/journal-store';
-import { useTheme, fontFamily } from '@/theme';
+import { useTheme } from '@/theme';
 import type { JournalWord } from '@/types/word';
 
 /**
@@ -277,7 +277,7 @@ function StatCard({ label, value, empty }: { label: string; value: string; empty
     >
       <ThemedText
         style={{
-          fontFamily: fontFamily.sans,
+          fontFamily: theme.fonts.sans,
           fontWeight: '800',
           fontSize: 22,
           color: empty ? theme.colors.ink.placeholder : theme.colors.point.p600,

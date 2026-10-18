@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { DEFAULT_FONT_SET, FONT_SET_IDS, type FontSetId } from '@/theme/fonts';
 import { DEFAULT_PALETTE, PALETTE_IDS, type PaletteId } from '@/theme/palettes';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -32,6 +33,9 @@ type SettingsState = {
   /** 포인트 색 계열. 바꾸면 useTheme를 쓰는 화면 전체가 바로 새 색으로 칠해진다. */
   palette: PaletteId;
   setPalette: (id: PaletteId) => void;
+  /** 본문 글꼴 세트(theme/fonts.ts). 지금은 하나뿐 — 세트가 늘면 마이페이지에서 고르게 한다. */
+  fontSet: FontSetId;
+  setFontSet: (id: FontSetId) => void;
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -43,6 +47,8 @@ export const useSettingsStore = create<SettingsState>()(
       setHaptics: (on) => set({ haptics: on }),
       palette: DEFAULT_PALETTE,
       setPalette: (id) => set({ palette: id }),
+      fontSet: DEFAULT_FONT_SET,
+      setFontSet: (id) => set({ fontSet: id }),
     }),
     {
       name: 'define-settings-v1', // 모델 깨는 변경 시 v2로 마이그레이션
@@ -54,7 +60,8 @@ export const useSettingsStore = create<SettingsState>()(
       // early return으로 끊으면 v0 사용자가 v2 보정을 못 받고, 반대로 덮어쓰면 고른 테마가 날아간다.
       // v2 → v3: palette 추가. 예전 저장값엔 없다 → 기본 팔레트를 채운다.
       // 모르는 id(없어진 팔레트 등)가 들어 있어도 기본값으로 — 없는 색으로 앱을 칠할 수는 없다.
-      version: 3,
+      // v3 → v4: fontSet 추가. palette와 같은 규칙(없거나 모르는 id면 기본 세트).
+      version: 4,
       migrate: (persisted, version) => {
         let state = persisted as Record<string, unknown>;
         if (version === 0 && state && typeof state === 'object' && 'nickname' in state) {
@@ -67,6 +74,10 @@ export const useSettingsStore = create<SettingsState>()(
         if (version < 3) {
           const known = PALETTE_IDS.includes(state.palette as PaletteId);
           state = { ...state, palette: known ? state.palette : DEFAULT_PALETTE };
+        }
+        if (version < 4) {
+          const known = FONT_SET_IDS.includes(state.fontSet as FontSetId);
+          state = { ...state, fontSet: known ? state.fontSet : DEFAULT_FONT_SET };
         }
         return state as SettingsState;
       },

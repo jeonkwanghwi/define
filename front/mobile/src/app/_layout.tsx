@@ -16,6 +16,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LaunchIntro } from '@/components/domain/launch-intro';
 import { ToastProvider, useToast } from '@/components/primitives';
 import * as SplashScreen from 'expo-splash-screen';
+
+import { FONT_FILES } from '@/theme/fonts';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { runAttendanceClaim } from '@/lib/attendance';
@@ -30,13 +32,8 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const theme = useTheme();
-  // require의 상대 경로: src/app/_layout.tsx → ../../assets/fonts/...
-  const [loaded, error] = useFonts({
-    PretendardVariable: require('../../assets/fonts/PretendardVariable.ttf'),
-    // 나눔명조 — 제목·본문용. 정적 폰트라 두께마다 별도 파일(각 ~3MB)이다.
-    NanumMyeongjo_400Regular: require('@expo-google-fonts/nanum-myeongjo/400Regular/NanumMyeongjo_400Regular.ttf'),
-    NanumMyeongjo_700Bold: require('@expo-google-fonts/nanum-myeongjo/700Bold/NanumMyeongjo_700Bold.ttf'),
-  });
+  // 글꼴 파일 목록은 theme/fonts.ts 한 곳에 — 세트를 추가하면 여기서 같이 불러온다.
+  const [loaded, error] = useFonts(FONT_FILES);
 
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
