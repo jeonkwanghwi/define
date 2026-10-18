@@ -5,7 +5,7 @@
  *   1) 글자마다 획 순서대로 — 마스크 속 굵은 흰 선이 dashoffset으로 그어지며 글자 윤곽을 드러내고,
  *      작은 먹색 타원(붓끝)이 그 선의 앞머리를 따라간다(획 방향으로 기울어서).
  *   2) 한 글자가 끝나면 글자 전체가 살짝 페이드인 — 붓이 덜 덮은 틈을 메운다.
- *   3) 포인트 색 마침표가 톡 떨어지고, 작은 잉크 방울 셋이 튀었다 사라진다.
+ *   3) 먹색 마침표가 톡 떨어지고, 작은 잉크 방울 셋이 튀었다 사라진다.
  *   4) 로고 전체가 헤더 로고 자리로 날아가 앉고, 종이 바탕이 걷히며 홈 화면이 드러난다.
  *
  * 정책:
@@ -183,7 +183,6 @@ function IntroLayer({ onDone }: { onDone: () => void }) {
   });
 
   const ink = theme.colors.ink.primary;
-  const point = theme.colors.point.p600;
   const { cx, cy, r } = LOGO.dot;
 
   return (
@@ -216,9 +215,9 @@ function IntroLayer({ onDone }: { onDone: () => void }) {
                 ))}
               </G>
             ))}
-            <Dot t={t} cx={cx} cy={cy} r={r} color={point} />
+            <Dot t={t} cx={cx} cy={cy} r={r} color={ink} />
             {DROPS.map(([dx, dy, dr], k) => (
-              <Drop key={k} t={t} cx={cx + dx} cy={cy + dy} r={dr} start={DOT_START + 60 + k * 30} color={point} />
+              <Drop key={k} t={t} cx={cx + dx} cy={cy + dy} r={dr} start={DOT_START + 60 + k * 30} color={ink} />
             ))}
           </Svg>
         </Animated.View>

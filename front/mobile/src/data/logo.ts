@@ -6,7 +6,7 @@
  *
  *   - letters[].d       : 글자 윤곽. opentype.js로 글꼴 크기 120, 기준선 y=100에서 뽑은 좌표.
  *   - letters[].strokes : 붓이 지나가는 길(획 순서대로) + 붓 굵기. 인트로가 이 길을 따라 글자를 드러낸다.
- *   - dot               : 마침표(포인트 색).
+ *   - dot               : 마침표(글자와 같은 먹색).
  *
  * 획의 길이·붓끝 위치는 런타임에 재지 않고 scripts/gen-logo-strokes.mjs가 미리 계산해
  * logo-strokes.generated.ts에 둔다. 이 파일을 고치면 그 스크립트를 다시 돌릴 것.

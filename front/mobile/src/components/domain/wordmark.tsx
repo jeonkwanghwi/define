@@ -46,7 +46,8 @@ export function Wordmark({ height }: { height: number }) {
         {LOGO.letters.map((l, i) => (
           <Path key={i} d={l.d} fill={theme.colors.ink.primary} />
         ))}
-        <Circle cx={LOGO.dot.cx} cy={LOGO.dot.cy} r={LOGO.dot.r} fill={theme.colors.point.p600} />
+        {/* 마침표도 글자와 같은 먹색 — 포인트색이면 따로 떨어진 얼룩처럼 보였다 */}
+        <Circle cx={LOGO.dot.cx} cy={LOGO.dot.cy} r={LOGO.dot.r} fill={theme.colors.ink.primary} />
       </Svg>
     </View>
   );
