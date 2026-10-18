@@ -81,7 +81,8 @@ export function InkBalanceChip({ balance }: { balance: number }) {
           { backgroundColor: theme.colors.surface.nested, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: theme.colors.line.base, transform: [{ scale }] },
         ]}
       >
-        <Icon name="ink" size={14} color={theme.colors.ruby.base} />
+        {/* 루비는 경고 전용 — 옆의 "동기화 안 됨" 칩과 같은 색이면 잔액이 경고처럼 읽힌다. 마이페이지 잉크 행과 같은 색. */}
+        <Icon name="ink" size={14} color={theme.colors.ink.secondary} />
         {/* 같은 숫자를 두 겹 — 위의 루비 겹을 opacity로 켜고 끈다(색 보간은 네이티브 드라이버 불가). */}
         <View>
           <ThemedText variant="sm" style={[numberStyle, { color: theme.colors.ink.secondary }]}>

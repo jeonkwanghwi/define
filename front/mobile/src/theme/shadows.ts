@@ -85,7 +85,7 @@ export const darkShadows: Shadows = {
     elevation: 6,
   },
   point: {
-    shadowColor: '#2E3192',
+    shadowColor: '#000000', // 다크: 포인트색 글로우는 밝은 버튼 밑에서 푸른 안개처럼 번졌다
     shadowOpacity: 0.45,
     shadowOffset: { width: 0, height: 12 },
     shadowRadius: 30,

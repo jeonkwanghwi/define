@@ -380,8 +380,9 @@ function SectionLabel({ text }: { text: string }) {
   return (
     <ThemedText
       variant="caption"
+      // 누를 수 없는 제목이라 포인트색을 쓰지 않는다 — 바로 아래 선택된 세그먼트(포인트)와 겹쳐 보였다.
       style={{
-        color: theme.colors.point.p600,
+        color: theme.colors.ink.secondary,
         letterSpacing: 1.5,
         textTransform: 'uppercase',
         marginTop: theme.spacing.s6,

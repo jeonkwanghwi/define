@@ -653,6 +653,7 @@ export default function MyPageScreen() {
           '이 폰에 저장된 것까지요.'
         }
         confirmLabel="다음"
+        destructive // "모두 사라져요"라는 말과 버튼 색을 맞춘다 — 평범한 다음처럼 보이면 가볍게 누른다
         onConfirm={() => setDeleteStep(2)}
         onClose={() => setDeleteStep(0)}
       />
@@ -694,7 +695,7 @@ function SectionLabel({ theme, text }: { theme: Theme; text: string }) {
     <ThemedText
       variant="caption"
       style={{
-        color: theme.colors.point.p600,
+        color: theme.colors.ink.secondary, // 누를 수 없는 제목 — 포인트는 누르는 것·선택된 것에만
         letterSpacing: 1.5,
         textTransform: 'uppercase',
         marginTop: theme.spacing.s8,
