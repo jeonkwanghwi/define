@@ -25,6 +25,7 @@ import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
+import { Wordmark } from '@/components/domain/wordmark';
 import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
@@ -56,7 +57,8 @@ export function AppHeader() {
     <View style={[styles.wrap, { paddingTop: insets.top }]}>
       <View style={styles.appHeader}>
         <View style={styles.headerLeft}>
-          <ThemedText style={styles.wordmark}>define</ThemedText>
+          {/* 붓 필기체 로고(SVG) — 시작 인트로가 이 자리로 내려앉는다. 높이 24 ≈ 예전 22pt 글자와 같은 덩치. */}
+          <Wordmark height={24} />
           {/* 예외 상태 칩 — 동기화 실패 / 로그아웃일 때만. 정상 로그인이면 아무것도 안 그린다. */}
           {isLoggedIn ? (
             syncFailed ? (
@@ -160,7 +162,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  wordmark: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.s2 },
   loginChip: {
     flexDirection: 'row',

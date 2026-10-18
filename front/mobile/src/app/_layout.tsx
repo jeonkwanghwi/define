@@ -13,6 +13,7 @@
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { LaunchIntro } from '@/components/domain/launch-intro';
 import { ToastProvider, useToast } from '@/components/primitives';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
@@ -112,6 +113,8 @@ export default function RootLayout() {
         >
           <View style={{ flex: 1, backgroundColor: theme.colors.paper.base }}>
             <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />
+            {/* 시작 인트로 — 스플래시가 걷히는 순간부터 화면 위를 덮고, 아래에선 앱이 그대로 준비된다. */}
+            <LaunchIntro />
           </View>
         </ThemeProvider>
       </ToastProvider>
