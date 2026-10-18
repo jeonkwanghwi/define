@@ -303,12 +303,20 @@ export default function MyPageScreen() {
 
   // 프로필 부제 — 실제 기록 통계 (가짜 수치 없이)
   // 연속 기록은 2일 이상일 때만 — "1일 연속"은 의미가 약하고, 0일은 압박이 되므로 생략.
+  // 덩어리 안의 띄어쓰기는 줄바꿈 없는 공백(\u00A0)으로 — 좁은 화면에서 "3 / 개"처럼
+  // 숫자와 단위가 갈라지지 않고, 줄은 " · " 사이에서만 넘어간다.
+  const keep = (s: string) => s.replace(/ /g, '\u00A0');
   const statLine =
     stats.totalEntries === 0
       ? '아직 정의한 단어가 없어요'
-      : `총 ${stats.totalEntries}번의 정의 · ${stats.uniqueWords}개 단어` +
-        (stats.changedWords > 0 ? ` · 생각이 바뀐 단어 ${stats.changedWords}개` : '') +
-        (streak.currentStreak >= 2 ? ` · ${streak.currentStreak}일 연속 기록` : '');
+      : [
+          keep(`총 ${stats.totalEntries}번의 정의`),
+          keep(`${stats.uniqueWords}개 단어`),
+          stats.changedWords > 0 ? keep(`생각이 바뀐 단어 ${stats.changedWords}개`) : null,
+          streak.currentStreak >= 2 ? keep(`${streak.currentStreak}일 연속 기록`) : null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
 
   return (
     <ThemedView bg="paper" style={styles.root}>

@@ -162,8 +162,9 @@ export default function AuthScreen() {
     setSubmitting(true);
     try {
       await login(effectiveEmail, password);
-      notifySuccess('로그인했어요');
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
+      // 처음 온 사람(프로필 미완성 → 프로필 설정으로 감)에게 "로그인했어요"는 틀린 말이다.
+      notifySuccess(completed ? '로그인했어요' : '환영해요 · 프로필만 정하면 끝나요');
       // 로그인 성공 후에는 어디서 들어왔든(마이페이지 등) 기록 탭(홈)으로 —
       // back()으로 이전 화면 복귀시키면 진입점마다 도착지가 달라져 혼란.
       if (completed) router.replace('/');
@@ -193,8 +194,9 @@ export default function AuthScreen() {
     try {
       const result = await kakao.getAuthCode();
       await loginWithKakao(result);
-      notifySuccess('로그인했어요');
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
+      // 처음 온 사람(프로필 미완성 → 프로필 설정으로 감)에게 "로그인했어요"는 틀린 말이다.
+      notifySuccess(completed ? '로그인했어요' : '환영해요 · 프로필만 정하면 끝나요');
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
       if (e instanceof KakaoCanceled) return; // 사용자가 그만둔 것 — 조용히 돌아간다
@@ -217,8 +219,9 @@ export default function AuthScreen() {
     try {
       const { identityToken, authorizationCode } = await getAppleCredential();
       await loginWithApple(identityToken, authorizationCode);
-      notifySuccess('로그인했어요');
       const completed = useAuthStore.getState().user?.profileCompleted ?? false;
+      // 처음 온 사람(프로필 미완성 → 프로필 설정으로 감)에게 "로그인했어요"는 틀린 말이다.
+      notifySuccess(completed ? '로그인했어요' : '환영해요 · 프로필만 정하면 끝나요');
       router.replace(completed ? '/' : '/profile-setup');
     } catch (e) {
       if (e instanceof AppleCanceled) return; // 사용자가 그만둔 것 — 조용히 돌아간다
