@@ -8,10 +8,11 @@
  *   4. 포트 listen
  */
 import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 import { AppModule } from './app.module';
+import { ClientErrorFilter } from './common/client-error.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -43,6 +44,9 @@ async function bootstrap() {
 
   // whitelist: dto에 없는 필드는 잘라냄 / transform: 타입 자동 변환
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  // 본문 오류(413·깨진 JSON)는 4xx 응답만 — ERROR 로그(= 장애 알람)로 세지 않는다.
+  app.useGlobalFilters(new ClientErrorFilter(app.get(HttpAdapterHost).httpAdapter));
 
   app.setGlobalPrefix('api');
 
