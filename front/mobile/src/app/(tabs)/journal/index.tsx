@@ -136,7 +136,8 @@ export default function JournalListScreen() {
           empty={streak.currentStreak === 0}
         />
         {/* 변화 노트가 있는 단어 수 — 마이페이지와 같은 기준·같은 이름(재정의 횟수 아님). */}
-        <StatCard label="생각이 바뀐 단어" value={`${stats.changedWords}`} />
+        {/* 좁은 폭(360~375)에서 한글이 글자 단위로 끊겨 "단 / 어"가 되던 것 — 낱말 사이에서 직접 끊는다. */}
+        <StatCard label={'생각이 바뀐\n단어'} value={`${stats.changedWords}`} />
       </View>
 
       {/* ─── PDF 내보내기 (BM 로드맵) — 기능이 준비될 때까지 가린다 ─── */}
@@ -289,7 +290,7 @@ function StatCard({ label, value, empty }: { label: string; value: string; empty
       <ThemedText
         variant="caption"
         tone="secondary"
-        style={{ marginTop: 4 }}
+        style={{ marginTop: 4, textAlign: 'center' }}
       >
         {label}
       </ThemedText>
