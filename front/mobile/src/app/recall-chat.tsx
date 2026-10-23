@@ -8,7 +8,6 @@ import { usePreventRemove } from 'expo-router/react-navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -32,6 +31,7 @@ import { userFacingMessage } from '@/services/api-client';
 import { recallChat, type RecallFilter, type RecallMessage } from '@/services/recall-api';
 import { useAuthStore } from '@/store/auth-store';
 import { useJournalStore } from '@/store/journal-store';
+import { useKeyboardOpen } from '@/hooks/use-keyboard-open';
 import { useTheme } from '@/theme';
 
 type ApiError = { status: number; message: string };
@@ -77,17 +77,7 @@ function mapError(e: unknown): string {
 export default function RecallChatScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  // 입력바 아래 여백을 키보드가 열렸는지에 따라 바꾼다(입력바 스타일 주석 참고).
-  // iOS는 will 이벤트라 키보드가 올라오기 시작할 때 같이 바뀐다 — did면 한 박자 늦게 튄다.
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardOpen(true));
-    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardOpen(false));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
+  const keyboardOpen = useKeyboardOpen();
   const params = useLocalSearchParams<{
     label?: string;
     age?: string;

@@ -27,6 +27,8 @@ import {
 import { Button, TextField } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { userFacingMessage } from '@/services/api-client';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useKeyboardOpen } from '@/hooks/use-keyboard-open';
 import { useTheme } from '@/theme';
 
 const MAX_LENGTH = 16;
@@ -40,6 +42,8 @@ export type NicknameSheetProps = {
 
 export function NicknameSheet({ visible, current, onSave, onClose }: NicknameSheetProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const keyboardOpen = useKeyboardOpen();
   const [value, setValue] = useState(current);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +102,8 @@ export function NicknameSheet({ visible, current, onSave, onClose }: NicknameShe
             onPress={() => {
               /* 내부 탭이 scrim으로 전파되어 닫히지 않게 차단 */
             }}
-            style={styles.sheet}
+            // 키보드를 내렸을 때 저장 버튼이 홈 인디케이터에 붙지 않게 그만큼 띄운다(열리면 키보드가 덮는다).
+            style={[styles.sheet, { paddingBottom: 28 + (keyboardOpen ? 0 : insets.bottom) }]}
           >
             <View style={[styles.grip, { backgroundColor: theme.colors.line.strong }]} />
             <ThemedText variant="h3" style={{ marginBottom: theme.spacing.s2 }}>

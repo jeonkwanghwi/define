@@ -84,7 +84,7 @@ export default function ProfileSetupScreen() {
 
   return (
     <ThemedView bg="paper" style={styles.root}>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: styles.scroll.paddingTop + insets.top }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: styles.scroll.paddingTop + insets.top, paddingBottom: styles.scroll.paddingBottom + insets.bottom }]} showsVerticalScrollIndicator={false}>
         <ThemedText variant="h1">조금만 더{'\n'}알려주세요</ThemedText>
         <ThemedText variant="body" tone="secondary" style={{ marginTop: theme.spacing.s2 }}>
           관심사에 맞는 단어를 골라 드릴게요.

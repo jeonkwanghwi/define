@@ -15,6 +15,7 @@ import { FlatList, Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 
 /**
@@ -41,6 +42,7 @@ export type YearPickerSheetProps = {
 
 export function YearPickerSheet({ visible, current, onSelect, onClose }: YearPickerSheetProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   // 선택 연도(없으면 기본)가 리스트 중간쯤 오도록 시작 인덱스를 위로 2칸 당김.
   const initialIndex = useMemo(() => {
@@ -88,7 +90,8 @@ export function YearPickerSheet({ visible, current, onSelect, onClose }: YearPic
               index,
             })}
             showsVerticalScrollIndicator={false}
-            style={styles.list}
+            // 목록 끝이 홈 인디케이터에 걸리지 않게 그만큼 더 띄운다.
+            style={[styles.list, { marginBottom: 24 + insets.bottom }]}
             renderItem={({ item: y }) => {
               const on = y === current;
               return (

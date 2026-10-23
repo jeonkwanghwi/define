@@ -19,6 +19,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAfterDismiss } from '@/components/primitives/use-after-dismiss';
 import { ThemedText } from '@/components/themed-text';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 
 export type ActionSheetItem = {
@@ -47,6 +48,7 @@ export function ActionSheet({
   cancelLabel = '취소',
 }: ActionSheetProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const after = useAfterDismiss();
 
   function handleItemPress(item: ActionSheetItem) {
@@ -71,7 +73,8 @@ export function ActionSheet({
         onPress={onClose}
       >
         {/* 내용 영역 — 시트와 취소 버튼이 같이 들어감. 내부 탭은 차단. */}
-        <Pressable onPress={() => {}} style={styles.wrap}>
+        {/* 아래는 홈 인디케이터만큼 더 띄운다 — 안 띄우면 '취소'가 그 위에 걸쳤다. */}
+        <Pressable onPress={() => {}} style={[styles.wrap, { paddingBottom: 24 + insets.bottom }]}>
           <View
             style={[
               styles.sheet,

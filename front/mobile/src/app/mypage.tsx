@@ -23,6 +23,7 @@ import * as Device from 'expo-device';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BugReportSheet } from '@/components/domain/bug-report-sheet';
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
@@ -68,6 +69,7 @@ const LOGIN_METHOD_LABEL: Record<LoginMethod, string> = { email: '이메일', ka
 
 export default function MyPageScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   // 헤더 잉크 칩에서 오면 section='ink' — 잉크 섹션까지 스르륵 내려가 "그게 뭔지"에 바로 답한다.
   const { section } = useLocalSearchParams<{ section?: string }>();
@@ -324,7 +326,8 @@ export default function MyPageScreen() {
       <ScreenHeader title="마이페이지" />
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={styles.scroll}
+        // 맨 아래 문구가 홈 인디케이터에 걸리지 않게 그만큼 더 띄운다.
+        contentContainerStyle={[styles.scroll, { paddingBottom: styles.scroll.paddingBottom + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ─── 프로필 ─── */}

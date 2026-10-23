@@ -9,6 +9,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
 import { Button, FadeIn, PressableScale, TextField, useToast } from '@/components/primitives';
@@ -33,6 +34,7 @@ type Step = 'chooser' | 'form' | 'verify';
 
 export default function AuthScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const appleBg = theme.mode === 'dark' ? '#FFFFFF' : '#000000';
   const appleFg = theme.mode === 'dark' ? '#000000' : '#FFFFFF';
   const router = useRouter();
@@ -443,7 +445,8 @@ export default function AuthScreen() {
                 else goEmail('signup');
               }}
               hitSlop={8}
-              style={styles.signupLink}
+              // 화면 맨 아래 링크라 홈 인디케이터만큼 더 띄운다.
+              style={[styles.signupLink, { paddingBottom: styles.signupLink.paddingBottom + insets.bottom }]}
             >
               <ThemedText variant="sm" tone="secondary">
                 {isSignup ? '이미 계정이 있나요?' : '아직 회원이 아니신가요?'}{' '}

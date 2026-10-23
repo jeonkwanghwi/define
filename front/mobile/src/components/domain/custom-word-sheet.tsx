@@ -25,6 +25,8 @@ import {
 import { Button, TextField } from '@/components/primitives';
 import { useAfterDismiss } from '@/components/primitives/use-after-dismiss';
 import { ThemedText } from '@/components/themed-text';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useKeyboardOpen } from '@/hooks/use-keyboard-open';
 import { useTheme } from '@/theme';
 
 const MAX_LENGTH = 12;
@@ -37,6 +39,8 @@ export type CustomWordSheetProps = {
 
 export function CustomWordSheet({ visible, onAdd, onClose }: CustomWordSheetProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const keyboardOpen = useKeyboardOpen();
   const [value, setValue] = useState('');
   const inputRef = useRef<TextInput>(null);
   const after = useAfterDismiss();
@@ -94,7 +98,8 @@ export function CustomWordSheet({ visible, onAdd, onClose }: CustomWordSheetProp
             onPress={() => {
               /* 시트 내부 탭이 부모(scrim)로 전파되어 닫히지 않게 차단 */
             }}
-            style={styles.sheet}
+            // 키보드를 내렸을 때 저장 버튼이 홈 인디케이터에 붙지 않게 그만큼 띄운다(열리면 키보드가 덮는다).
+            style={[styles.sheet, { paddingBottom: 28 + (keyboardOpen ? 0 : insets.bottom) }]}
           >
             <View
               style={[styles.grip, { backgroundColor: theme.colors.line.strong }]}

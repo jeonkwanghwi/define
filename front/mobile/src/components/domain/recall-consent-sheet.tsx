@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 
 export type RecallConsentSheetProps = {
@@ -34,6 +35,7 @@ export function RecallConsentSheet({
   error,
 }: RecallConsentSheetProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={[styles.scrim, { backgroundColor: theme.colors.scrim }]} onPress={onClose}>
@@ -45,7 +47,9 @@ export function RecallConsentSheet({
             style={[
               styles.sheet,
               // 닉네임·제보 시트와 같은 겉모양(바탕·모서리·손잡이) — 시트마다 달라 보이면 다른 물건 같다.
+              // 아래는 홈 인디케이터만큼 더 띄운다 — 안 띄우면 "동의하고 시작하기"가 그 위에 걸쳤다.
               {
+                paddingBottom: 28 + insets.bottom,
                 backgroundColor: theme.colors.surface.base,
                 borderTopLeftRadius: theme.radii.xl,
                 borderTopRightRadius: theme.radii.xl,
