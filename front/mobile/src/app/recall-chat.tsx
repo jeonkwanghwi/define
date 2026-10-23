@@ -8,12 +8,14 @@ import { usePreventRemove } from 'expo-router/react-navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
 import { ConfirmDialog } from '@/components/primitives/confirm-dialog';
@@ -74,6 +76,18 @@ function mapError(e: unknown): string {
 
 export default function RecallChatScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  // 입력바 아래 여백을 키보드가 열렸는지에 따라 바꾼다(입력바 스타일 주석 참고).
+  // iOS는 will 이벤트라 키보드가 올라오기 시작할 때 같이 바뀐다 — did면 한 박자 늦게 튄다.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const params = useLocalSearchParams<{
     label?: string;
     age?: string;
@@ -341,7 +355,14 @@ export default function RecallChatScreen() {
           </PressableScale>
         )}
 
-        <View style={[styles.inputRow, { borderTopColor: theme.colors.line.base }]}>
+        <View
+          style={[
+            styles.inputRow,
+            // 키보드가 닫혀 있으면 홈 인디케이터만큼 띄운다 — 안 띄우면 입력칸이 화면 끝에 붙어 누르기 불편했다.
+            // 열려 있으면 키보드가 그 자리를 덮으니 기본 여백만(인셋까지 더하면 키보드 위에 빈 띠가 생긴다).
+            { borderTopColor: theme.colors.line.base, paddingBottom: keyboardOpen ? 12 : Math.max(16, insets.bottom + 8) },
+          ]}
+        >
           <TextInput
             value={input}
             onChangeText={setInput}

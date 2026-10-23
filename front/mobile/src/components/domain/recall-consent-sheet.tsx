@@ -58,15 +58,16 @@ export function RecallConsentSheet({
             <ThemedText variant="h3" style={{ marginTop: theme.spacing.s3 }}>
               회상 시작하기
             </ThemedText>
-            {/* 무엇이 · 누구에게 · 어디에 쓰이는지를 동의 전에 분명히 (심사 5.1.2(i)).
-                내용은 개인정보처리방침의 OpenAI 행과 같은 말이어야 한다 — 두 곳이 어긋나면 안 된다. */}
+            {/* 무엇이 · 어디로 · 어디에 쓰이는지를 동의 전에 분명히 (심사 5.1.2(i): 제3자 AI로 보내는 사실과 동의).
+                업체 이름(OpenAI)은 화면에 쓰지 않고 개인정보처리방침의 위탁 표에 둔다(2026-10-23 결정).
+                "외부 생성형 AI로 전송"은 빼면 안 된다 — 그게 5.1.2(i)가 요구하는 핵심이다. */}
             <ThemedText
               variant="body"
               tone="secondary"
               style={{ marginTop: theme.spacing.s2, textAlign: 'center', lineHeight: 24 }}
             >
-              {'회상 대화를 만들기 위해, 선택한 시기의 정의 글과 대화 내용이 OpenAI로 전송돼요.\n'}
-              {'OpenAI는 이를 답변을 만드는 데만 쓰고, 학습에는 쓰지 않아요.'}
+              {'회상 답변은 생성형 AI의 도움을 받아 만들어요.\n'}
+              {'이를 위해 선택한 시기의 정의 글과 대화 내용이 외부 생성형 AI 서비스로 전송되고, 답변을 만드는 데만 쓰여요.'}
             </ThemedText>
             <ThemedText
               variant="sm"
