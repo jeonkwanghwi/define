@@ -517,7 +517,7 @@ export default function AuthScreen() {
                           autoFocus
                           keyboardType="email-address"
                           // lineHeight는 뺀다 — 한 줄 입력에 주면 iOS가 글자 아래를 자른다(TextField와 같은 이유).
-                          style={[styles.domainBoxInput, theme.typography.body, { color: theme.colors.ink.primary, lineHeight: undefined }]}
+                          style={[styles.domainBoxInput, theme.typography.body, { color: theme.colors.ink.primary, lineHeight: undefined, fontFamily: theme.fonts.sans }]}
                         />
                         <PressableScale
                           onPress={() => setDomainOpen((v) => !v)}
@@ -546,7 +546,8 @@ export default function AuthScreen() {
                           numberOfLines={1}
                           style={[
                             styles.domainBoxText,
-                            { color: emailDomain ? theme.colors.ink.primary : theme.colors.ink.placeholder },
+                            // 옆 아이디 칸과 같은 고딕 — 이메일 주소의 한 부분이다.
+                            { color: emailDomain ? theme.colors.ink.primary : theme.colors.ink.placeholder, fontFamily: theme.fonts.sans },
                           ]}
                         >
                           {emailDomain || '선택'}

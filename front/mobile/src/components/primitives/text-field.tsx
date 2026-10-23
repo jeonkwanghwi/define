@@ -67,6 +67,8 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           },
           // multiline일 때만 좀 더 큰 기본 높이 + 안드로이드 상단 정렬
           multiline && { minHeight: 100, textAlignVertical: 'top' },
+          // 이메일·비밀번호는 읽는 글이 아니라 식별자 — 명조로 쓰면 영문·숫자·@가 들쭉날쭉해진다(마이페이지 이메일과 같은 원칙).
+          (rest.secureTextEntry || rest.keyboardType === 'email-address') && { fontFamily: theme.fonts.sans },
           // 한 줄 입력에 lineHeight를 주면 iOS가 글자를 아래로 밀어 아랫부분이 잘린다(닉네임 칸에서 발견).
           // 줄간격 대신 높이를 고정해 이전과 같은 크기를 유지한다(28 + 위아래 패딩 14·14 + 테두리).
           !multiline && { lineHeight: undefined, height: SINGLE_LINE_HEIGHT },
