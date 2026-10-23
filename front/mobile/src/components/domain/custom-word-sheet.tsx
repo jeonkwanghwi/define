@@ -79,20 +79,22 @@ export function CustomWordSheet({ visible, onAdd, onClose }: CustomWordSheetProp
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.kbWrap}
+          // 시트 색·둥근 모서리를 키보드 회피 상자에 준다 — 키보드만큼 늘어난 아래 여백까지 시트 색이라
+          // 키보드 둘레(iOS 26의 둥근 키보드 모서리·좌우 틈)로 어두운 배경이 비치지 않는다.
+          style={[
+            styles.kbWrap,
+            {
+              backgroundColor: theme.colors.surface.base,
+              borderTopLeftRadius: theme.radii.xl,
+              borderTopRightRadius: theme.radii.xl,
+            },
+          ]}
         >
           <Pressable
             onPress={() => {
               /* 시트 내부 탭이 부모(scrim)로 전파되어 닫히지 않게 차단 */
             }}
-            style={[
-              styles.sheet,
-              {
-                backgroundColor: theme.colors.surface.base,
-                borderTopLeftRadius: theme.radii.xl,
-                borderTopRightRadius: theme.radii.xl,
-              },
-            ]}
+            style={styles.sheet}
           >
             <View
               style={[styles.grip, { backgroundColor: theme.colors.line.strong }]}

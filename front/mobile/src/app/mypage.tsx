@@ -44,7 +44,7 @@ import {
   unblockUser,
   type PlazaBlockedUser,
 } from '@/services/plaza-api';
-import { useAuthStore } from '@/store/auth-store';
+import { useAuthStore, type LoginMethod } from '@/store/auth-store';
 import { useJournalStats, useJournalStore, useJournalStreak } from '@/store/journal-store';
 import { useSettingsStore } from '@/store/settings-store';
 import { getColors, PALETTE_IDS, PALETTES, useTheme, type PaletteId } from '@/theme';
@@ -63,6 +63,8 @@ const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
  */
 const SHOW_NOTIFICATION_SETTING = false;
 const SHOW_PREMIUM_THEME = false;
+
+const LOGIN_METHOD_LABEL: Record<LoginMethod, string> = { email: '이메일', kakao: '카카오', apple: 'Apple' };
 
 export default function MyPageScreen() {
   const theme = useTheme();
@@ -110,6 +112,8 @@ export default function MyPageScreen() {
   const token = useAuthStore((s) => s.token);
   const balance = useAuthStore((s) => s.user?.balance ?? 0);
   const accountEmail = useAuthStore((s) => s.user?.email ?? null);
+  // 방법을 모르는 옛 세션: 이메일이 있으면 이메일 계정이다(소셜 계정엔 이메일이 없다).
+  const loginMethod = useAuthStore((s) => s.loginMethod) ?? (accountEmail ? 'email' : null);
   const lastSyncedAt = useAuthStore((s) => s.lastSyncedAt);
   const syncFailedAt = useAuthStore((s) => s.syncFailedAt);
   const retrySync = useAuthStore((s) => s.retrySync);
@@ -376,9 +380,9 @@ export default function MyPageScreen() {
             <>
               <Row
                 theme={theme}
-                icon="user"
-                label={accountEmail ?? '로그인됨'}
-                // 이메일은 읽는 글이 아니라 식별자 — 명조로 쓰면 영문·@가 들쭉날쭉해진다.
+                icon="check"
+                iconColor={theme.colors.point.p600}
+                label={loginMethod ? `로그인됨 · ${LOGIN_METHOD_LABEL[loginMethod]}` : '로그인됨'}
                 sansLabel
                 value={
                   retrying
@@ -392,6 +396,12 @@ export default function MyPageScreen() {
                 valueColor={syncFailedAt && !retrying ? theme.colors.ruby.base : undefined}
                 onPress={syncFailedAt && !retrying ? handleRetrySync : undefined}
               />
+              {/* 이메일은 어느 계정인지 알려 주는 식별자라 함께 보여 준다. */}
+              {accountEmail ? (
+                <ThemedText variant="caption" tone="secondary" style={styles.syncNote}>
+                  {accountEmail}
+                </ThemedText>
+              ) : null}
               {syncFailedAt ? (
                 <ThemedText variant="caption" tone="secondary" style={styles.syncNote}>
                   기록은 이 폰에 안전하게 있어요. 서버 반영만 실패했어요.
@@ -868,6 +878,7 @@ function Divider({ theme }: { theme: Theme }) {
 function Row({
   theme,
   icon,
+  iconColor,
   label,
   value,
   valueColor,
@@ -879,6 +890,8 @@ function Row({
 }: {
   theme: Theme;
   icon: IconName;
+  /** 아이콘 색(기본 ink.secondary). 상태를 색으로 알릴 때만 넘긴다. */
+  iconColor?: string;
   label: string;
   value?: string;
   /** 값 글자색 지정(기본은 placeholder 톤). 경고를 색으로 구분할 때만 넘긴다. */
@@ -907,7 +920,7 @@ function Row({
       accessibilityState={toggle !== undefined ? { checked: toggle } : undefined}
       style={[styles.row, { backgroundColor: 'transparent' }, disabled && { opacity: 0.5 }]}
     >
-      <Icon name={icon} size={19} color={theme.colors.ink.secondary} />
+      <Icon name={icon} size={19} color={iconColor ?? theme.colors.ink.secondary} />
       <ThemedText
         variant={sansLabel ? 'label' : 'body'}
         tone="strong"

@@ -18,7 +18,6 @@ import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon } from '@/icons';
-import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { AppleCanceled, getAppleCredential, isAppleAuthAvailable } from '@/lib/apple-auth';
 import { hapticError, hapticSuccess } from '@/lib/haptics';
@@ -34,6 +33,8 @@ type Step = 'chooser' | 'form' | 'verify';
 
 export default function AuthScreen() {
   const theme = useTheme();
+  const appleBg = theme.mode === 'dark' ? '#FFFFFF' : '#000000';
+  const appleFg = theme.mode === 'dark' ? '#000000' : '#FFFFFF';
   const router = useRouter();
   const signup = useAuthStore((s) => s.signup);
   const login = useAuthStore((s) => s.login);
@@ -362,65 +363,45 @@ export default function AuthScreen() {
               >
                 <View style={styles.socialRow}>
                   <KakaoBubble />
-                  <ThemedText variant="label" style={{ color: KAKAO_INK, fontWeight: '700' }}>
+                  {/* 굵기는 이메일 버튼(Button label = 600)과 맞춘다 — 700이면 나란히 놓였을 때 글자가 더 커 보인다. */}
+                  <ThemedText variant="label" style={{ color: KAKAO_INK }}>
                     {/* 카카오·Apple은 계정이 없으면 만들어 준다 — 가입 화면에선 "시작하기"가 정직하다. */}
                     {isSignup ? '카카오로 시작하기' : '카카오 로그인'}
                   </ThemedText>
                 </View>
               </PressableScale>
 
-              {/* Apple 버튼은 **직접 그리지 않는다.**
-                  Apple HIG는 로고 모양·여백·문구·높이를 규격으로 못박아 두었고, 어기면
-                  심사에서 걸린다. expo-apple-authentication이 주는 네이티브 버튼이
-                  로고·문구(지역화)·접근성을 전부 규격대로 들고 온다 — 우리가 정하는 건
-                  모서리 둥글기와 높이뿐이다.
-                  쓸 수 없는 기기(Android·웹)에서는 아예 렌더되지 않으므로, 그때만
-                  안내용 버튼을 대신 보여준다. */}
-              {appleAvailable ? (
-                <AppleAuthentication.AppleAuthenticationButton
-                  // CONTINUE = "Apple로 계속하기" — 로그인·가입 둘 다 되는 Apple의 공식 문구.
-                  buttonType={
-                    isSignup
-                      ? AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
-                      : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
-                  }
-                  // 어두운 바탕에 검은 버튼은 구멍으로 보인다 — HIG도 다크에선 흰 버튼을 쓰라고 한다.
-                  buttonStyle={
-                    theme.mode === 'dark'
-                      ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-                      : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-                  }
-                  cornerRadius={theme.radii.pill}
-                  style={[styles.appleBtn, { marginTop: theme.spacing.s4 }]}
-                  onPress={submitting ? () => {} : handleApple}
-                />
-              ) : (
-                <PressableScale
-                  onPress={() => setSocialNotice('Apple 로그인은 아이폰에서만 돼요')}
-                  disabled={submitting}
-                  style={[
-                    styles.socialBtn,
-                    {
-                      // 네이티브 버튼과 같은 규칙 — 다크에선 흑백을 뒤집는다.
-                      backgroundColor: theme.mode === 'dark' ? '#FFFFFF' : '#000000',
-                      borderRadius: theme.radii.pill,
-                      borderWidth: 1,
-                      borderColor: theme.colors.line.base,
-                      marginTop: theme.spacing.s4,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    variant="label"
-                    style={{
-                      color: theme.mode === 'dark' ? '#000000' : '#FFFFFF',
-                      fontWeight: '700',
-                    }}
-                  >
+              {/* Apple 버튼은 HIG의 "직접 만든 버튼" 규격으로 그린다 — 흑/백 바탕, Apple 로고, 공식 문구.
+                  네이티브 버튼(AppleAuthenticationButton)은 글자 크기가 버튼 높이에 비례해(≈43%)
+                  같은 높이의 이메일·카카오 버튼보다 글자가 훨씬 컸고, 앱이 한국어 현지화가 없어 영어로 나왔다.
+                  쓸 수 없는 기기(Android·웹)에서는 같은 모양으로 안내만 띄운다. */}
+              <PressableScale
+                onPress={
+                  appleAvailable
+                    ? handleApple
+                    : () => setSocialNotice('Apple 로그인은 아이폰에서만 돼요')
+                }
+                disabled={submitting}
+                accessibilityRole="button"
+                accessibilityLabel={isSignup ? 'Apple로 시작하기' : 'Apple로 로그인'}
+                style={[
+                  styles.socialBtn,
+                  {
+                    // 어두운 바탕에 검은 버튼은 구멍으로 보인다 — HIG도 다크에선 흰 버튼을 쓰라고 한다.
+                    backgroundColor: appleBg,
+                    borderRadius: theme.radii.pill,
+                    marginTop: theme.spacing.s4,
+                  },
+                  submitting && { opacity: 0.6 },
+                ]}
+              >
+                <View style={styles.socialRow}>
+                  <AppleLogo color={appleFg} />
+                  <ThemedText variant="label" style={{ color: appleFg }}>
                     {isSignup ? 'Apple로 시작하기' : 'Apple로 로그인'}
                   </ThemedText>
-                </PressableScale>
-              )}
+                </View>
+              </PressableScale>
 
               {error ? (
                 <FadeIn>
@@ -532,7 +513,8 @@ export default function AuthScreen() {
                           autoCorrect={false}
                           autoFocus
                           keyboardType="email-address"
-                          style={[styles.domainBoxInput, theme.typography.body, { color: theme.colors.ink.primary }]}
+                          // lineHeight는 뺀다 — 한 줄 입력에 주면 iOS가 글자 아래를 자른다(TextField와 같은 이유).
+                          style={[styles.domainBoxInput, theme.typography.body, { color: theme.colors.ink.primary, lineHeight: undefined }]}
                         />
                         <PressableScale
                           onPress={() => setDomainOpen((v) => !v)}
@@ -743,6 +725,18 @@ const SOCIAL_BTN_HEIGHT = 56;
  * 카카오 말풍선. 카카오 브랜드 가이드의 글자색(#191600)에 맞춘 채움 도형이라
  * 선 기반인 우리 아이콘 셋에 넣지 않고 여기 둔다 — 섞으면 아이콘 셋의 결이 깨진다.
  */
+/** Apple 로고 — HIG가 직접 만든 Sign in with Apple 버튼에 허용하는 로고 모양. 글자색과 같은 색으로 채운다. */
+function AppleLogo({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
+      <Path
+        d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
 function KakaoBubble() {
   return (
     <Svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
@@ -784,7 +778,6 @@ const styles = StyleSheet.create({
   socialRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // 네이티브 Apple 버튼은 높이를 직접 줘야 한다(내용에 맞춰 늘어나지 않는다).
   // 카카오 버튼(패딩 16 + 본문 24)과 같은 56으로 맞춘다.
-  appleBtn: { width: '100%', height: SOCIAL_BTN_HEIGHT },
   emailRow: { flexDirection: 'row', alignItems: 'center' },
   // minWidth:0 — 웹 <input>이 min-content 밑으로 안 줄어들어 행이 오버플로우하는 것 방지(네이티브 무해).
   emailLocal: { flex: 1, minWidth: 0 },

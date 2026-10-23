@@ -35,9 +35,16 @@ import {
   type AuthUser,
 } from '@/services/auth-api';
 
+export type LoginMethod = 'email' | 'kakao' | 'apple';
+
 type AuthState = {
   token: string | null;
   user: AuthUser | null;
+  /**
+   * 이 기기에서 어떤 방법으로 로그인했나 — 마이페이지 "로그인됨 · 카카오" 표시용.
+   * 서버는 이걸 돌려주지 않아 로그인 순간에 기억해 둔다. 이 값이 생기기 전 로그인한 세션은 null.
+   */
+  loginMethod: LoginMethod | null;
   /** 마지막 동기화 시각(ISO). 마이페이지 표시용. */
   lastSyncedAt: string | null;
   /**
@@ -134,6 +141,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       token: null,
       user: null,
+      loginMethod: null,
       lastSyncedAt: null,
       syncFailedAt: null,
       hasLoggedInBefore: false,
@@ -141,27 +149,27 @@ export const useAuthStore = create<AuthState>()(
       sessionExpiredAt: null,
       signup: async (email, password, code) => {
         const { token, user } = await signupApi(email, password, code);
-        set({ token, user, hasLoggedInBefore: true });
+        set({ token, user, loginMethod: 'email', hasLoggedInBefore: true });
         await reconcileForUser(user.id, token, set);
       },
       login: async (email, password) => {
         const { token, user } = await loginApi(email, password);
-        set({ token, user, hasLoggedInBefore: true });
+        set({ token, user, loginMethod: 'email', hasLoggedInBefore: true });
         await reconcileForUser(user.id, token, set);
       },
       resetPassword: async (email, code, password) => {
         const { token, user } = await resetPasswordApi(email, code, password);
-        set({ token, user, hasLoggedInBefore: true });
+        set({ token, user, loginMethod: 'email', hasLoggedInBefore: true });
         await reconcileForUser(user.id, token, set);
       },
       loginWithKakao: async (input) => {
         const { token, user } = await kakaoLoginApi(input);
-        set({ token, user, hasLoggedInBefore: true });
+        set({ token, user, loginMethod: 'kakao', hasLoggedInBefore: true });
         await reconcileForUser(user.id, token, set);
       },
       loginWithApple: async (identityToken, authorizationCode) => {
         const { token, user } = await appleLoginApi(identityToken, authorizationCode);
-        set({ token, user, hasLoggedInBefore: true });
+        set({ token, user, loginMethod: 'apple', hasLoggedInBefore: true });
         await reconcileForUser(user.id, token, set);
       },
       updateProfile: async (input) => {
@@ -224,7 +232,7 @@ export const useAuthStore = create<AuthState>()(
         // 서버 삭제가 성공한 뒤에만 로컬을 비운다(실패했는데 기기만 비면 데이터만 잃는다).
         // 토큰을 먼저 지운다 — 비우는 순간 auto-sync가 "지워진 기록"을 사라진 계정에 DELETE로 보내지 않게.
         // hasLoggedInBefore도 지운다 — 계정이 사라졌는데 "로그인이 안 되어 있어요"라고 재촉하면 엇나간다.
-        set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null, hasLoggedInBefore: false });
+        set({ token: null, user: null, loginMethod: null, lastSyncedAt: null, syncFailedAt: null, hasLoggedInBefore: false });
         clearLocalJournal();
         return result;
       },
@@ -234,9 +242,9 @@ export const useAuthStore = create<AuthState>()(
         await deleteAccountApi(token);
         releaseLocalOwner(); // 기록은 그대로, 주인만 익명으로 되돌린다
         // 가입을 물렀으니 "로그인했던 사람"도 아니다 — 로그인 재촉 말풍선을 띄우지 않는다.
-        set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null, hasLoggedInBefore: false });
+        set({ token: null, user: null, loginMethod: null, lastSyncedAt: null, syncFailedAt: null, hasLoggedInBefore: false });
       },
-      logout: () => set({ token: null, user: null, lastSyncedAt: null, syncFailedAt: null }),
+      logout: () => set({ token: null, user: null, loginMethod: null, lastSyncedAt: null, syncFailedAt: null }),
     }),
     {
       name: 'define-auth-v1', // 모델 깨는 변경 시 v2로 마이그레이션
