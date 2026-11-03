@@ -15,6 +15,11 @@ body {
   user-select: none;
   -webkit-touch-callout: none;
 }
+/* 한글을 단어 단위로 줄바꿈(앱의 lineBreakStrategyIOS="hangul-word"와 같은 규칙). 긴 영문·URL은 넘치지 않게 끊는다. */
+body, input, textarea {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
 input, textarea {
   -webkit-user-select: text;
   user-select: text;

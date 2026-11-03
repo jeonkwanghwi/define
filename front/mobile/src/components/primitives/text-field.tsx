@@ -42,6 +42,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
       <TextInput
         ref={ref}
         multiline={multiline}
+        lineBreakStrategyIOS="hangul-word"  // 입력 중에도 한글을 단어 단위로 줄바꿈(ThemedText와 같은 이유)
         placeholderTextColor={theme.colors.ink.placeholder}
         onFocus={(e) => {
           setFocused(true);

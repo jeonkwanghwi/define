@@ -661,6 +661,7 @@ export default function RecordScreen() {
               <Animated.View style={inputHeightStyle}>
                 <TextInput
                   multiline
+                  lineBreakStrategyIOS="hangul-word"
                   // 서버가 받는 정의 길이 상한 — 넘기면 동기화가 거절된다(sync-journal.ts).
                   maxLength={ENTRY_LIMITS.text}
                   value={definition}

@@ -89,7 +89,7 @@ export default function JournalListScreen() {
             tone="secondary"
             style={{ marginTop: theme.spacing.s2, textAlign: 'center' }}
           >
-            가운데 ‘기록’ 탭에서{'\n'}오늘의 단어를 정의해보세요
+            ‘기록’ 탭에서{'\n'}오늘의 단어를 정의해보세요
           </ThemedText>
           {/* 글로만 "탭을 누르세요"라고 하면 빈 화면이 막다른 길이다 — 여기서 바로 가게 한다. */}
           <Button

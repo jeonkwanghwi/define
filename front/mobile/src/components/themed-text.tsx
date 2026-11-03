@@ -25,6 +25,8 @@ export function ThemedText({ style, variant = 'body', tone = 'primary', ...rest 
 
   return (
     <Text
+      // iOS는 한글을 글자 단위로 줄바꿈한다("흔 / 적") — 단어 단위로 끊게 한다. 뒤의 rest로 덮어쓸 수 있다.
+      lineBreakStrategyIOS="hangul-word"
       style={[theme.typography[variant], { color: theme.colors.ink[tone] }, style]}
       {...rest}
     />

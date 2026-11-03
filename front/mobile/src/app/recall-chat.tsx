@@ -360,6 +360,7 @@ export default function RecallChatScreen() {
             placeholderTextColor={theme.colors.ink.placeholder}
             style={[styles.input, { backgroundColor: theme.colors.surface.base, borderColor: theme.colors.line.base, color: theme.colors.ink.primary }]}
             multiline
+            lineBreakStrategyIOS="hangul-word"
             maxLength={MESSAGE_MAX}
             editable={!sending}
           />
