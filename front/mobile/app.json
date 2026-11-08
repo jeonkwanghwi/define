@@ -18,8 +18,8 @@
     "android": {
       "package": "com.kwanghwi.define",
       "adaptiveIcon": {
-        "backgroundColor": "#FCFAF6",
-        "foregroundImage": "./assets/images/define.png"
+        "backgroundColor": "#9C6118",
+        "foregroundImage": "./assets/images/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -34,7 +34,7 @@
         {
           "backgroundColor": "#FAF8F4",
           "android": {
-            "image": "./assets/images/define.png",
+            "image": "./assets/images/splash-icon.png",
             "imageWidth": 96
           }
         }
