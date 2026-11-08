@@ -8,7 +8,9 @@
  *
  * 구글 문서의 규칙 그대로:
  *  1. 공개키 목록을 verifier-keys.json에서 받아 **캐시**한다. key_id가 없으면 한 번 재조회.
- *  2. 서명 대상은 쿼리스트링에서 `&signature=` **앞까지의 원본 문자열**이다.
+ *  2. 서명 대상은 쿼리스트링에서 `&signature=` 앞까지를 **URL 디코딩한 문자열**이다.
+ *     (구글 공식 Tink RewardedAdsVerifier가 uri.getQuery() — 디코딩된 쿼리 — 를 쓴다.
+ *      원문 그대로 비교했다가 reward_item 같은 인코딩된 값 때문에 첫 실콜백이 거부됐다, 2026-11-08)
  *  3. signature는 base64url, 공개키는 base64 DER(SPKI), ECDSA 서명은 DER 인코딩.
  *  4. timestamp가 너무 오래된 콜백은 거부한다(재전송 공격 차단).
  */
@@ -39,8 +41,8 @@ export type SsvKeyLookup = (keyId: string) => Promise<string | null>;
 /**
  * 콜백 쿼리스트링('?' 뒤 전체, **원본 그대로**)을 검증한다.
  *
- * rawQuery를 파싱해서 재조립하면 순서와 인코딩이 달라져 서명이 반드시 깨진다.
- * 그래서 서명 대상은 문자열을 자른 것이고, 값 읽기만 URLSearchParams로 한다.
+ * rawQuery를 파싱해서 재조립하면 순서가 달라질 수 있어 서명이 깨진다.
+ * 그래서 서명 대상은 문자열을 자른 뒤 디코딩만 한 것이고, 값 읽기는 URLSearchParams로 한다.
  */
 export async function verifySsvCallback(
   rawQuery: string,
@@ -50,7 +52,13 @@ export async function verifySsvCallback(
   // signature와 key_id는 항상 쿼리의 마지막 두 개다. 그 앞까지가 서명 대상.
   const sigAt = rawQuery.indexOf('&signature=');
   if (sigAt < 0) return { ok: false, reason: 'signature 파라미터 없음' };
-  const signedPart = rawQuery.slice(0, sigAt);
+  // decodeURIComponent는 Java URI.getQuery()처럼 %XX만 풀고 '+'는 그대로 둔다.
+  let signedPart: string;
+  try {
+    signedPart = decodeURIComponent(rawQuery.slice(0, sigAt));
+  } catch {
+    return { ok: false, reason: '쿼리 인코딩 오류' };
+  }
 
   const params = new URLSearchParams(rawQuery);
   const signature = params.get('signature');
