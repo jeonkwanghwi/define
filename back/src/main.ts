@@ -20,11 +20,12 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // trust proxy 2 — req.ip를 "사용자 IP"로 만든다(IP 레이트 리밋이 이 값을 쓴다).
-  // 요청은 사용자 → CloudFront → ALB → 여기로 온다. X-Forwarded-For는 끝에서부터
-  //   [..., 사용자 IP(CloudFront가 붙임), CloudFront IP(ALB가 붙임)]
+  // 요청은 사용자 → CloudFront → API Gateway(VPC Link) → 여기로 온다. X-Forwarded-For는 끝에서부터
+  //   [..., 사용자 IP(CloudFront가 붙임), CloudFront IP(API Gateway가 붙임)]
+  // (API Gateway 경로에선 아래 오리진 비밀 헤더 미들웨어가 x-cf-forwarded-for를 제자리에 돌려놓는다.)
   // 라서 오른쪽에서 두 칸을 믿으면 사용자 IP가 나온다. 그보다 왼쪽은 사용자가 마음대로
   // 써 보낼 수 있는 값이라 믿으면 안 된다. 로컬처럼 프록시가 없으면 소켓 주소가 그대로 쓰인다.
-  // ⚠️ ALB가 CloudFront에서만 요청을 받도록 잠겨 있어야 성립한다(보안그룹 = CloudFront 프리픽스 리스트).
+  // ⚠️ CloudFront를 거친 요청만 받아야 성립한다 — 오리진 비밀 헤더(x-origin-secret) 검사가 그 잠금이다.
   app.set('trust proxy', 2);
 
   // CORS — 브라우저(expo web :8081 등)에서 교차 출처로 API 호출 허용.
@@ -53,7 +54,15 @@ async function bootstrap() {
     app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.path === '/api/health') return next();
       const got = Buffer.from(String(req.headers['x-origin-secret'] ?? ''));
-      if (got.length === expected.length && timingSafeEqual(got, expected)) return next();
+      if (got.length === expected.length && timingSafeEqual(got, expected)) {
+        // API Gateway는 X-Forwarded-For를 넘기지 않는다(헤더 조작도 금지). 대신 통합 설정에서
+        // 그 값을 x-cf-forwarded-for로 옮겨 준다: [..., 사용자 IP(CloudFront), CloudFront IP(API GW)].
+        // ALB가 넘기던 형식과 같아서 제자리에 돌려놓으면 아래 trust proxy 2가 그대로 맞는다.
+        // 비밀 헤더 검사를 통과한 요청만 — API GW가 덮어쓰므로 사용자가 위조할 수 없다.
+        const viaApiGw = req.headers['x-cf-forwarded-for'];
+        if (typeof viaApiGw === 'string') req.headers['x-forwarded-for'] = viaApiGw;
+        return next();
+      }
       res.status(403).json({ statusCode: 403, message: 'Forbidden' });
     });
   }
