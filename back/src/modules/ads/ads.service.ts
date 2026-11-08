@@ -4,8 +4,8 @@ import { AdRewardRepository } from './ad-reward.repository';
 import { SsvKeyCache, verifySsvCallback } from './ssv-verifier';
 
 /** 광고 1회 보상. 서버가 정하는 값이다 — AdMob 콘솔의 수량은 표시용일 뿐이다. */
-export const AD_REWARD_AMOUNT = 10;
-/** 하루 받을 수 있는 횟수. 회상 1건이 30이므로 5회면 하루 최대 2건쯤 가능하다. */
+export const AD_REWARD_AMOUNT = 30;
+/** 하루 받을 수 있는 횟수. 광고 1회(30) = 회상 1건(30)이라 5회면 하루 회상 5건까지 가능하다. */
 export const AD_DAILY_LIMIT = 5;
 
 export type AdQuota = { remaining: number; limit: number; amount: number };
