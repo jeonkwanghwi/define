@@ -42,6 +42,8 @@ export default function AuthScreen() {
   const login = useAuthStore((s) => s.login);
   const loginWithKakao = useAuthStore((s) => s.loginWithKakao);
   const loginWithApple = useAuthStore((s) => s.loginWithApple);
+  // 이 기기에서 마지막으로 로그인한 방법 — 그 버튼에 '최근 로그인' 말풍선을 붙인다(로그인 화면만).
+  const lastLoginMethod = useAuthStore((s) => s.lastLoginMethod);
   const kakao = useKakaoAuth();
   const { show } = useToast();
 
@@ -338,14 +340,18 @@ export default function AuthScreen() {
             </FadeIn>
 
             <View style={styles.chooserButtons}>
-              <Button
-                label={isSignup ? '이메일로 가입하기' : '이메일로 로그인'}
-                fullWidth
-                leftIcon={<Icon name="mail" size={18} color={theme.colors.ink.onPoint} />}
-                onPress={() => goEmail(mode)}
-                style={{ height: SOCIAL_BTN_HEIGHT }}
-              />
+              <View>
+                <Button
+                  label={isSignup ? '이메일로 가입하기' : '이메일로 로그인'}
+                  fullWidth
+                  leftIcon={<Icon name="mail" size={18} color={theme.colors.ink.onPoint} />}
+                  onPress={() => goEmail(mode)}
+                  style={{ height: SOCIAL_BTN_HEIGHT }}
+                />
+                {!isSignup && lastLoginMethod === 'email' ? <RecentBadge /> : null}
+              </View>
 
+              <View style={{ marginTop: theme.spacing.s4 }}>
               <PressableScale
                 onPress={
                   kakao.configured
@@ -358,7 +364,6 @@ export default function AuthScreen() {
                   {
                     backgroundColor: '#FEE500',
                     borderRadius: theme.radii.pill,
-                    marginTop: theme.spacing.s4,
                   },
                   submitting && { opacity: 0.6 },
                 ]}
@@ -372,11 +377,14 @@ export default function AuthScreen() {
                   </ThemedText>
                 </View>
               </PressableScale>
+              {!isSignup && lastLoginMethod === 'kakao' ? <RecentBadge /> : null}
+              </View>
 
               {/* Apple 버튼은 HIG의 "직접 만든 버튼" 규격으로 그린다 — 흑/백 바탕, Apple 로고, 공식 문구.
                   네이티브 버튼(AppleAuthenticationButton)은 글자 크기가 버튼 높이에 비례해(≈43%)
                   같은 높이의 이메일·카카오 버튼보다 글자가 훨씬 컸고, 앱이 한국어 현지화가 없어 영어로 나왔다.
                   쓸 수 없는 기기(Android·웹)에서는 같은 모양으로 안내만 띄운다. */}
+              <View style={{ marginTop: theme.spacing.s4 }}>
               <PressableScale
                 onPress={
                   appleAvailable
@@ -392,7 +400,6 @@ export default function AuthScreen() {
                     // 어두운 바탕에 검은 버튼은 구멍으로 보인다 — HIG도 다크에선 흰 버튼을 쓰라고 한다.
                     backgroundColor: appleBg,
                     borderRadius: theme.radii.pill,
-                    marginTop: theme.spacing.s4,
                   },
                   submitting && { opacity: 0.6 },
                 ]}
@@ -404,6 +411,8 @@ export default function AuthScreen() {
                   </ThemedText>
                 </View>
               </PressableScale>
+              {!isSignup && lastLoginMethod === 'apple' ? <RecentBadge /> : null}
+              </View>
 
               {error ? (
                 <FadeIn>
@@ -678,6 +687,34 @@ const SIGNUP_PUBLISH_NOTE = '가입하면 지금까지 쓴 정의가 광장에 �
  * 체크박스 대신 "누르면 동의"로 — 가입 버튼을 누르는 행동이 곧 동의다(흔한 묵시적 동의 방식).
  * 차분하게 caption·secondary로 두되, 두 문서 이름은 눌러서 바로 열 수 있게.
  */
+/**
+ * '최근 로그인한 수단이에요!' 말풍선 — 그 버튼의 오른쪽 위 모서리에 걸쳐 띄운다.
+ * 버튼을 감싼 View 기준 절대 위치라 버튼 크기·글자에 영향을 주지 않는다.
+ * 이 기기에서 로그인해 본 적이 있을 때만 그려진다(처음 온 사람은 기록이 없다).
+ */
+function RecentBadge() {
+  const theme = useTheme();
+  return (
+    <FadeIn style={{ position: 'absolute', top: -12, right: 16, pointerEvents: 'none' }}>
+      <View
+        style={{
+          backgroundColor: theme.colors.point.p600,
+          borderRadius: theme.radii.pill,
+          // 바탕색 테두리 — 같은 호박색인 이메일 버튼 위에서도 말풍선이 떨어져 보이게.
+          borderWidth: 2,
+          borderColor: theme.colors.paper.base,
+          paddingHorizontal: 10,
+          paddingVertical: 2,
+        }}
+      >
+        <ThemedText variant="caption" style={{ color: theme.colors.ink.onPoint, fontWeight: '700' }}>
+          최근 로그인한 수단이에요!
+        </ThemedText>
+      </View>
+    </FadeIn>
+  );
+}
+
 function TermsNote() {
   const theme = useTheme();
   // Text 안의 Text는 같은 줄에서 이어 흐르고, 따로 onPress를 받는다 — 문장 중간 링크에 딱 맞다.
