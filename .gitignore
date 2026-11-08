@@ -32,4 +32,4 @@ docs/superpowers/
 .claude/settings.local.json
 
 # 개인용 AWS 아키텍처 그림 (계정 번호 포함, 공개 레포에 올리지 않음)
-aws-architecture.png
+aws-architecture*.png
