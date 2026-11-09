@@ -275,6 +275,18 @@
 > 개발·기능명세·디자인 시스템 구현·기술 결정 변경만 누적. 역시간순(최신 위).
 > 형식: `### 2026-10-12 — "준비 중" 세 자리를 가린다 (심사 2.1 대비)
 
+### 2026-11-09 — ALB 삭제 완료 (API Gateway 전환 마무리)
+
+**무엇을**: 전환 후 20시간 동안 API Gateway 4xx·5xx 0건, ALB 유입 0건, 서버 ERROR 0건이었던 것을 확인하고 정리했다.
+- ECS 서비스에서 로드밸런서 연결을 해제했다(무중단 재배포).
+- CloudFront에서 `define-alb` 오리진을 제거했다.
+- ALB, 대상 그룹 `define-api-tg`, `define-alb-sg`를 삭제하고, 서버 SG에서 ALB SG 허용 규칙을 뺐다. 이제 서버 SG는 vpclink-sg만 허용한다. ALB에 붙어 있던 퍼블릭 IP 2개도 함께 사라졌다.
+- 경보를 교체했다.
+  - `define-api-5xx`: 기준을 ALB에서 API Gateway 5xx로 바꿨다.
+  - `define-api-no-healthy-host`를 삭제하고 `define-api-no-running-task`를 만들었다. ECS 서비스 CPU 지표가 2분간 없으면 서버 다운으로 본다(missing = breaching).
+**왜**: ALB 시간당 요금과 퍼블릭 IP 2개로 월 ~$24 절감.
+**다음 할 일**: 다음 달 청구서에서 ELB 항목이 사라지고 VPC(퍼블릭 IP) 비용이 줄었는지 확인한다.
+
 ### 2026-11-08 (4) — ALB → API Gateway 전환 · 광고 보상 30잉크 · '최근 로그인 수단' 말풍선
 
 **무엇을**:
