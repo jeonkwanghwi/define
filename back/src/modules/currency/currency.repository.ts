@@ -24,16 +24,13 @@ export abstract class CurrencyRepository {
   /** balance += amount — 차감 후 일이 실패했을 때 되돌려주는 용도. 갱신된 balance 반환. */
   abstract refund(userId: string, amount: number): Promise<number>;
 
-  /** 마지막으로 보상한 최고 연속 기록일. 없으면 0. */
-  abstract getLastRewardedStreakDay(userId: string): Promise<number>;
-
   /**
-   * lastRewardedStreakDay < streak 일 때만 원자적으로 balance += amount, marker = streak.
-   * granted=false면 동시성으로 이미 처리됨(이중지급 방지). balance=현재.
+   * 오늘(한국 날짜) 아직 기록 보너스를 안 받았을 때만 원자적으로 balance += amount, 마커 = today.
+   * granted=false면 오늘 이미 받음(동시 요청 포함 — 이중지급 방지). balance=현재.
    */
   abstract grantRecord(
     userId: string,
     amount: number,
-    streak: number,
+    today: string,
   ): Promise<{ granted: boolean; balance: number }>;
 }

@@ -60,16 +60,23 @@ export class CurrencyService {
   }
 
   /**
-   * 연속 기록 streak에 대해 (마지막 보상, streak] 구간 보상을 합산 지급. 멱등.
-   * 새로 줄 게 없으면(이미 보상했거나 구간 합 0) null.
+   * 기록 연속 보너스 — **오늘(한국 날짜) 첫 기록**에 그날 연속일만큼의 보상을 한 번 준다. 멱등.
+   *
+   * 예전엔 "지금까지 보상한 최고 연속일"을 넘을 때만 줬다 → 10일 연속 뒤 하루 쉬면 11일 연속이
+   * 될 때까지 보너스가 0이었다(2026-11-15 수정). 이제 마커는 날짜라, 끊기면 1일째(+3)부터 다시 받는다.
+   * 여러 날치를 몰아서 주지 않는다 — 날짜는 서버가 받은 시각(createdAt)이라 몰아 올릴 수도 없다.
+   * 오늘 받을 게 없으면(오늘 기록 없음·그날 보상 0·이미 받음) null.
    */
-  async grantRecordMilestone(userId: string, streak: number): Promise<RecordBonus | null> {
-    const last = await this.currency.getLastRewardedStreakDay(userId);
-    if (streak <= last) return null;
-    let amount = 0;
-    for (let d = last + 1; d <= streak; d++) amount += recordRewardForDay(d);
+  async grantRecordMilestone(
+    userId: string,
+    streak: number,
+    recordedToday: boolean,
+    today: string,
+  ): Promise<RecordBonus | null> {
+    if (!recordedToday || streak === 0) return null;
+    const amount = recordRewardForDay(streak);
     if (amount === 0) return null;
-    const { granted, balance } = await this.currency.grantRecord(userId, amount, streak);
+    const { granted, balance } = await this.currency.grantRecord(userId, amount, today);
     if (!granted) return null;
     return { milestone: streak, amount, balance };
   }

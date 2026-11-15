@@ -8,7 +8,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { CurrencyService, RecordBonus } from '../currency/currency.service';
 import { ImportJournalDto } from './dto/import-journal.dto';
 import { EntryRecord, EntryRepository } from './entry.repository';
-import { computeRecordStreak } from './record-streak';
+import { computeRecordStreak, kstDate } from './record-streak';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** 이보다 옛날 savedAt은 기기 시계 오류이거나 조작이다(앱 출시 훨씬 전). */
@@ -58,8 +58,12 @@ export class JournalService {
     // 날짜는 savedAt(기기가 보낸 값)이 아니라 createdAt(**서버가 처음 받은 시각**)으로 센다.
     // savedAt으로 세면 날짜만 하루씩 바꾼 가짜 기록 400개로 한 번에 잉크 830개를 찍어낼 수 있었다.
     // 대가: 가입 전에 폰에만 쌓인 기록은 전부 가입한 날 하루로 잡힌다(그날부터 매일 쓰면 다시 쌓인다).
-    const streak = computeRecordStreak(await this.entries.findCreatedAtByUserId(userId));
-    const recordBonus = (await this.currency.grantRecordMilestone(userId, streak)) ?? undefined;
+    const createdAt = await this.entries.findCreatedAtByUserId(userId);
+    const today = kstDate(new Date());
+    const recordedToday = createdAt.some((d) => kstDate(d) === today);
+    const streak = computeRecordStreak(createdAt);
+    const recordBonus =
+      (await this.currency.grantRecordMilestone(userId, streak, recordedToday, today)) ?? undefined;
 
     return { imported, updated, recordBonus };
   }
