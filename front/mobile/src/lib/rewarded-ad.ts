@@ -15,7 +15,10 @@
  * 광고 단위 ID는 EXPO_PUBLIC_ADMOB_REWARDED_ID로 주입하고, 없으면 구글 공개 테스트 단위다.
  * .env에 실 광고 단위를 **일부러 넣지 않았다** — 개발 중에 실 광고를 띄우면 우리가 우리
  * 광고를 보고 누르는 셈이고, AdMob은 그걸 무효 트래픽으로 보아 계정을 정지시킨다.
- * 실 단위(ca-app-pub-7103568935643385/9712302007)는 스토어 빌드의 환경변수로만 넣는다.
+ * 실 단위는 스토어 빌드의 환경변수로만 넣는다(eas.json production). 플랫폼마다 단위가 따로다:
+ *   iOS     EXPO_PUBLIC_ADMOB_REWARDED_ID          = …/9712302007
+ *   Android EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID  = …/9990409690 (2026-11-15 생성, SSV 같은 서버 주소)
+ * (env를 각각 그대로 적어야 빌드 때 값이 박힌다 — process.env[이름] 같은 동적 접근은 비어 있다.)
  *
  * ATT(App Tracking Transparency)는 넣지 않았다 — 개인정보처리방침에 "광고 식별자를
  * 수집하지 않는다"고 적었기 때문이다. 그 대가로 비개인화 광고만 요청한다(수익은 낮다).
@@ -24,12 +27,16 @@
  * (광고 SDK는 네이티브 모듈이라 웹에서는 import만 해도 터진다).
  */
 import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import mobileAds, {
   TestIds,
   useRewardedAd as useGoogleRewardedAd,
 } from 'react-native-google-mobile-ads';
 
-const REWARDED_ID = process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID ?? TestIds.REWARDED;
+const REWARDED_ID =
+  (Platform.OS === 'android'
+    ? process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID_ANDROID
+    : process.env.EXPO_PUBLIC_ADMOB_REWARDED_ID) ?? TestIds.REWARDED;
 
 // SDK 초기화는 앱 전체에서 한 번. 광고를 로드하기 전에 끝나 있어야 한다.
 void mobileAds().initialize();
