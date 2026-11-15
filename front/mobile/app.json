@@ -48,7 +48,8 @@
             "cstr6suwn9.skadnetwork"
           ]
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -23,7 +23,7 @@ import { View } from 'react-native';
 import { runAttendanceClaim } from '@/lib/attendance';
 import { startAutoSync } from '@/lib/auto-sync';
 import { startForegroundSync } from '@/lib/foreground-sync';
-import { syncLunchReminder } from '@/lib/lunch-reminder';
+import { syncDailyReminder } from '@/lib/daily-reminder';
 import { useSettingsStore } from '@/store/settings-store';
 import { claimLocalOwner, getLocalOwner } from '@/lib/sync-journal';
 import { useAuthStore } from '@/store/auth-store';
@@ -79,12 +79,13 @@ export default function RootLayout() {
     return stop;
   }, []);
 
-  // 점심 알림 — 설정과 실제 예약을 맞춘다(재설치·OS 정리로 예약이 사라졌을 수 있다).
+  // 하루 한 줄 알림 — 설정과 실제 예약을 맞춘다(재설치·OS 정리로 예약이 사라졌을 수 있다).
   // 저장된 설정을 다 읽은 뒤에 한다: 읽기 전 기본값(꺼짐)으로 돌면 켜 둔 알림을 지워 버린다.
   useEffect(() => {
     const run = () => {
-      syncLunchReminder(useSettingsStore.getState().lunchReminder).catch((e) =>
-        console.warn('[lunch-reminder] 동기화 실패:', e),
+      const { dailyReminder, reminderTime } = useSettingsStore.getState();
+      syncDailyReminder(dailyReminder, reminderTime).catch((e) =>
+        console.warn('[daily-reminder] 동기화 실패:', e),
       );
     };
     if (useSettingsStore.persist.hasHydrated()) run();

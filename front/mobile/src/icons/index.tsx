@@ -48,6 +48,7 @@ export type IconName =
   | 'device' // 테마 "시스템"(기기 설정을 따름) — 휴대폰 윤곽
   | 'vibrate' // 진동 피드백 — 휴대폰 + 양옆 떨림 선
   | 'bell'
+  | 'clock' // 하루 한 줄 알림 시간
   | 'ruby' // 재화
   | 'ink' // 재화 "잉크" (잉크방울) — ruby를 대체하는 표시용
   | 'sun' // 라이트 모드
@@ -234,6 +235,13 @@ function renderIcon(name: IconName, p: StrokeProps) {
         <>
           <Path d="M6.5 10a5.5 5.5 0 0111 0c0 4 1.5 5.5 1.5 5.5H5s1.5-1.5 1.5-5.5z" {...p} />
           <Path d="M10 18.5a2 2 0 004 0" {...p} />
+        </>
+      );
+    case 'clock':
+      return (
+        <>
+          <Circle cx={12} cy={12} r={8.5} {...p} />
+          <Path d="M12 7.5V12l3 2" {...p} />
         </>
       );
     case 'mail':

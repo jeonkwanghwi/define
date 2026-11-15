@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BugReportSheet } from '@/components/domain/bug-report-sheet';
 import { NicknameSheet } from '@/components/domain/nickname-sheet';
+import { TimePickerSheet } from '@/components/domain/time-picker-sheet';
 import { ScreenHeader } from '@/components/domain/screen-header';
 import { ThemeModeToggle } from '@/components/domain/theme-mode-toggle';
 import { WatchAdButton } from '@/components/domain/watch-ad-button';
@@ -35,7 +36,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
 import { hapticError, hapticSuccess, hapticTap, hapticWarning } from '@/lib/haptics';
-import { disableLunchReminder, enableLunchReminder } from '@/lib/lunch-reminder';
+import { disableDailyReminder, enableDailyReminder, formatReminderTime, type ReminderTime } from '@/lib/daily-reminder';
 import { toSuffix } from '@/lib/korean';
 import { DOCS_ORIGIN, openDoc } from '@/lib/open-doc';
 import { countUnsynced, syncJournal, useUnuploadableCount } from '@/lib/sync-journal';
@@ -84,8 +85,11 @@ export default function MyPageScreen() {
 
   const haptics = useSettingsStore((s) => s.haptics);
   const setHaptics = useSettingsStore((s) => s.setHaptics);
-  const lunchReminder = useSettingsStore((s) => s.lunchReminder);
-  const setLunchReminder = useSettingsStore((s) => s.setLunchReminder);
+  const dailyReminder = useSettingsStore((s) => s.dailyReminder);
+  const setDailyReminder = useSettingsStore((s) => s.setDailyReminder);
+  const reminderTime = useSettingsStore((s) => s.reminderTime);
+  const setReminderTime = useSettingsStore((s) => s.setReminderTime);
+  const [timeSheetOpen, setTimeSheetOpen] = useState(false);
   const themeMode = useSettingsStore((s) => s.themeMode);
   const palette = useSettingsStore((s) => s.palette);
   const setPalette = useSettingsStore((s) => s.setPalette);
@@ -112,16 +116,16 @@ export default function MyPageScreen() {
   }
 
   /**
-   * 점심 알림(매일 12:30) 켜기/끄기. 켤 때 iOS 권한이 없으면 여기서 처음 묻는다.
+   * 하루 한 줄 알림 켜기/끄기. 켤 때 iOS 권한이 없으면 여기서 처음 묻는다.
    * 예전에 거절했다면 앱이 다시 물을 수 없다 — 설정 앱에서 켜도록 안내한다.
    * 결과가 나올 때까지 스위치를 먼저 바꾸지 않는다(권한 실패인데 켜진 것처럼 보이면 안 된다).
    */
-  async function toggleLunchReminder() {
+  async function toggleDailyReminder() {
     hapticTap();
-    if (lunchReminder) {
-      setLunchReminder(false);
-      disableLunchReminder().catch((e) => console.warn('[lunch-reminder] 끄기 실패:', e));
-      show('점심 알림을 껐어요');
+    if (dailyReminder) {
+      setDailyReminder(false);
+      disableDailyReminder().catch((e) => console.warn('[daily-reminder] 끄기 실패:', e));
+      show('알림을 껐어요');
       return;
     }
     if (Platform.OS === 'web') {
@@ -129,15 +133,34 @@ export default function MyPageScreen() {
       return;
     }
     try {
-      if (await enableLunchReminder()) {
-        setLunchReminder(true);
-        show('매일 낮 12:30에 알려 드릴게요');
+      if (await enableDailyReminder(reminderTime)) {
+        setDailyReminder(true);
+        show(`매일 ${formatReminderTime(reminderTime)}에 알려 드릴게요`);
       } else {
         show('설정 앱 > 알림 > define에서 알림을 허용해 주세요');
       }
     } catch (e) {
-      console.warn('[lunch-reminder] 켜기 실패:', e);
+      console.warn('[daily-reminder] 켜기 실패:', e);
       show('알림을 켜지 못했어요 · 잠시 후 다시 시도해 주세요');
+    }
+  }
+
+  /** 시간 바꾸기 — 켜진 상태라 권한은 이미 있다. 같은 ID로 다시 예약하면 이전 시각은 사라진다. */
+  async function saveReminderTime(time: ReminderTime) {
+    if (time.hour === reminderTime.hour && time.minute === reminderTime.minute) return;
+    setReminderTime(time);
+    try {
+      if (await enableDailyReminder(time)) {
+        hapticSuccess();
+        show(`매일 ${formatReminderTime(time)}에 알려 드릴게요`);
+      } else {
+        // 그사이 설정 앱에서 알림을 꺼 버린 경우 — 스위치도 실제 상태에 맞춘다.
+        setDailyReminder(false);
+        show('설정 앱 > 알림 > define에서 알림을 허용해 주세요');
+      }
+    } catch (e) {
+      console.warn('[daily-reminder] 시간 변경 실패:', e);
+      show('시간을 바꾸지 못했어요 · 잠시 후 다시 시도해 주세요');
     }
   }
 
@@ -516,14 +539,27 @@ export default function MyPageScreen() {
             onPress={toggleHaptics}
           />
           <Divider theme={theme} />
-          {/* 점심 알림 — 매일 12:30 로컬 알림(서버 없이 폰이 띄운다). */}
+          {/* 하루 한 줄 알림 — 매일 고른 시각에 로컬 알림(서버 없이 폰이 띄운다). */}
           <Row
             theme={theme}
             icon="bell"
-            label="점심 알림 · 12:30"
-            toggle={lunchReminder}
-            onPress={toggleLunchReminder}
+            label="하루 한 줄 알림"
+            toggle={dailyReminder}
+            onPress={toggleDailyReminder}
           />
+          {/* 시간은 켜져 있을 때만 — 꺼진 알림의 시간을 고르게 하면 "왜 안 오지?"가 된다. */}
+          {dailyReminder && (
+            <>
+              <Divider theme={theme} />
+              <Row
+                theme={theme}
+                icon="clock"
+                label="알림 시간"
+                value={formatReminderTime(reminderTime)}
+                onPress={() => setTimeSheetOpen(true)}
+              />
+            </>
+          )}
         </Group>
 
         {/* ─── 잉크(재화) — 로그인 사용자만 ─── */}
@@ -711,6 +747,14 @@ export default function MyPageScreen() {
           </ThemedText>
         </View>
       </ScrollView>
+
+      {/* 하루 한 줄 알림 시간 */}
+      <TimePickerSheet
+        visible={timeSheetOpen}
+        value={reminderTime}
+        onSave={saveReminderTime}
+        onClose={() => setTimeSheetOpen(false)}
+      />
 
       {/* 닉네임 편집 시트 */}
       <NicknameSheet

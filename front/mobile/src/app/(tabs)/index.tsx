@@ -34,7 +34,7 @@ import { CustomWordSheet } from '@/components/domain/custom-word-sheet';
 import { SaveConfirmation } from '@/components/domain/save-confirmation';
 import { Button, Card, ConfirmDialog, FadeIn, useToast } from '@/components/primitives';
 import { useAfterDismiss } from '@/components/primitives/use-after-dismiss';
-import { enableLunchReminder } from '@/lib/lunch-reminder';
+import { enableDailyReminder, formatReminderTime } from '@/lib/daily-reminder';
 import { useSettingsStore } from '@/store/settings-store';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -149,11 +149,12 @@ export default function RecordScreen() {
   const heroSuffix = { ...theme.typography.displaySub, ...heroSize };
   const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
-  // 점심 알림 — 첫 기록을 마친 순간에 한 번만 묻는다(쓰는 맛을 본 뒤라야 "매일 한 줄"이 와닿는다).
-  const lunchReminderAsked = useSettingsStore((s) => s.lunchReminderAsked);
-  const setLunchReminderAsked = useSettingsStore((s) => s.setLunchReminderAsked);
-  const setLunchReminder = useSettingsStore((s) => s.setLunchReminder);
-  const [lunchAskVisible, setLunchAskVisible] = useState(false);
+  // 하루 한 줄 알림 — 첫 기록을 마친 순간에 한 번만 묻는다(쓰는 맛을 본 뒤라야 "매일 한 줄"이 와닿는다).
+  const reminderAsked = useSettingsStore((s) => s.dailyReminderAsked);
+  const setReminderAsked = useSettingsStore((s) => s.setDailyReminderAsked);
+  const setDailyReminder = useSettingsStore((s) => s.setDailyReminder);
+  const reminderTime = useSettingsStore((s) => s.reminderTime);
+  const [reminderAskVisible, setReminderAskVisible] = useState(false);
   const afterConfirm = useAfterDismiss();
   const { show: showToast } = useToast();
 
@@ -541,23 +542,23 @@ export default function RecordScreen() {
     // 다음 단어 자연스럽게 이어가기 — design-source의 complete 흐름과 동일
     drawNewWord();
     // 완료 창이 다 닫힌 뒤에 묻는다 — iOS는 닫히는 중인 창 위에 새 창을 못 띄운다.
-    if (!lunchReminderAsked && Platform.OS !== 'web') {
-      afterConfirm.schedule(() => setLunchAskVisible(true));
+    if (!reminderAsked && Platform.OS !== 'web') {
+      afterConfirm.schedule(() => setReminderAskVisible(true));
     }
   }
 
   /** "받을래요" — 이때 처음으로 iOS 권한 창이 뜬다. 거절해도 다시 묻지 않는다(마이페이지에서 켤 수 있음). */
-  async function acceptLunchReminder() {
-    setLunchReminderAsked();
+  async function acceptDailyReminder() {
+    setReminderAsked();
     try {
-      if (await enableLunchReminder()) {
-        setLunchReminder(true);
-        showToast('매일 낮 12:30에 알려 드릴게요');
+      if (await enableDailyReminder(reminderTime)) {
+        setDailyReminder(true);
+        showToast(`매일 ${formatReminderTime(reminderTime)}에 알려 드릴게요`);
       } else {
         showToast('알림은 마이페이지에서 언제든 켤 수 있어요');
       }
     } catch (e) {
-      console.warn('[lunch-reminder] 켜기 실패:', e);
+      console.warn('[daily-reminder] 켜기 실패:', e);
     }
   }
 
@@ -798,17 +799,17 @@ export default function RecordScreen() {
         onClose={() => setCustomSheetVisible(false)}
       />
 
-      {/* 첫 기록 뒤 한 번 — 점심 알림 의사 확인(이 창을 거쳐야만 iOS 권한 창을 띄운다). */}
+      {/* 첫 기록 뒤 한 번 — 알림 의사 확인(이 창을 거쳐야만 iOS 권한 창을 띄운다). */}
       <ConfirmDialog
-        visible={lunchAskVisible}
-        title="점심 알림 받아볼까요?"
-        message={'매일 낮 12:30에 짧은 한 줄을 권해 드려요.\n마이페이지에서 언제든 끌 수 있어요.'}
+        visible={reminderAskVisible}
+        title="하루 한 줄 알림 받아볼까요?"
+        message={`매일 ${formatReminderTime(reminderTime)}에 짧은 한 줄을 권해 드려요.\n시간은 마이페이지에서 바꿀 수 있어요.`}
         confirmLabel="받을래요"
         cancelLabel="괜찮아요"
-        onConfirm={acceptLunchReminder}
+        onConfirm={acceptDailyReminder}
         onClose={() => {
-          setLunchAskVisible(false);
-          setLunchReminderAsked();
+          setReminderAskVisible(false);
+          setReminderAsked();
         }}
       />
 
