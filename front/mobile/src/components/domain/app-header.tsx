@@ -25,6 +25,7 @@ import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InkBalanceChip } from '@/components/domain/ink-balance-chip';
+import { StreakChip } from '@/components/domain/streak-chip';
 import { Wordmark } from '@/components/domain/wordmark';
 import { PressableScale } from '@/components/primitives';
 import { ThemedText } from '@/components/themed-text';
@@ -91,6 +92,8 @@ export function AppHeader() {
         </View>
 
         <View style={styles.headerRight}>
+          {/* 연속 기록 — 로그인 없이도 이 폰의 단어장으로 센다. 누르면 기록 달력. */}
+          <StreakChip />
           {inkBalance != null && <InkBalanceChip balance={inkBalance} />}
           {/* 마이페이지 버튼 — 전엔 이니셜만 든 동그라미라 "눌리는 건지, 뭐로 가는지" 몰랐다.
               글자 "마이페이지"만 둔다(썸네일 없이). 높이·배경은 옆 잉크칩과 같은 pill 프리셋. */}

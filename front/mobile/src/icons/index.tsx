@@ -49,6 +49,8 @@ export type IconName =
   | 'vibrate' // 진동 피드백 — 휴대폰 + 양옆 떨림 선
   | 'bell'
   | 'clock' // 하루 한 줄 알림 시간
+  | 'flame' // 연속 기록
+  | 'shield' // 연속 방어권
   | 'ruby' // 재화
   | 'ink' // 재화 "잉크" (잉크방울) — ruby를 대체하는 표시용
   | 'sun' // 라이트 모드
@@ -235,6 +237,17 @@ function renderIcon(name: IconName, p: StrokeProps) {
         <>
           <Path d="M6.5 10a5.5 5.5 0 0111 0c0 4 1.5 5.5 1.5 5.5H5s1.5-1.5 1.5-5.5z" {...p} />
           <Path d="M10 18.5a2 2 0 004 0" {...p} />
+        </>
+      );
+    case 'flame':
+      return (
+        <Path d="M12 3c.6 3.2 4.5 5.2 4.5 9.5a4.5 4.5 0 01-9 0c0-1.9.9-3.3 2-4.4.2 1.5.9 2.4 1.8 2.9C11 8.6 11.3 5.6 12 3z" {...p} />
+      );
+    case 'shield':
+      return (
+        <>
+          <Path d="M12 3.5l7 2.6v5.4c0 4.3-2.9 7.6-7 9-4.1-1.4-7-4.7-7-9V6.1z" {...p} />
+          <Path d="M9 12l2.2 2.2L15.2 10" {...p} />
         </>
       );
     case 'clock':
