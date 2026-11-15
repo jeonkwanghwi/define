@@ -36,6 +36,12 @@ type SettingsState = {
   /** 본문 글꼴 세트(theme/fonts.ts). 지금은 하나뿐 — 세트가 늘면 마이페이지에서 고르게 한다. */
   fontSet: FontSetId;
   setFontSet: (id: FontSetId) => void;
+  /** 점심 알림(매일 12:30). 기본 꺼짐 — 권한이 필요해서 사용자가 "받을래요"를 눌러야 켠다. */
+  lunchReminder: boolean;
+  setLunchReminder: (on: boolean) => void;
+  /** "점심 알림 받아볼까요?"를 이미 물었나 — 한 번만 묻는다(거절해도 다시 조르지 않는다). */
+  lunchReminderAsked: boolean;
+  setLunchReminderAsked: () => void;
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -49,6 +55,10 @@ export const useSettingsStore = create<SettingsState>()(
       setPalette: (id) => set({ palette: id }),
       fontSet: DEFAULT_FONT_SET,
       setFontSet: (id) => set({ fontSet: id }),
+      lunchReminder: false,
+      setLunchReminder: (on) => set({ lunchReminder: on }),
+      lunchReminderAsked: false,
+      setLunchReminderAsked: () => set({ lunchReminderAsked: true }),
     }),
     {
       name: 'define-settings-v1', // 모델 깨는 변경 시 v2로 마이그레이션
@@ -60,6 +70,8 @@ export const useSettingsStore = create<SettingsState>()(
       // early return으로 끊으면 v0 사용자가 v2 보정을 못 받고, 반대로 덮어쓰면 고른 테마가 날아간다.
       // v2 → v3: palette 추가. 예전 저장값엔 없다 → 기본 팔레트를 채운다.
       // 모르는 id(없어진 팔레트 등)가 들어 있어도 기본값으로 — 없는 색으로 앱을 칠할 수는 없다.
+      // lunchReminder·lunchReminderAsked는 버전을 올리지 않았다 — 없으면 persist가 초기값(false)을
+      // 채운다(얕은 병합). 기존 값을 고쳐야 하는 변경이 아니라서 migrate 단계가 필요 없다.
       // v3 → v4: fontSet 추가. palette와 같은 규칙(없거나 모르는 id면 기본 세트).
       version: 4,
       migrate: (persisted, version) => {

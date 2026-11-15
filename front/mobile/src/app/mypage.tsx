@@ -35,6 +35,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icon, type IconName } from '@/icons';
 import { hapticError, hapticSuccess, hapticTap, hapticWarning } from '@/lib/haptics';
+import { disableLunchReminder, enableLunchReminder } from '@/lib/lunch-reminder';
 import { toSuffix } from '@/lib/korean';
 import { DOCS_ORIGIN, openDoc } from '@/lib/open-doc';
 import { countUnsynced, syncJournal, useUnuploadableCount } from '@/lib/sync-journal';
@@ -62,7 +63,6 @@ const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
  * **지우지 않고 가린다** — 아래 Row는 그대로 살아 있어서 기능이 준비되면 이 상수만 true로
  * 바꾸면 돌아온다. 실제 구현은 DEVELOPMENT.md "다음 후보 — 마이페이지 후속"에 있다.
  */
-const SHOW_NOTIFICATION_SETTING = false;
 const SHOW_PREMIUM_THEME = false;
 
 const LOGIN_METHOD_LABEL: Record<LoginMethod, string> = { email: '이메일', kakao: '카카오', apple: 'Apple' };
@@ -84,6 +84,8 @@ export default function MyPageScreen() {
 
   const haptics = useSettingsStore((s) => s.haptics);
   const setHaptics = useSettingsStore((s) => s.setHaptics);
+  const lunchReminder = useSettingsStore((s) => s.lunchReminder);
+  const setLunchReminder = useSettingsStore((s) => s.setLunchReminder);
   const themeMode = useSettingsStore((s) => s.themeMode);
   const palette = useSettingsStore((s) => s.palette);
   const setPalette = useSettingsStore((s) => s.setPalette);
@@ -107,6 +109,36 @@ export default function MyPageScreen() {
     setHaptics(next);
     if (next) hapticSuccess();
     show(next ? '진동을 켰어요' : '진동을 껐어요');
+  }
+
+  /**
+   * 점심 알림(매일 12:30) 켜기/끄기. 켤 때 iOS 권한이 없으면 여기서 처음 묻는다.
+   * 예전에 거절했다면 앱이 다시 물을 수 없다 — 설정 앱에서 켜도록 안내한다.
+   * 결과가 나올 때까지 스위치를 먼저 바꾸지 않는다(권한 실패인데 켜진 것처럼 보이면 안 된다).
+   */
+  async function toggleLunchReminder() {
+    hapticTap();
+    if (lunchReminder) {
+      setLunchReminder(false);
+      disableLunchReminder().catch((e) => console.warn('[lunch-reminder] 끄기 실패:', e));
+      show('점심 알림을 껐어요');
+      return;
+    }
+    if (Platform.OS === 'web') {
+      show('알림은 앱에서만 받을 수 있어요');
+      return;
+    }
+    try {
+      if (await enableLunchReminder()) {
+        setLunchReminder(true);
+        show('매일 낮 12:30에 알려 드릴게요');
+      } else {
+        show('설정 앱 > 알림 > define에서 알림을 허용해 주세요');
+      }
+    } catch (e) {
+      console.warn('[lunch-reminder] 켜기 실패:', e);
+      show('알림을 켜지 못했어요 · 잠시 후 다시 시도해 주세요');
+    }
   }
 
   const [nicknameSheetOpen, setNicknameSheetOpen] = useState(false);
@@ -483,12 +515,15 @@ export default function MyPageScreen() {
             toggle={haptics}
             onPress={toggleHaptics}
           />
-          {SHOW_NOTIFICATION_SETTING && (
-            <>
-              <Divider theme={theme} />
-              <Row theme={theme} icon="bell" label="알림 설정" value="준비 중" disabled />
-            </>
-          )}
+          <Divider theme={theme} />
+          {/* 점심 알림 — 매일 12:30 로컬 알림(서버 없이 폰이 띄운다). */}
+          <Row
+            theme={theme}
+            icon="bell"
+            label="점심 알림 · 12:30"
+            toggle={lunchReminder}
+            onPress={toggleLunchReminder}
+          />
         </Group>
 
         {/* ─── 잉크(재화) — 로그인 사용자만 ─── */}

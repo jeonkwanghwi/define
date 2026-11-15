@@ -32,7 +32,10 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { AppHeader } from '@/components/domain/app-header';
 import { CustomWordSheet } from '@/components/domain/custom-word-sheet';
 import { SaveConfirmation } from '@/components/domain/save-confirmation';
-import { Button, Card, ConfirmDialog, FadeIn } from '@/components/primitives';
+import { Button, Card, ConfirmDialog, FadeIn, useToast } from '@/components/primitives';
+import { useAfterDismiss } from '@/components/primitives/use-after-dismiss';
+import { enableLunchReminder } from '@/lib/lunch-reminder';
+import { useSettingsStore } from '@/store/settings-store';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { RECOMMENDED_WORDS } from '@/data/recommended-words';
@@ -146,6 +149,13 @@ export default function RecordScreen() {
   const heroSuffix = { ...theme.typography.displaySub, ...heroSize };
   const router = useRouter();
   const addEntry = useJournalStore((s) => s.addEntry);
+  // 점심 알림 — 첫 기록을 마친 순간에 한 번만 묻는다(쓰는 맛을 본 뒤라야 "매일 한 줄"이 와닿는다).
+  const lunchReminderAsked = useSettingsStore((s) => s.lunchReminderAsked);
+  const setLunchReminderAsked = useSettingsStore((s) => s.setLunchReminderAsked);
+  const setLunchReminder = useSettingsStore((s) => s.setLunchReminder);
+  const [lunchAskVisible, setLunchAskVisible] = useState(false);
+  const afterConfirm = useAfterDismiss();
+  const { show: showToast } = useToast();
 
   // 단어 풀과 현재 인덱스. 진입 시 값은 임시 — 오늘의 단어는 아래 settleHero가 정해 띄운다.
   // 사용자가 커스텀 단어를 추가할 수 있으므로 mutable.
@@ -530,6 +540,25 @@ export default function RecordScreen() {
     setConfirmVisible(false);
     // 다음 단어 자연스럽게 이어가기 — design-source의 complete 흐름과 동일
     drawNewWord();
+    // 완료 창이 다 닫힌 뒤에 묻는다 — iOS는 닫히는 중인 창 위에 새 창을 못 띄운다.
+    if (!lunchReminderAsked && Platform.OS !== 'web') {
+      afterConfirm.schedule(() => setLunchAskVisible(true));
+    }
+  }
+
+  /** "받을래요" — 이때 처음으로 iOS 권한 창이 뜬다. 거절해도 다시 묻지 않는다(마이페이지에서 켤 수 있음). */
+  async function acceptLunchReminder() {
+    setLunchReminderAsked();
+    try {
+      if (await enableLunchReminder()) {
+        setLunchReminder(true);
+        showToast('매일 낮 12:30에 알려 드릴게요');
+      } else {
+        showToast('알림은 마이페이지에서 언제든 켤 수 있어요');
+      }
+    } catch (e) {
+      console.warn('[lunch-reminder] 켜기 실패:', e);
+    }
   }
 
   function openCustomWord() {
@@ -767,6 +796,20 @@ export default function RecordScreen() {
         visible={customSheetVisible}
         onAdd={addCustomWord}
         onClose={() => setCustomSheetVisible(false)}
+      />
+
+      {/* 첫 기록 뒤 한 번 — 점심 알림 의사 확인(이 창을 거쳐야만 iOS 권한 창을 띄운다). */}
+      <ConfirmDialog
+        visible={lunchAskVisible}
+        title="점심 알림 받아볼까요?"
+        message={'매일 낮 12:30에 짧은 한 줄을 권해 드려요.\n마이페이지에서 언제든 끌 수 있어요.'}
+        confirmLabel="받을래요"
+        cancelLabel="괜찮아요"
+        onConfirm={acceptLunchReminder}
+        onClose={() => {
+          setLunchAskVisible(false);
+          setLunchReminderAsked();
+        }}
       />
 
       {/* 쓰던 글이 있을 때 단어 전환 확인 — 글을 다른 단어로 데려가지 않는다. */}
