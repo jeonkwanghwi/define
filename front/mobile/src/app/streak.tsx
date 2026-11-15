@@ -102,7 +102,7 @@ export default function StreakScreen() {
                 <ThemedText variant="h2" style={{ color: theme.colors.point.p600 }}>일</ThemedText>
               </ThemedText>
             </View>
-            <Icon name="flame" size={40} color={theme.colors.point.p600} />
+            <View style={[styles.heroDivider, { backgroundColor: theme.colors.line.base }]} />
             <View style={styles.heroCol}>
               <ThemedText variant="caption" tone="secondary" style={styles.heroLabel}>
                 최장 연속
@@ -237,6 +237,7 @@ const styles = StyleSheet.create({
   hero: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingVertical: 8 },
   heroCol: { alignItems: 'center', minWidth: 110 },
   heroLabel: { letterSpacing: 0.5, marginBottom: 2 },
+  heroDivider: { width: StyleSheet.hairlineWidth * 2, alignSelf: 'stretch', marginVertical: 12 },
   message: { textAlign: 'center', marginTop: 4 },
   card: { padding: 16 },
   monthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
