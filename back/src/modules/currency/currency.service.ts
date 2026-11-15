@@ -8,6 +8,11 @@ export const ATTENDANCE_AMOUNT = 10;
 
 export type AttendanceResult = { balance: number; claimed: boolean; amount: number };
 export type RecordBonus = { milestone: number; amount: number; balance: number };
+export type EntryReward = { amount: number; countToday: number; balance: number };
+
+/** 정의 1개당 잉크 · 하루 상한(개수). 사용자 결정 2026-11-15 — 광장 도배를 막으려 상한을 둔다. */
+export const ENTRY_REWARD_AMOUNT = 3;
+export const ENTRY_DAILY_CAP = 5;
 
 @Injectable()
 export class CurrencyService {
@@ -67,6 +72,17 @@ export class CurrencyService {
    * 여러 날치를 몰아서 주지 않는다 — 날짜는 서버가 받은 시각(createdAt)이라 몰아 올릴 수도 없다.
    * 오늘 받을 게 없으면(오늘 기록 없음·그날 보상 0·이미 받음) null.
    */
+  /**
+   * 정의 보상 — 이번 동기화에서 **새로 생긴** 정의 개수만큼 +3, 오늘(한국 날짜) 5개까지. 멱등에 가깝다:
+   * 같은 글을 다시 보내면 새로 생긴 게 0이라 주지 않고, 지웠다 다시 써도 그날 센 개수는 줄지 않는다.
+   * 줄 게 없으면 null.
+   */
+  async grantEntryRewards(userId: string, newEntries: number, today: string): Promise<EntryReward | null> {
+    if (newEntries <= 0) return null;
+    const r = await this.currency.grantEntryRewards(userId, newEntries, today, ENTRY_REWARD_AMOUNT, ENTRY_DAILY_CAP);
+    return r.amount > 0 ? r : null;
+  }
+
   async grantRecordMilestone(
     userId: string,
     streak: number,

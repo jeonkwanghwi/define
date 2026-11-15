@@ -28,6 +28,18 @@ export abstract class CurrencyRepository {
    * 오늘(한국 날짜) 아직 기록 보너스를 안 받았을 때만 원자적으로 balance += amount, 마커 = today.
    * granted=false면 오늘 이미 받음(동시 요청 포함 — 이중지급 방지). balance=현재.
    */
+  /**
+   * 정의 보상 — 오늘(today) 이미 준 개수(used)를 보고 cap까지만 newEntries개에 perEntry씩 준다. 원자적.
+   * 날짜가 바뀌었으면 used=0부터. 반환 amount=이번에 준 잉크(0일 수 있음), countToday=오늘 누적 개수.
+   */
+  abstract grantEntryRewards(
+    userId: string,
+    newEntries: number,
+    today: string,
+    perEntry: number,
+    cap: number,
+  ): Promise<{ amount: number; countToday: number; balance: number }>;
+
   abstract grantRecord(
     userId: string,
     amount: number,

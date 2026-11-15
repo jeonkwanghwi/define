@@ -5,7 +5,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RecordBonus } from '../currency/currency.service';
+import { EntryReward, RecordBonus } from '../currency/currency.service';
 import { ImportJournalDto } from './dto/import-journal.dto';
 import { EntryRecord } from './entry.repository';
 import { JournalService } from './journal.service';
@@ -21,7 +21,7 @@ export class JournalController {
   import(
     @Req() req: { user: { userId: string } },
     @Body() dto: ImportJournalDto,
-  ): Promise<{ imported: number; updated: number; recordBonus?: RecordBonus }> {
+  ): Promise<{ imported: number; updated: number; recordBonus?: RecordBonus; entryReward?: EntryReward }> {
     return this.journal.import(req.user.userId, dto);
   }
 

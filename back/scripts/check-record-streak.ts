@@ -1,6 +1,6 @@
 /**
  * 연속 기록 보너스 점검. 실행: `npx ts-node scripts/check-record-streak.ts`
- * ① 한국 날짜 경계 ② 방어권(주 1회 빈 날) ③ 끊긴 뒤 1일째부터 다시 지급 ④ 같은 날 두 번째 기록은 무지급.
+ * ① 한국 날짜 경계 ② 방어권(주 1회 빈 날) ③ 마일스톤(40·50…일 +20)만 지급 ④ 같은 날 재지급 없음.
  */
 import * as assert from 'node:assert/strict';
 
@@ -41,17 +41,17 @@ const fake = {
 const svc = new CurrencyService(fake as never);
 
 void (async () => {
-  // 10일 연속 뒤 마커가 어제인 상태에서, 끊기고 다시 시작한 오늘(연속 1일) → +3 (예전 로직이면 0)
+  // 1~30일째는 이제 연속 보너스가 없다(정의 1개당 +3이 대신한다)
   repo.marker = '2026-11-10';
-  assert.deepEqual(await svc.grantRecordMilestone('u', 1, true, '2026-11-15'), { milestone: 1, amount: 3, balance: 3 });
-  // 같은 날 두 번째 기록 → 무지급
   assert.equal(await svc.grantRecordMilestone('u', 1, true, '2026-11-15'), null);
-  // 다음 날 2일째 → +3
-  assert.deepEqual(await svc.grantRecordMilestone('u', 2, true, '2026-11-16'), { milestone: 2, amount: 3, balance: 6 });
-  // 오늘 기록이 없는 동기화(옛 글 수정만) → 무지급
-  assert.equal(await svc.grantRecordMilestone('u', 2, false, '2026-11-17'), null);
-  // 31~39일째는 보상 0, 40일째 +20
+  assert.equal(await svc.grantRecordMilestone('u', 30, true, '2026-11-16'), null);
+  // 31~39일째도 0, 40일째 +20
   assert.equal(await svc.grantRecordMilestone('u', 35, true, '2026-12-20'), null);
-  assert.equal((await svc.grantRecordMilestone('u', 40, true, '2026-12-25'))?.amount, 20);
+  assert.deepEqual(await svc.grantRecordMilestone('u', 40, true, '2026-12-25'), { milestone: 40, amount: 20, balance: 20 });
+  // 같은 날 다시 → 무지급, 오늘 기록 없음 → 무지급
+  assert.equal(await svc.grantRecordMilestone('u', 40, true, '2026-12-25'), null);
+  assert.equal(await svc.grantRecordMilestone('u', 50, false, '2027-01-04'), null);
+  // 끊긴 뒤에도 다시 50일째가 되면 +20(예전엔 최고 기록 마커 때문에 막혔다)
+  assert.equal((await svc.grantRecordMilestone('u', 50, true, '2027-03-01'))?.amount, 20);
   console.log('ok');
 })();

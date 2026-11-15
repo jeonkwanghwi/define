@@ -5,7 +5,7 @@
  */
 import { BadRequestException, Injectable } from '@nestjs/common';
 
-import { CurrencyService, RecordBonus } from '../currency/currency.service';
+import { CurrencyService, EntryReward, RecordBonus } from '../currency/currency.service';
 import { ImportJournalDto } from './dto/import-journal.dto';
 import { EntryRecord, EntryRepository } from './entry.repository';
 import { computeRecordStreak, kstDate } from './record-streak';
@@ -24,7 +24,7 @@ export class JournalService {
   async import(
     userId: string,
     dto: ImportJournalDto,
-  ): Promise<{ imported: number; updated: number; recordBonus?: RecordBonus }> {
+  ): Promise<{ imported: number; updated: number; recordBonus?: RecordBonus; entryReward?: EntryReward }> {
     // savedAt은 기기가 보낸 값이라 믿을 수 없다. 미래 날짜(예: 9999년)를 허용하면 광장 정렬 맨 위를
     // 영원히 차지할 수 있었다. 시간대 차이를 감안해 "서버 지금 + 1일"까지만 받는다.
     // 하나라도 어긋나면 아무것도 쓰기 전에 거절한다(일부만 들어가는 반쪽 상태를 만들지 않게).
@@ -65,7 +65,10 @@ export class JournalService {
     const recordBonus =
       (await this.currency.grantRecordMilestone(userId, streak, recordedToday, today)) ?? undefined;
 
-    return { imported, updated, recordBonus };
+    // 정의 보상 — 이번에 새로 생긴 것만(수정·재전송은 0). 연속 보너스와 별개로 함께 줄 수 있다.
+    const entryReward = (await this.currency.grantEntryRewards(userId, imported, today)) ?? undefined;
+
+    return { imported, updated, recordBonus, entryReward };
   }
 
   /** 다운로드 동기화 — 한 사용자의 서버 entries 전체(최신순). */

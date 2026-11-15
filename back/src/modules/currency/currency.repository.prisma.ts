@@ -60,6 +60,43 @@ export class PrismaCurrencyRepository extends CurrencyRepository {
     return { ok: res.count > 0, balance: row?.balance ?? 0 };
   }
 
+  async grantEntryRewards(
+    userId: string,
+    newEntries: number,
+    today: string,
+    perEntry: number,
+    cap: number,
+  ): Promise<{ amount: number; countToday: number; balance: number }> {
+    // 읽고-계산하고-쓰기를 Serializable 트랜잭션으로 — 동시 동기화 두 건이 같은 "남은 개수"를 보고
+    // 상한을 넘겨 주는 일을 막는다(광고 보상과 같은 방식). 충돌(P2034)이면 한 번 다시 한다.
+    const run = () =>
+      this.prisma.$transaction(
+        async (tx) => {
+          const u = await tx.user.findUnique({
+            where: { id: userId },
+            select: { entryRewardDate: true, entryRewardCount: true, balance: true },
+          });
+          if (!u) return { amount: 0, countToday: 0, balance: 0 };
+          const used = u.entryRewardDate === today ? u.entryRewardCount : 0;
+          const give = Math.max(0, Math.min(newEntries, cap - used));
+          if (give === 0) return { amount: 0, countToday: used, balance: u.balance };
+          const updated = await tx.user.update({
+            where: { id: userId },
+            data: { entryRewardDate: today, entryRewardCount: used + give, balance: { increment: give * perEntry } },
+            select: { balance: true },
+          });
+          return { amount: give * perEntry, countToday: used + give, balance: updated.balance };
+        },
+        { isolationLevel: 'Serializable' },
+      );
+    try {
+      return await run();
+    } catch (e) {
+      if ((e as { code?: string }).code !== 'P2034') throw e;
+      return run();
+    }
+  }
+
   async grantRecord(
     userId: string,
     amount: number,
