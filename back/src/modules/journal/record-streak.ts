@@ -17,15 +17,38 @@ function kstDayNumber(d: Date): number {
   return Math.floor((d.getTime() + KST_OFFSET_MS) / DAY_MS);
 }
 
+/** 방어권 간격 — 방어된 날끼리 최소 이만큼 떨어져야 한다(= 7일에 한 번). */
+export const FREEZE_GAP_DAYS = 7;
+
 /**
- * computeRecordStreak — "가장 최근 기록일에서 끝나는 연속 런"의 길이(한국 날짜 기준). 순수 함수.
+ * streakWithFreeze — anchor(일 번호)에서 거꾸로 세는 연속 기록. **앱의 journal-store와 같은 규칙**이어야
+ * 화면의 "연속 N일"과 서버 보상이 어긋나지 않는다(바꾸면 양쪽을 같이 바꿀 것).
+ *
+ * 방어권(2026-11-15, 사용자 결정): 빈 날을 만나면 ① 그 전날은 썼고 ② 이미 방어한 날과 7일 이상
+ * 떨어져 있을 때만 그 빈 날을 건너뛴다. 이틀 연속 비면 ①에서 끊긴다. 방어된 날은 숫자에 더하지 않는다.
+ * 자동 적용 — 사용자가 누를 것은 없다.
+ */
+export function streakWithFreeze(days: Set<number>, anchor: number): { count: number; frozen: number[] } {
+  let count = 0;
+  const frozen: number[] = [];
+  for (let d = anchor; ; d--) {
+    if (days.has(d)) {
+      count++;
+      continue;
+    }
+    const canFreeze = days.has(d - 1) && frozen.every((f) => f - d >= FREEZE_GAP_DAYS);
+    if (!canFreeze) break;
+    frozen.push(d);
+  }
+  return { count, frozen };
+}
+
+/**
+ * computeRecordStreak — 가장 최근 기록일에서 끝나는 연속 기록 수(한국 날짜·방어권 포함). 순수 함수.
  * 같은 날 여러 개는 1일. 빈 배열 → 0.
  */
 export function computeRecordStreak(createdAt: Date[]): number {
   if (createdAt.length === 0) return 0;
   const days = new Set(createdAt.map(kstDayNumber));
-  const latest = Math.max(...days);
-  let streak = 0;
-  while (days.has(latest - streak)) streak++;
-  return streak;
+  return streakWithFreeze(days, Math.max(...days)).count;
 }
