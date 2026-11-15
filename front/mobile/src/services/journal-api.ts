@@ -17,6 +17,8 @@ export type ImportResult = {
   imported: number;
   updated: number;
   recordBonus?: { milestone: number; amount: number; balance: number };
+  /** 정의 보상(새로 생긴 정의 1개당 +3, 하루 5개) — 서버가 이번에 준 것. countToday=오늘 누적 개수. */
+  entryReward?: { amount: number; countToday: number; balance: number };
 };
 
 /** POST /api/journal/import */

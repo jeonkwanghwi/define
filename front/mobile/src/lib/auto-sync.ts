@@ -39,7 +39,7 @@ export function startAutoSync(): () => void {
         syncJournal(t)
           .then((res) => {
             // 잔액 갱신 + 루트 토스트("잉크 N개가 쌓였어요")까지 한 번에.
-            if (res.recordBonus) useAuthStore.getState().applyRecordBonus(res.recordBonus);
+            useAuthStore.getState().applyImportRewards(res);
             useAuthStore.getState().markSynced();
           })
           .catch((e) => {

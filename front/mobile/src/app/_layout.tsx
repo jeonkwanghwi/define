@@ -166,7 +166,7 @@ function AttendanceClaim() {
 
 /**
  * 연속 기록 보상 알림 — 출석과 같은 말투의 토스트. 보상은 기록 동기화 응답에 실려 와서
- * auth-store.applyRecordBonus가 recordBonus에 남긴다. 새 객체가 올 때마다 한 번 띄운다.
+ * auth-store.applyImportRewards가 recordBonus에 남긴다(정의 보상 + 연속 마일스톤). 새 객체가 올 때마다 한 번 띄운다.
  * (AttendanceClaim과 같은 이유로 ToastProvider 안쪽의 별도 컴포넌트.)
  */
 function RecordBonusToast() {
@@ -174,7 +174,10 @@ function RecordBonusToast() {
   const { show } = useToast();
 
   useEffect(() => {
-    if (bonus) show(`${bonus.milestone}일 연속 기록 · 잉크 ${bonus.amount}개가 쌓였어요`);
+    if (!bonus) return;
+    // 연속 마일스톤이 있으면 그걸 앞세우고, 정의 보상만이면 오늘 몇 번째인지(상한 5) 함께 말한다.
+    if (bonus.milestone) show(`${bonus.milestone}일 연속 기록 · 잉크 ${bonus.amount}개가 쌓였어요`);
+    else show(`잉크 ${bonus.amount}개가 쌓였어요 · 오늘 ${bonus.countToday}/5`);
   }, [bonus, show]);
 
   return null;

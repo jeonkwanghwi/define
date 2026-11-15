@@ -183,6 +183,11 @@ async function runSync(token: string): Promise<ImportResult> {
     total.imported += res.imported;
     total.updated += res.updated;
     if (res.recordBonus) total.recordBonus = res.recordBonus; // 마지막 소식만 — 잔액은 최신 값이면 된다
+    if (res.entryReward) {
+      // 묶음마다 받은 잉크는 더하고, 오늘 개수·잔액은 마지막(최신) 값을 쓴다.
+      const prev = total.entryReward?.amount ?? 0;
+      total.entryReward = { ...res.entryReward, amount: prev + res.entryReward.amount };
+    }
   }
   return total;
 }

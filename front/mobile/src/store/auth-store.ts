@@ -23,6 +23,7 @@ import {
   syncJournal,
 } from '@/lib/sync-journal';
 import { setUnauthorizedHandler } from '@/services/api-client';
+import type { ImportResult } from '@/services/journal-api';
 import {
   appleLogin as appleLoginApi,
   deleteAccount as deleteAccountApi,
@@ -66,7 +67,7 @@ type AuthState = {
    * 방금 받은 연속 기록 보상 — 루트의 토스트가 한 번 띄우는 "이벤트"다(새 객체 = 새 소식).
    * 저장하지 않는다(partialize에서 뺀다): 다시 켤 때마다 지난 보상 토스트가 뜨면 안 된다.
    */
-  recordBonus: { milestone: number; amount: number } | null;
+  recordBonus: { amount: number; milestone?: number; countToday?: number } | null;
   /**
    * 토큰이 거절돼 자동 로그아웃된 시각 — 루트가 "다시 로그인해 주세요" 토스트를 한 번 띄우는 이벤트.
    * recordBonus와 같은 이유로 저장하지 않는다.
@@ -118,10 +119,10 @@ type AuthState = {
   /** 출석 적립 등으로 잔액만 갱신(서버 응답값으로). */
   setBalance: (balance: number) => void;
   /**
-   * 연속 기록 보상 반영 — 잔액 갱신 + recordBonus로 토스트에 알린다.
+   * 기록 동기화로 받은 잉크 반영(정의 보상 + 연속 마일스톤) — 잔액 갱신 + recordBonus로 토스트에 알린다.
    * 잔액만 바꾸면 헤더 숫자만 조용히 변해 받은 줄 모른다(출석은 이미 토스트로 알린다).
    */
-  applyRecordBonus: (bonus: { milestone: number; amount: number; balance: number }) => void;
+  applyImportRewards: (res: ImportResult) => void;
   /** 동의 완료 표시(서버 기록 후). */
   setRecallConsented: () => void;
   /** 인증만 해제. 로컬 단어장은 보존. */
@@ -204,7 +205,7 @@ export const useAuthStore = create<AuthState>()(
         let failed = false;
         try {
           const res = await syncJournal(token);
-          if (res.recordBonus && stillCurrent()) get().applyRecordBonus(res.recordBonus);
+          if (stillCurrent()) get().applyImportRewards(res);
         } catch (e) {
           failed = true;
           console.warn('[auth] 올리기 실패 (다음 기회에 재시도):', e);
@@ -223,9 +224,12 @@ export const useAuthStore = create<AuthState>()(
         const user = get().user;
         if (user) set({ user: { ...user, balance } });
       },
-      applyRecordBonus: ({ milestone, amount, balance }) => {
-        get().setBalance(balance);
-        set({ recordBonus: { milestone, amount } });
+      applyImportRewards: ({ recordBonus, entryReward }) => {
+        if (!recordBonus && !entryReward) return;
+        const amount = (recordBonus?.amount ?? 0) + (entryReward?.amount ?? 0);
+        // 서버는 연속 보너스 → 정의 보상 순으로 준다 — 정의 보상의 잔액이 더 최신이다.
+        get().setBalance((entryReward ?? recordBonus)!.balance);
+        set({ recordBonus: { amount, milestone: recordBonus?.milestone, countToday: entryReward?.countToday } });
       },
       setRecallConsented: () => {
         const user = get().user;
@@ -339,9 +343,7 @@ async function reconcileForUser(
   let failed = false;
   try {
     const res = await syncJournal(token);
-    if (res.recordBonus) {
-      useAuthStore.getState().applyRecordBonus(res.recordBonus);
-    }
+    useAuthStore.getState().applyImportRewards(res);
   } catch (e) {
     console.warn('[auth] 업로드 실패 (다운로드는 계속 진행):', e);
     failed = true;
