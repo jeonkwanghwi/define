@@ -31,11 +31,9 @@ if (Platform.OS !== 'web') {
   });
 }
 
-/** "오후 12:30" — 마이페이지·안내 문구에서 같은 모양으로 쓴다. */
+/** "12:30", "22:05" — 24시간 표기(사용자 결정 2026-11-15). 마이페이지·안내 문구에서 같은 모양으로 쓴다. */
 export function formatReminderTime({ hour, minute }: ReminderTime): string {
-  const ampm = hour < 12 ? '오전' : '오후';
-  const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${ampm} ${h12}:${String(minute).padStart(2, '0')}`;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
 async function schedule({ hour, minute }: ReminderTime): Promise<void> {

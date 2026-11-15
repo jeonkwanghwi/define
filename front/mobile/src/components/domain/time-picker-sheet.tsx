@@ -50,7 +50,7 @@ export function TimePickerSheet({ visible, value, onSave, onClose }: TimePickerS
     DateTimePickerAndroid.open({
       value: toDate(value),
       mode: 'time',
-      is24Hour: false,
+      is24Hour: true,
       onChange: (event, date) => {
         if (event.type === 'set' && date) onSave({ hour: date.getHours(), minute: date.getMinutes() });
       },
@@ -87,7 +87,9 @@ export function TimePickerSheet({ visible, value, onSave, onClose }: TimePickerS
             value={draft}
             mode="time"
             display="spinner"
-            locale="ko-KR"
+            // 24시간 휠. iOS는 휠의 12/24시간제를 locale로 정한다 — ko-KR이면 오전/오후 칸이 생긴다.
+            // en_GB는 숫자만 나오는 24시간 휠이라 글자가 영어로 바뀌는 곳도 없다.
+            locale="en_GB"
             // 다크 모드에서 휠 글자가 바탕에 묻히지 않게 앱 테마를 따른다.
             themeVariant={theme.mode === 'dark' ? 'dark' : 'light'}
             onChange={(_, date) => date && setDraft(date)}
