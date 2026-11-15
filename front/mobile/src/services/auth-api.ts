@@ -55,6 +55,7 @@ export function resetPassword(
 export function login(email: string, password: string): Promise<AuthResult> {
   return apiRequest<AuthResult>('/auth/login', {
     method: 'POST',
+    retryOnNetworkError: true,
     body: { email, password },
   });
 }
@@ -73,7 +74,7 @@ export function kakaoLogin(input: {
   codeVerifier: string;
   redirectUri: string;
 }): Promise<AuthResult> {
-  return apiRequest<AuthResult>('/auth/kakao', { method: 'POST', body: input });
+  return apiRequest<AuthResult>('/auth/kakao', { method: 'POST', retryOnNetworkError: true, body: input });
 }
 
 /**
@@ -84,6 +85,7 @@ export function kakaoLogin(input: {
 export function appleLogin(identityToken: string, authorizationCode?: string): Promise<AuthResult> {
   return apiRequest<AuthResult>('/auth/apple', {
     method: 'POST',
+    retryOnNetworkError: true,
     body: { identityToken, authorizationCode },
   });
 }

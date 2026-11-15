@@ -39,6 +39,17 @@ type RequestOptions = {
   token?: string;
   /** 응답을 기다리는 최대 시간(ms). 기본 15초 — AI 답장처럼 원래 오래 걸리는 호출만 늘린다. */
   timeoutMs?: number;
+  /**
+   * 연결이 끊겨 실패하면(응답 전 네트워크 오류) 한 번 더 보낸다. **두 번 처리돼도 안전한 호출에만** 켠다.
+   *
+   * 왜: iOS는 서버와의 연결을 열어 두고 재사용하는데, 한동안 쉬면 서버(CloudFront) 쪽이 먼저 닫는다.
+   * 그 죽은 연결로 보낸 요청은 서버에 닿지 못하고 "연결 끊김"으로 실패한다. iOS는 GET이면 알아서
+   * 다시 보내지만 POST는 다시 보내지 않는다 — 그래서 "로그아웃 후 카카오 로그인 첫 시도만 실패,
+   * 두 번째는 성공"이 반복됐다(서버 기록에 첫 시도가 아예 없었다, 2026-11-15).
+   * 로그인은 다시 보내도 안전하다(같은 카카오 코드는 한 번만 쓰인다). 회상 대화처럼 잉크가 드는
+   * 호출은 응답만 잃은 경우 두 번 차감될 수 있어 켜지 않는다.
+   */
+  retryOnNetworkError?: boolean;
 };
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -66,14 +77,22 @@ export async function apiRequest<T>(path: string, options: RequestOptions): Prom
   // 서버가 응답을 안 주면 fetch는 끝없이 기다린다 → "진행 중"이 영원히 돈다. 시간을 정해 끊는다.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
+  const send = () =>
+    fetch(`${API_BASE}${path}`, {
       method: options.method,
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
       signal: controller.signal,
     });
+  let res: Response;
+  try {
+    try {
+      res = await send();
+    } catch (first) {
+      // 시간 초과는 다시 보내지 않는다 — 서버가 느린 것이지 연결이 죽은 게 아니다.
+      if (!options.retryOnNetworkError || controller.signal.aborted) throw first;
+      res = await send(); // 새 연결로 한 번만
+    }
   } catch {
     // 시간 초과(abort) 또는 네트워크 끊김. 영어 시스템 문구 대신 사용자가 할 수 있는 말로. status 0 = 응답 없음.
     const err: ApiError = controller.signal.aborted
